@@ -1,0 +1,61 @@
+name: EAS Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "hailscout-mobile/**"
+      - ".github/workflows/eas-build.yml"
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "Platform to build"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - ios
+          - android
+          - all
+      profile:
+        description: "Build profile"
+        required: true
+        default: "preview"
+        type: choice
+        options:
+          - development
+          - preview
+          - production
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./hailscout-mobile
+
+    strategy:
+      matrix:
+        platform: ${{ fromJson(github.event.inputs.platform == 'all' && '["ios", "android"]' || format('["{0}"]', github.event.inputs.platform)) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build with EAS
+        run: |
+          eas build \
+            --platform ${{ matrix.platform }} \
+            --profile ${{ github.event.inputs.profile || 'preview' }} \
+            --wait \
+            --auto-submit

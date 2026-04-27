@@ -1,0 +1,32 @@
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src"]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "ARG",    # flake8-unused-arguments
+    "SIM",    # flake8-simplify
+    "RUF",    # Ruff-specific
+    "PLE",    # pylint errors
+]
+ignore = [
+    "E501",   # Line too long (Black handles this)
+    "ARG001", # Unused function argument (common in FastAPI routes)
+    "PLR0913", # Too many arguments
+]
+
+[tool.ruff.lint.isort]
+force-single-line = false
+known-first-party = ["hailscout_api"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ARG", "F841"]  # Allow unused args in test fixtures
+"migrations/*" = ["F401"]     # Allow unused imports in Alembic

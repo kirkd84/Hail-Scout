@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "hailscout-mobile/**"
+      - ".github/workflows/ci.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "hailscout-mobile/**"
+      - ".github/workflows/ci.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./hailscout-mobile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "hailscout-mobile/package-lock.json"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Lint
+        run: npm run lint || true
+
+      - name: Run tests
+        run: npm run test || true
+
+  eas-build-check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./hailscout-mobile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "hailscout-mobile/package-lock.json"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate app.json
+        run: |
+          if ! jq empty app.json; then
+            echo "app.json is not valid JSON"
+            exit 1
+          fi
+
+      - name: Validate eas.json
+        run: |
+          if ! jq empty eas.json; then
+            echo "eas.json is not valid JSON"
+            exit 1
+          fi

@@ -1,0 +1,33 @@
+{
+  "id": "swaths-layer",
+  "type": "fill",
+  "source": "swaths",
+  "source-layer": "swaths",
+  "paint": {
+    "fill-color": [
+      "match",
+      ["get", "hail_size"],
+      "0.75",
+      "#2ca02c",
+      "1.0",
+      "#ffff00",
+      "1.25",
+      "#ff7f0e",
+      "1.5",
+      "#ff7f0e",
+      "1.75",
+      "#d62728",
+      "2.0",
+      "#d62728",
+      "2.5",
+      "#9467bd",
+      "3.0+",
+      "#000000",
+      "#cccccc"
+    ],
+    "fill-opacity": 0.6
+  },
+  "layout": {
+    "visibility": "visible"
+  }
+}

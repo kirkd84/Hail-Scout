@@ -1,0 +1,197 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+
+Description: |
+  HailScout MRMS MESH ingestion pipeline.
+  - Lambda function runs every 2 minutes via EventBridge cron
+  - Reads from noaa-mrms-pds bucket, writes to hailscout-raw
+  - Upserts into PostGIS database
+
+Globals:
+  Function:
+    Timeout: 300
+    MemorySize: 1024
+    Runtime: python3.12
+    Architectures:
+      - arm64  # Graviton for cost savings
+    Tracing: Active
+    Environment:
+      Variables:
+        ENVIRONMENT: !Ref Environment
+        LOG_LEVEL: !Ref LogLevel
+
+Parameters:
+  Environment:
+    Type: String
+    Default: development
+    AllowedValues:
+      - development
+      - staging
+      - production
+    Description: Deployment environment
+
+  LogLevel:
+    Type: String
+    Default: INFO
+    AllowedValues:
+      - DEBUG
+      - INFO
+      - WARNING
+      - ERROR
+    Description: CloudWatch log level
+
+  DBUser:
+    Type: String
+    Default: hailscout
+    Description: Database username
+
+  DBPassword:
+    Type: String
+    NoEcho: true
+    Description: Database password
+
+  DBHost:
+    Type: String
+    Description: Database host (RDS endpoint)
+
+  DBPort:
+    Type: Number
+    Default: 5432
+    Description: Database port
+
+  DBName:
+    Type: String
+    Default: hailscout_dev
+    Description: Database name
+
+  HailScoutRawBucket:
+    Type: String
+    Default: hailscout-raw
+    Description: S3 bucket for processed GeoTIFFs
+
+  AWSAccountId:
+    Type: String
+    Description: AWS Account ID
+
+Resources:
+  # Lambda Execution Role
+  MRMSIngestionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess
+      Policies:
+        # Read from NOAA MRMS public bucket
+        - PolicyName: NOAAMRMSRead
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - arn:aws:s3:::noaa-mrms-pds
+                  - arn:aws:s3:::noaa-mrms-pds/*
+
+        # Write to hailscout-raw bucket
+        - PolicyName: HailScoutRawWrite
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                Resource:
+                  - !Sub "arn:aws:s3:::${HailScoutRawBucket}"
+                  - !Sub "arn:aws:s3:::${HailScoutRawBucket}/*"
+
+        # VPC access (to reach RDS)
+        - PolicyName: LambdaVPCExecution
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                Resource: "*"
+
+  # Lambda Function
+  MRMSIngestionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "hailscout-mrms-ingestion-${Environment}"
+      CodeUri: src/
+      Handler: hailscout_pipeline.lambda_handler.handler
+      Role: !GetAtt MRMSIngestionRole.Arn
+      Description: Fetch latest NOAA MRMS MESH, parse, extract swaths, upsert to PostGIS
+      EphemeralStorage:
+        Size: 10240  # 10 GB for large GRIB2 files
+      Environment:
+        Variables:
+          DB_USER: !Ref DBUser
+          DB_PASSWORD: !Ref DBPassword
+          DB_HOST: !Ref DBHost
+          DB_PORT: !Ref DBPort
+          DB_NAME: !Ref DBName
+          HAILSCOUT_RAW_BUCKET: !Ref HailScoutRawBucket
+          AWS_ACCOUNT_ID: !Ref AWSAccountId
+      Events:
+        # 2-minute EventBridge cron
+        MRMSIngestionSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: rate(2 minutes)
+            Description: Trigger MRMS ingestion every 2 minutes
+
+  # CloudWatch Alarm: Alert if no successful run in 10 minutes
+  MRMSIngestionAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "hailscout-mrms-no-run-${Environment}"
+      AlarmDescription: Page if MRMS ingestion Lambda hasn't run successfully in 10 minutes
+      MetricName: Invocations
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 300  # 5 minutes
+      EvaluationPeriods: 2  # 10 minutes total
+      Threshold: 0
+      ComparisonOperator: LessThanThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref MRMSIngestionFunction
+      TreatMissingData: breaching
+      # TODO: Add SNS topic for alerting in production
+      # AlarmActions:
+      #   - !Ref PagerDutyTopic
+
+  # Log Group with retention
+  MRMSIngestionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/hailscout-mrms-ingestion-${Environment}"
+      RetentionInDays: 30
+
+Outputs:
+  MRMSIngestionFunctionArn:
+    Description: Lambda function ARN
+    Value: !GetAtt MRMSIngestionFunction.Arn
+    Export:
+      Name: !Sub "hailscout-mrms-function-${Environment}"
+
+  MRMSIngestionRoleArn:
+    Description: Lambda execution role ARN
+    Value: !GetAtt MRMSIngestionRole.Arn
+    Export:
+      Name: !Sub "hailscout-mrms-role-${Environment}"

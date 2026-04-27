@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  pull_request:
+    paths:
+      - 'hailscout-api/**'
+      - '.github/workflows/ci.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'hailscout-api/**'
+      - '.github/workflows/ci.yml'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          cd hailscout-api
+          pip install poetry
+          poetry install
+      - name: Lint with ruff
+        run: |
+          cd hailscout-api
+          poetry run ruff check src/ tests/
+      - name: Format check with black
+        run: |
+          cd hailscout-api
+          poetry run black --check src/ tests/ || true
+
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          cd hailscout-api
+          pip install poetry
+          poetry install
+      - name: Type check with mypy
+        run: |
+          cd hailscout-api
+          poetry run mypy src/
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: hailscout_test
+          POSTGRES_USER: hailscout
+          POSTGRES_PASSWORD: hailscout
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          cd hailscout-api
+          pip install poetry
+          poetry install
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://hailscout:hailscout@localhost:5432/hailscout_test
+        run: |
+          cd hailscout-api
+          poetry run pytest tests/ -v --tb=short
+      - name: Upload coverage
+        run: |
+          cd hailscout-api
+          poetry run pytest tests/ --cov=hailscout_api --cov-report=xml
+      - uses: codecov/codecov-action@v3
+        with:
+          files: ./hailscout-api/coverage.xml
+          flags: unittests

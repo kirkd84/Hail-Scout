@@ -1,0 +1,74 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - uses: abatilo/actions-poetry@v2
+        with:
+          poetry-version: "1.7.0"
+
+      - name: Install AWS SAM CLI
+        run: |
+          pip install aws-sam-cli
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsRole
+          aws-region: us-east-1
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Run tests
+        env:
+          DB_USER: test
+          DB_PASSWORD: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: test
+        run: poetry run pytest tests/ -v
+
+      - name: Build and Deploy with SAM
+        env:
+          AWS_REGION: us-east-1
+          ENVIRONMENT: production
+        run: |
+          sam build
+          sam deploy \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --stack-name hailscout-data-pipeline \
+            --parameter-overrides \
+              Environment=$ENVIRONMENT \
+              DBUser=${{ secrets.DB_USER }} \
+              DBPassword=${{ secrets.DB_PASSWORD }} \
+              DBHost=${{ secrets.DB_HOST }} \
+              DBPort=5432 \
+              DBName=${{ secrets.DB_NAME }} \
+              HailScoutRawBucket=${{ secrets.HAILSCOUT_RAW_BUCKET }} \
+              AWSAccountId=${{ secrets.AWS_ACCOUNT_ID }} \
+            --region $AWS_REGION
+
+      - name: Post deployment summary
+        if: success()
+        run: |
+          echo "✓ Lambda deployment successful"
+          aws lambda get-function --function-name hailscout-mrms-ingestion-production

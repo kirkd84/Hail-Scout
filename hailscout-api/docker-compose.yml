@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: hailscout-postgres
+    environment:
+      POSTGRES_DB: hailscout
+      POSTGRES_USER: hailscout
+      POSTGRES_PASSWORD: hailscout
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hailscout -d hailscout"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - hailscout
+
+  api:
+    build: .
+    container_name: hailscout-api
+    environment:
+      DATABASE_URL: postgresql+asyncpg://hailscout:hailscout@postgres:5432/hailscout
+      CLERK_SECRET_KEY: sk_test_dev_key_not_for_prod
+      CLERK_JWKS_ENDPOINT: https://your-instance.clerk.accounts.com/.well-known/jwks.json
+      ENV: development
+      DEBUG: "true"
+      LOG_LEVEL: INFO
+      GEOCODER_PROVIDER: nominatim
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src
+      - ./alembic:/app/alembic
+    networks:
+      - hailscout
+    command: uvicorn hailscout_api.main:app --reload --host 0.0.0.0 --port 8000
+
+volumes:
+  postgres_data:
+
+networks:
+  hailscout:
+    driver: bridge

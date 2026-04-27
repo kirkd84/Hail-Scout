@@ -1,0 +1,32 @@
+{
+  "comment": "ALB listener rules for hailscout-api",
+  "rules": [
+    {
+      "priority": 1,
+      "condition": {
+        "field": "host-header",
+        "values": ["api.hailscout.com"]
+      },
+      "actions": [
+        {
+          "type": "forward",
+          "targetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:ACCOUNT_ID:targetgroup/hailscout-api/TARGET_GROUP_ID"
+        }
+      ]
+    }
+  ],
+  "targetGroup": {
+    "name": "hailscout-api",
+    "protocol": "HTTP",
+    "port": 8000,
+    "vpcId": "vpc-XXXXXXXXX",
+    "healthCheckProtocol": "HTTP",
+    "healthCheckPath": "/health",
+    "healthCheckPort": "8000",
+    "healthCheckIntervalSeconds": 30,
+    "healthCheckTimeoutSeconds": 10,
+    "healthyThresholdCount": 2,
+    "unhealthyThresholdCount": 3,
+    "targetType": "ip"
+  }
+}

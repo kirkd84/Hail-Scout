@@ -1,0 +1,111 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: |
+  CloudWatch alarms for HailScout MRMS data pipeline.
+  - Alarm if no successful Lambda run in 10 minutes
+  - Alarm if Lambda error rate exceeds threshold
+
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues:
+      - development
+      - staging
+      - production
+
+  FunctionName:
+    Type: String
+    Description: Lambda function name
+
+  SNSTopicArn:
+    Type: String
+    Description: SNS topic ARN for alerts (e.g., PagerDuty)
+
+Resources:
+  # Alarm: No invocation in 10 minutes
+  NoInvocationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "hailscout-mrms-no-invocation-${Environment}"
+      AlarmDescription: Alert if MRMS Lambda hasn't been invoked in 10 minutes
+      MetricName: Invocations
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 300  # 5 minutes
+      EvaluationPeriods: 2  # Check twice (10 min total)
+      Threshold: 0
+      ComparisonOperator: LessThanOrEqualToThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref FunctionName
+      TreatMissingData: breaching
+      AlarmActions:
+        - !Ref SNSTopicArn
+      Statistic: Sum
+
+  # Alarm: High error rate (>5% in 5 min)
+  HighErrorRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "hailscout-mrms-high-error-rate-${Environment}"
+      AlarmDescription: Alert if MRMS Lambda error rate exceeds 5% in last 5 minutes
+      Metrics:
+        - Id: error_rate
+          Expression: "(errors / invocations) * 100"
+        - Id: errors
+          MetricStat:
+            Metric:
+              Namespace: AWS/Lambda
+              MetricName: Errors
+              Dimensions:
+                - Name: FunctionName
+                  Value: !Ref FunctionName
+            Period: 300
+            Stat: Sum
+        - Id: invocations
+          MetricStat:
+            Metric:
+              Namespace: AWS/Lambda
+              MetricName: Invocations
+              Dimensions:
+                - Name: FunctionName
+                  Value: !Ref FunctionName
+            Period: 300
+            Stat: Sum
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref SNSTopicArn
+
+  # Alarm: Duration spike (>180 seconds)
+  LongDurationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "hailscout-mrms-long-duration-${Environment}"
+      AlarmDescription: Alert if MRMS Lambda takes longer than 3 minutes
+      MetricName: Duration
+      Namespace: AWS/Lambda
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 180000  # 180 seconds in milliseconds
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref FunctionName
+      AlarmActions:
+        - !Ref SNSTopicArn
+
+Outputs:
+  NoInvocationAlarmArn:
+    Description: NoInvocationAlarm ARN
+    Value: !GetAtt NoInvocationAlarm.Arn
+
+  HighErrorRateAlarmArn:
+    Description: HighErrorRateAlarm ARN
+    Value: !GetAtt HighErrorRateAlarm.Arn
+
+  LongDurationAlarmArn:
+    Description: LongDurationAlarm ARN
+    Value: !GetAtt LongDurationAlarm.Arn

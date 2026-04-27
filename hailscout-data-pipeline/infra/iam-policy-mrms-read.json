@@ -1,0 +1,32 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "NOAAMRMSListBucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::noaa-mrms-pds"
+      ],
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": [
+            "MESH_Max_*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "NOAAMRMSGetObject",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::noaa-mrms-pds/MESH_Max_*"
+      ]
+    }
+  ]
+}

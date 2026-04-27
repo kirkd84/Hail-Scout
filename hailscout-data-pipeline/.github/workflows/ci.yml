@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - uses: abatilo/actions-poetry@v2
+        with:
+          poetry-version: "1.7.0"
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Lint with ruff
+        run: poetry run ruff check src/ tests/
+
+      - name: Format check with ruff
+        run: poetry run ruff format --check src/ tests/
+
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - uses: abatilo/actions-poetry@v2
+        with:
+          poetry-version: "1.7.0"
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Type check with mypy
+        run: poetry run mypy src/
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: hailscout
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: hailscout_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - uses: abatilo/actions-poetry@v2
+        with:
+          poetry-version: "1.7.0"
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Run pytest
+        env:
+          DB_USER: hailscout
+          DB_PASSWORD: test_password
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: hailscout_test
+          AWS_REGION: us-east-1
+        run: poetry run pytest tests/ -v --cov=src/ --cov-report=xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          fail_ci_if_error: false
