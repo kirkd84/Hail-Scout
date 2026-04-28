@@ -1,55 +1,59 @@
-# Multi-stage build for HailScout API
-# Stage 1: Builder
-FROM python:3.12-slim as builder
+# HailScout API — Dockerfile
+# Plain pip-based build. Single stage. Predictable, no venv-copy quirks.
 
-WORKDIR /build
-
-# Install Poetry
-RUN pip install --no-cache-dir poetry==1.7.1 && \
-    poetry config virtualenvs.in-project true
-
-# Copy Poetry files
-COPY pyproject.toml poetry.lock* ./
-
-# Install dependencies (--no-root: skip the project itself; source isn't copied yet)
-RUN poetry install --no-interaction --no-ansi --only main --no-root
-
-# Stage 2: Runtime
 FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install system dependencies for PostGIS/GDAL
+# System packages: libpq for psycopg2, build tools for asyncpg/cryptography wheels
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
+        libpq5 \
+        libpq-dev \
+        build-essential \
+        curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy virtual environment from builder
-COPY --from=builder /build/.venv /app/.venv
+# Python runtime tweaks
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Copy application code
+# Install dependencies. Pinned ranges match pyproject.toml — keep in sync.
+RUN pip install \
+        'fastapi>=0.104,<0.106' \
+        'uvicorn[standard]>=0.24,<0.30' \
+        'sqlalchemy>=2.0,<2.1' \
+        'asyncpg>=0.29,<0.31' \
+        'psycopg2-binary>=2.9,<3.0' \
+        'alembic>=1.13,<2.0' \
+        'pydantic>=2.5,<3.0' \
+        'pydantic-settings>=2.1,<3.0' \
+        'geoalchemy2>=0.14,<0.16' \
+        'shapely>=2.0,<3.0' \
+        'requests>=2.31,<3.0' \
+        'httpx>=0.25,<0.28' \
+        'python-jose[cryptography]>=3.3,<4.0' \
+        'cryptography>=41,<44' \
+        'structlog>=24,<25' \
+        'python-json-logger>=2.0,<3.0' \
+        'PyJWT>=2.8,<3.0' \
+        'sentry-sdk>=1.40,<3.0' \
+        'tenacity>=8.2,<9.0'
+
+# Application code
 COPY src/ /app/src/
 COPY alembic.ini /app/
 COPY migrations/ /app/migrations/
 
-# Add /app/src to PYTHONPATH so uvicorn can find the hailscout_api package
-ENV PYTHONPATH="/app/src:$PYTHONPATH"
+# Make src/ importable so `hailscout_api.main:app` resolves
+ENV PYTHONPATH=/app/src
 
-# Create non-root user
+# Run as non-root
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Set environment
-ENV PATH="/app/.venv/bin:$PATH" \
-    PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
-
-# Expose port
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import httpx; httpx.get('http://localhost:8000/health', timeout=5)"
-
-# Run app — shell form so $PORT (set by Railway) is honored at runtime
+# Shell form so $PORT (set by Railway) is honored at runtime
 CMD uvicorn hailscout_api.main:app --host 0.0.0.0 --port ${PORT:-8000}
