@@ -16,12 +16,27 @@ from hailscout_api.config import Settings
 _async_session_factory: async_sessionmaker[AsyncSession] | None = None
 
 
+def _normalize_async_url(url: str) -> str:
+    """Coerce a Postgres URL to the asyncpg dialect SQLAlchemy expects.
+
+    Railway / Heroku / many managed providers expose ``DATABASE_URL`` as
+    ``postgresql://...`` or ``postgres://...`` (the latter is deprecated by
+    SQLAlchemy 2.x). ``create_async_engine`` requires an async driver, so
+    we rewrite the scheme to ``postgresql+asyncpg://``.
+    """
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://") :]
+    if url.startswith("postgresql://"):
+        url = "postgresql+asyncpg://" + url[len("postgresql://") :]
+    return url
+
+
 def init_db(settings: Settings) -> None:
     """Initialize database engine and session factory."""
     global _async_session_factory
 
     engine = create_async_engine(
-        settings.database_url,
+        _normalize_async_url(settings.database_url),
         echo=settings.debug,
         pool_size=settings.database_pool_size,
         max_overflow=10,
