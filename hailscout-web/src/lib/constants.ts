@@ -54,7 +54,7 @@ export const FEATURE_COMPARISON = {
     { feature: "CRM integration", hailtrace: "Some", ihm: "Limited", hailscout: "API-first", highlight: true },
     { feature: "Natural-language search", hailtrace: "—", ihm: "—", hailscout: "✓", highlight: true },
   ],
-} as const;
+};
 
 /** Authenticated app navigation. */
 export const APP_NAV = [
