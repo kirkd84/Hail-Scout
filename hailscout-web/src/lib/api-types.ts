@@ -4,8 +4,11 @@ export interface Storm {
   start_time: string;
   end_time: string;
   max_hail_size_in: number;
-  centroid?: { lat: number; lng: number } | null;
-  bbox?: { min_lat: number; min_lng: number; max_lat: number; max_lng: number } | null;
+  /** Centroid coordinates (flat — preferred by UI components). */
+  centroid_lat: number;
+  centroid_lng: number;
+  /** Bounding box of the swath. */
+  bbox: { min_lat: number; min_lng: number; max_lat: number; max_lng: number };
   source: string;
 }
 
