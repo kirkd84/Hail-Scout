@@ -55,6 +55,11 @@ USER appuser
 
 EXPOSE 8000
 
-# Run migrations then start uvicorn. Shell form so $PORT (Railway) is honored.
-# If the app is already migrated, alembic upgrade head is a no-op.
-CMD alembic upgrade head && uvicorn hailscout_api.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Container start chain:
+#   1. alembic upgrade head      → schema is current (idempotent)
+#   2. python -m hailscout_api.seed → bootstrap orgs + users (idempotent)
+#   3. uvicorn ...               → serve traffic
+# Shell form so $PORT (Railway) is honored at runtime.
+CMD alembic upgrade head \
+ && python -m hailscout_api.seed \
+ && uvicorn hailscout_api.main:app --host 0.0.0.0 --port ${PORT:-8000}

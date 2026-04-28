@@ -34,6 +34,7 @@ class UserResponse(BaseModel):
     id: str
     email: str
     role: str
+    is_super_admin: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}

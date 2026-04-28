@@ -69,6 +69,7 @@ async def get_current_user(
             "id": user.id,
             "email": user.email,
             "role": user.role,
+            "is_super_admin": user.is_super_admin,
             "created_at": user.created_at,
         },
         organization={

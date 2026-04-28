@@ -4,9 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { APP_NAV } from "@/lib/constants";
+import { useMe } from "@/hooks/useMe";
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { me } = useMe();
 
   return (
     <aside className="hidden border-r bg-muted/40 md:block w-64 h-screen sticky top-0">
@@ -37,6 +39,20 @@ export function Sidebar() {
             );
           })}
         </nav>
+
+        {me?.user.is_super_admin && (
+          <div className="border-t p-4">
+            <Link
+              href="/super-admin/orgs"
+              className="flex items-center gap-2 rounded-md bg-amber-500/10 px-3 py-2 text-sm text-amber-900 hover:bg-amber-500/20 dark:text-amber-200"
+            >
+              <span className="font-mono text-[10px] uppercase tracking-wider rounded bg-amber-500/30 px-1.5 py-0.5">
+                Super
+              </span>
+              Tenant management
+            </Link>
+          </div>
+        )}
 
         <div className="border-t p-4">
           <Link href="/app/settings" className="text-sm text-muted-foreground hover:text-foreground">

@@ -9,6 +9,7 @@ from hailscout_api.config import get_settings
 from hailscout_api.core import setup_logging
 from hailscout_api.db import init_db
 from hailscout_api.routes import (
+    admin,
     ai,
     contacts,
     health,
@@ -62,6 +63,8 @@ def create_app() -> FastAPI:
     api_router.include_router(monitored.router, tags=["monitoring"])
     api_router.include_router(contacts.router, tags=["contacts"])
     api_router.include_router(ai.router, tags=["ai"])
+    # Super-admin (cross-tenant) routes — guarded by require_super_admin
+    api_router.include_router(admin.router, tags=["super-admin"])
 
     # Mount v1 API under /v1
     app.mount("/v1", api_router)

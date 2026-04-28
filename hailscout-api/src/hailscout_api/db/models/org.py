@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import Boolean, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from hailscout_api.db.base import Base, created_at_column, id_column, updated_at_column
@@ -44,6 +44,11 @@ class User(Base):
         ForeignKey("organizations.id"), nullable=False, index=True
     )
     role: Mapped[str] = mapped_column(String(50), default="member", nullable=False)
+    # System-level super-admin flag (cross-tenant). Independent of the org-level
+    # `role` field; a super_admin can manage every org regardless of org role.
+    is_super_admin: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, server_default="false"
+    )
     clerk_user_id: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     created_at: Mapped[datetime] = created_at_column
     updated_at: Mapped[datetime] = updated_at_column

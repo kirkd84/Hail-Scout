@@ -2,7 +2,19 @@
 
 from __future__ import annotations
 
-from hailscout_api.routes import ai, contacts, health, hail, markers, me, monitored, reports, storms, tiles
+from hailscout_api.routes import (
+    admin,
+    ai,
+    contacts,
+    hail,
+    health,
+    markers,
+    me,
+    monitored,
+    reports,
+    storms,
+    tiles,
+)
 
 __all__ = [
     "health",
@@ -15,4 +27,5 @@ __all__ = [
     "monitored",
     "contacts",
     "ai",
+    "admin",
 ]
