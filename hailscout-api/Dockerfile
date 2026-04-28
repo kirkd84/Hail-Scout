@@ -55,11 +55,13 @@ USER appuser
 
 EXPOSE 8000
 
-# Container start chain:
-#   1. alembic upgrade head      → schema is current (idempotent)
-#   2. python -m hailscout_api.seed → bootstrap orgs + users (idempotent)
-#   3. uvicorn ...               → serve traffic
+# Container start chain — alembic and seed swallow non-fatal errors so a
+# downstream issue (e.g., transient DB state) doesn't take the whole API
+# offline. Each step logs its outcome but only uvicorn's exit kills the pod.
 # Shell form so $PORT (Railway) is honored at runtime.
-CMD alembic upgrade head \
- && python -m hailscout_api.seed \
- && uvicorn hailscout_api.main:app --host 0.0.0.0 --port ${PORT:-8000}
+CMD echo "[boot] step 1/3 alembic upgrade head" \
+ && (alembic upgrade head || echo "[boot] alembic failed (non-fatal in boot chain)") \
+ && echo "[boot] step 2/3 seed" \
+ && (python -m hailscout_api.seed || echo "[boot] seed failed (non-fatal in boot chain)") \
+ && echo "[boot] step 3/3 uvicorn on port ${PORT:-8000}" \
+ && exec uvicorn hailscout_api.main:app --host 0.0.0.0 --port ${PORT:-8000} --log-level info
