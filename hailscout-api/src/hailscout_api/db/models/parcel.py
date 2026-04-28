@@ -29,8 +29,8 @@ class Parcel(Base):
     mailing_address: Mapped[str | None] = mapped_column(String(255))
     landuse: Mapped[str | None] = mapped_column(String(100))
     building_footprint: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = created_at_column
-    updated_at: Mapped[datetime] = updated_at_column
+    created_at: Mapped[datetime] = created_at_column()
+    updated_at: Mapped[datetime] = updated_at_column()
 
     def __repr__(self) -> str:
         return f"<Parcel(id={self.id}, address={self.address})>"
@@ -49,7 +49,7 @@ class Contact(Base):
     email: Mapped[str | None] = mapped_column(String(255))
     owner_full_name: Mapped[str | None] = mapped_column(String(255))
     source: Mapped[str] = mapped_column(String(50), default="cole", nullable=False)
-    last_refreshed_at: Mapped[datetime] = updated_at_column
+    last_refreshed_at: Mapped[datetime] = updated_at_column()
 
     def __repr__(self) -> str:
         return f"<Contact(id={self.id}, parcel_id={self.parcel_id})>"

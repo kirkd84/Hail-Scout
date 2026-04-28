@@ -11,7 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from hailscout_api.db.base import Base, created_at_column, id_column, updated_at_column
 
 if TYPE_CHECKING:
-    from hailscout_api.db.models.storm import Storm
+    from hailscout_api.db.models.storm import Storm  # noqa: F401
 
 
 class Organization(Base):
@@ -23,7 +23,7 @@ class Organization(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     plan_tier: Mapped[str] = mapped_column(String(50), default="free", nullable=False)
     stripe_customer_id: Mapped[str | None] = mapped_column(String(255))
-    created_at: Mapped[datetime] = created_at_column
+    created_at: Mapped[datetime] = created_at_column()
 
     # Relationships
     users: Mapped[list[User]] = relationship(back_populates="organization")
@@ -45,13 +45,13 @@ class User(Base):
     )
     role: Mapped[str] = mapped_column(String(50), default="member", nullable=False)
     # System-level super-admin flag (cross-tenant). Independent of the org-level
-    # `role` field; a super_admin can manage every org regardless of org role.
+    # role field; a super_admin can manage every org regardless of org role.
     is_super_admin: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False, server_default="false"
     )
     clerk_user_id: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    created_at: Mapped[datetime] = created_at_column
-    updated_at: Mapped[datetime] = updated_at_column
+    created_at: Mapped[datetime] = created_at_column()
+    updated_at: Mapped[datetime] = updated_at_column()
 
     # Relationships
     organization: Mapped[Organization] = relationship(back_populates="users")
@@ -66,14 +66,14 @@ class Seat(Base):
 
     __tablename__ = "seats"
 
-    id: Mapped[int] = id_column
+    id: Mapped[int] = id_column()
     org_id: Mapped[str] = mapped_column(
         ForeignKey("organizations.id"), nullable=False, index=True
     )
     user_id: Mapped[str] = mapped_column(
         ForeignKey("users.id"), nullable=False, index=True
     )
-    assigned_at: Mapped[datetime] = created_at_column
+    assigned_at: Mapped[datetime] = created_at_column()
 
     # Relationships
     organization: Mapped[Organization] = relationship(back_populates="seats")

@@ -16,7 +16,7 @@ class MonitoredAddress(Base):
 
     __tablename__ = "monitored_addresses"
 
-    id: Mapped[int] = id_column
+    id: Mapped[int] = id_column()
     org_id: Mapped[str] = mapped_column(
         ForeignKey("organizations.id"), nullable=False, index=True
     )
@@ -25,8 +25,8 @@ class MonitoredAddress(Base):
     )
     label: Mapped[str] = mapped_column(String(255), nullable=False)
     alert_threshold_in: Mapped[float] = mapped_column(nullable=False)
-    created_at: Mapped[datetime] = created_at_column
-    updated_at: Mapped[datetime] = updated_at_column
+    created_at: Mapped[datetime] = created_at_column()
+    updated_at: Mapped[datetime] = updated_at_column()
 
     def __repr__(self) -> str:
         return f"<MonitoredAddress(id={self.id}, label={self.label})>"
@@ -59,8 +59,8 @@ class Marker(Base):
     )  # lead, knocked, no_answer, appt, contract, not_interested
     notes: Mapped[str | None] = mapped_column(Text)
     photos: Mapped[str | None] = mapped_column(Text)  # JSON-serialized list of S3 keys
-    created_at: Mapped[datetime] = created_at_column
-    updated_at: Mapped[datetime] = updated_at_column
+    created_at: Mapped[datetime] = created_at_column()
+    updated_at: Mapped[datetime] = updated_at_column()
 
     def __repr__(self) -> str:
         return f"<Marker(id={self.id}, status={self.status})>"

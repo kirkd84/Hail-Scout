@@ -27,8 +27,8 @@ class Storm(Base):
         Geometry("POLYGON", srid=4326), nullable=False
     )
     source: Mapped[str] = mapped_column(String(50), default="MESH", nullable=False)
-    created_at: Mapped[datetime] = created_at_column
-    updated_at: Mapped[datetime] = updated_at_column
+    created_at: Mapped[datetime] = created_at_column()
+    updated_at: Mapped[datetime] = updated_at_column()
 
     def __repr__(self) -> str:
         return f"<Storm(id={self.id}, max_hail_size={self.max_hail_size_in})>"
@@ -49,7 +49,7 @@ class HailSwath(Base):
     geom_multipolygon: Mapped[str] = mapped_column(
         Geometry("MULTIPOLYGON", srid=4326), nullable=False
     )
-    updated_at: Mapped[datetime] = updated_at_column
+    updated_at: Mapped[datetime] = updated_at_column()
 
     def __repr__(self) -> str:
         return f"<HailSwath(id={self.id}, category={self.hail_size_category})>"
@@ -67,7 +67,7 @@ class NexradFrame(Base):
     timestamp: Mapped[datetime] = mapped_column(nullable=False)
     radar_site: Mapped[str] = mapped_column(String(10), nullable=False)
     tile_url_pattern: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = created_at_column
+    created_at: Mapped[datetime] = created_at_column()
 
     def __repr__(self) -> str:
         return f"<NexradFrame(storm_id={self.storm_id}, radar_site={self.radar_site})>"

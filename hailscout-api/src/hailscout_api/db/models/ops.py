@@ -24,7 +24,7 @@ class ImpactReport(Base):
         ForeignKey("parcels.id"), nullable=False, index=True
     )
     pdf_s3_key: Mapped[str] = mapped_column(Text, nullable=False)
-    generated_at: Mapped[datetime] = created_at_column
+    generated_at: Mapped[datetime] = created_at_column()
     branded_logo_url: Mapped[str | None] = mapped_column(Text)
 
     def __repr__(self) -> str:
@@ -48,7 +48,7 @@ class ContactExport(Base):
     )
     row_count: Mapped[int] = mapped_column(Integer, nullable=False)
     s3_key: Mapped[str] = mapped_column(Text, nullable=False)
-    exported_at: Mapped[datetime] = created_at_column
+    exported_at: Mapped[datetime] = created_at_column()
 
     def __repr__(self) -> str:
         return f"<ContactExport(id={self.id}, row_count={self.row_count})>"
@@ -66,7 +66,7 @@ class Alert(Base):
     storm_id: Mapped[str] = mapped_column(
         ForeignKey("storms.id"), nullable=False, index=True
     )
-    triggered_at: Mapped[datetime] = created_at_column
+    triggered_at: Mapped[datetime] = created_at_column()
     max_size_in: Mapped[float] = mapped_column(nullable=False)
     channel: Mapped[str] = mapped_column(
         String(50), default="email", nullable=False
