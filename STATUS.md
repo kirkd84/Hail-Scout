@@ -174,3 +174,5 @@ The latest commit on GitHub is `17509be` (or one above if I successfully pushed 
 Heavy infrastructure debugging session. The good news: everything BELOW the API service is solid (postgis is healthy, the schema design is correct, the multi-tenancy code is reviewed and shipped). The remaining blocker is one or two more deploy iterations on the FastAPI startup chain. Feels like ~30-60 min of focused fixing in the morning.
 
 The super-admin layer is real product code — not a stub. Once the API responds, the demo flow you wanted is there: log in as kirk@copayee.com → see two orgs → create a third → invite an admin → that admin signs in to their own tenant.
+
+<!-- ping 2026-04-28T17:21:02Z -->
