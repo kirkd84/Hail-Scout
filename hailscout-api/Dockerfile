@@ -27,7 +27,7 @@ RUN pip install \
         'asyncpg>=0.29,<0.31' \
         'psycopg2-binary>=2.9,<3.0' \
         'alembic>=1.13,<2.0' \
-        'pydantic>=2.5,<3.0' \
+        'pydantic[email]>=2.5,<3.0' \
         'pydantic-settings>=2.1,<3.0' \
         'geoalchemy2>=0.14,<0.16' \
         'shapely>=2.0,<3.0' \
@@ -38,30 +38,3 @@ RUN pip install \
         'structlog>=24,<25' \
         'python-json-logger>=2.0,<3.0' \
         'PyJWT>=2.8,<3.0' \
-        'sentry-sdk>=1.40,<3.0' \
-        'tenacity>=8.2,<9.0'
-
-# Application code
-COPY src/ /app/src/
-COPY alembic.ini /app/
-COPY migrations/ /app/migrations/
-
-# Make src/ importable so `hailscout_api.main:app` resolves
-ENV PYTHONPATH=/app/src
-
-# Run as non-root
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
-USER appuser
-
-EXPOSE 8000
-
-# Container start chain — alembic and seed swallow non-fatal errors so a
-# downstream issue (e.g., transient DB state) doesn't take the whole API
-# offline. Each step logs its outcome but only uvicorn's exit kills the pod.
-# Shell form so $PORT (Railway) is honored at runtime.
-CMD echo "[boot] step 1/3 alembic upgrade head" \
- && (alembic upgrade head || echo "[boot] alembic failed (non-fatal in boot chain)") \
- && echo "[boot] step 2/3 seed" \
- && (python -m hailscout_api.seed || echo "[boot] seed failed (non-fatal in boot chain)") \
- && echo "[boot] step 3/3 uvicorn on port ${PORT:-8000}" \
- && exec uvicorn hailscout_api.main:app --host 0.0.0.0 --port ${PORT:-8000} --log-level info
