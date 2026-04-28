@@ -18,10 +18,15 @@ export interface HailEvent {
 
 /** Response from GET /v1/hail-at-address?address=... */
 export interface HailAtAddressResponse {
-  query: { address?: string; lat?: number; lng?: number };
-  resolved: { lat: number; lng: number; formatted_address?: string };
-  events: HailEvent[];
+  /** Resolved coordinates of the queried address. */
+  lat: number;
+  lng: number;
+  /** Pretty-printed address string from the geocoder. */
+  address: string;
+  /** All storms whose swaths contain the resolved point. */
   storms: Storm[];
+  /** Optional per-storm hail observations at this point. */
+  events?: HailEvent[];
 }
 
 /** Map vector-tile feature properties (output of hailscout-tiles). */

@@ -15,6 +15,15 @@ interface FetchOpts extends RequestInit {
   token?: string | null;
 }
 
+/** Accept either a bare token string or a full FetchOpts for ergonomic call sites. */
+type FetchArg = string | FetchOpts | null | undefined;
+
+function asOpts(arg: FetchArg): FetchOpts {
+  if (arg == null) return {};
+  if (typeof arg === "string") return { token: arg };
+  return arg;
+}
+
 async function request<T>(path: string, opts: FetchOpts = {}): Promise<T> {
   const { token, headers, ...rest } = opts;
   const url = path.startsWith("http") ? path : `${env.NEXT_PUBLIC_API_BASE_URL}${path}`;
@@ -39,12 +48,12 @@ async function request<T>(path: string, opts: FetchOpts = {}): Promise<T> {
 }
 
 export const apiClient = {
-  get: <T>(path: string, opts?: FetchOpts) => request<T>(path, { ...opts, method: "GET" }),
-  post: <T>(path: string, body: unknown, opts?: FetchOpts) =>
-    request<T>(path, { ...opts, method: "POST", body: JSON.stringify(body) }),
-  patch: <T>(path: string, body: unknown, opts?: FetchOpts) =>
-    request<T>(path, { ...opts, method: "PATCH", body: JSON.stringify(body) }),
-  delete: <T>(path: string, opts?: FetchOpts) => request<T>(path, { ...opts, method: "DELETE" }),
+  get: <T>(path: string, arg?: FetchArg) => request<T>(path, { ...asOpts(arg), method: "GET" }),
+  post: <T>(path: string, body: unknown, arg?: FetchArg) =>
+    request<T>(path, { ...asOpts(arg), method: "POST", body: JSON.stringify(body) }),
+  patch: <T>(path: string, body: unknown, arg?: FetchArg) =>
+    request<T>(path, { ...asOpts(arg), method: "PATCH", body: JSON.stringify(body) }),
+  delete: <T>(path: string, arg?: FetchArg) => request<T>(path, { ...asOpts(arg), method: "DELETE" }),
 };
 
 export { ApiError };
