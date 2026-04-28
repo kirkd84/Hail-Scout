@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from hailscout_api.config import get_settings
 from hailscout_api.db.base import Base
+from hailscout_api.db.session import _normalize_async_url
 
 # this is the Alembic Config object
 config = context.config
@@ -42,7 +43,7 @@ def run_migrations_offline() -> None:
     """
     settings = get_settings()
     configuration = config.get_section(config.config_ini_section)
-    configuration["sqlalchemy.url"] = settings.database_url
+    configuration["sqlalchemy.url"] = _normalize_async_url(settings.database_url)
 
     context.configure(
         url=configuration["sqlalchemy.url"],
@@ -75,7 +76,7 @@ async def run_migrations_online() -> None:
     configuration["sqlalchemy.url"] = settings.database_url
 
     connectable = create_async_engine(
-        settings.database_url,
+        _normalize_async_url(settings.database_url),
         poolclass=pool.NullPool,
     )
 

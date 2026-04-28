@@ -55,5 +55,6 @@ USER appuser
 
 EXPOSE 8000
 
-# Shell form so $PORT (set by Railway) is honored at runtime
-CMD uvicorn hailscout_api.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Run migrations then start uvicorn. Shell form so $PORT (Railway) is honored.
+# If the app is already migrated, alembic upgrade head is a no-op.
+CMD alembic upgrade head && uvicorn hailscout_api.main:app --host 0.0.0.0 --port ${PORT:-8000}

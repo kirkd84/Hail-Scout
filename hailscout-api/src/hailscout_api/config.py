@@ -1,69 +1,69 @@
-"""Pydantic settings for HailScout API."""
+"""Pydantic settings for HailScout API.
+
+Pydantic v2 / pydantic-settings v2 syntax: env-var name comes from the field
+name (case-insensitive) by default, NOT from a deprecated `env="..."` kwarg
+on Field. Configure via ``model_config`` instead.
+"""
 
 from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Application settings loaded from environment variables."""
+    """Application settings loaded from environment variables.
+
+    Field name maps to the env var of the same name (uppercased).
+    e.g. ``database_url`` reads ``DATABASE_URL``.
+    """
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+        extra="ignore",
+    )
 
     # Core
-    env: Literal["development", "staging", "production"] = Field(
-        default="development", env="ENV"
-    )
-    debug: bool = Field(default=False, env="DEBUG")
-    port: int = Field(default=8000, env="PORT")
-    log_level: str = Field(default="INFO", env="LOG_LEVEL")
+    env: Literal["development", "staging", "production"] = "development"
+    debug: bool = False
+    port: int = 8000
+    log_level: str = "INFO"
 
     # Database
-    database_url: str = Field(
-        default="postgresql+asyncpg://hailscout:hailscout@localhost:5432/hailscout",
-        env="DATABASE_URL",
+    database_url: str = (
+        "postgresql+asyncpg://hailscout:hailscout@localhost:5432/hailscout"
     )
-    database_pool_size: int = Field(default=20, env="DATABASE_POOL_SIZE")
-    database_pool_recycle: int = Field(default=3600, env="DATABASE_POOL_RECYCLE")
+    database_pool_size: int = 20
+    database_pool_recycle: int = 3600
 
     # Clerk Authentication
-    clerk_secret_key: str = Field(default="sk_test_xxxxxxxxxxxx", env="CLERK_SECRET_KEY")
-    clerk_jwks_endpoint: str = Field(
-        default="https://your-instance.clerk.accounts.com/.well-known/jwks.json",
-        env="CLERK_JWKS_ENDPOINT",
+    clerk_secret_key: str = ""
+    clerk_jwks_endpoint: str = (
+        "https://your-instance.clerk.accounts.com/.well-known/jwks.json"
     )
 
     # Geocoding
-    geocoder_provider: Literal["nominatim", "mapbox"] = Field(
-        default="nominatim", env="GEOCODER_PROVIDER"
-    )
-    nominatim_user_agent: str = Field(
-        default="HailScout/0.1.0 (+https://hailscout.com)",
-        env="NOMINATIM_USER_AGENT",
-    )
-    mapbox_api_key: str = Field(default="", env="MAPBOX_API_KEY")
+    geocoder_provider: Literal["nominatim", "mapbox"] = "nominatim"
+    nominatim_user_agent: str = "HailScout/0.1.0 (+https://hailscout.com)"
+    mapbox_api_key: str = ""
 
     # Monitoring
-    sentry_dsn: str | None = Field(default=None, env="SENTRY_DSN")
-    sentry_environment: str = Field(default="development", env="SENTRY_ENVIRONMENT")
+    sentry_dsn: str | None = None
+    sentry_environment: str = "development"
 
-    # AWS
-    aws_region: str = Field(default="us-east-1", env="AWS_REGION")
-    aws_access_key_id: str | None = Field(default=None, env="AWS_ACCESS_KEY_ID")
-    aws_secret_access_key: str | None = Field(default=None, env="AWS_SECRET_ACCESS_KEY")
+    # AWS / object storage (used by future S3/R2 integrations)
+    aws_region: str = "us-east-1"
+    aws_access_key_id: str | None = None
+    aws_secret_access_key: str | None = None
 
-    # CORS
-    cors_origins: list[str] = Field(
-        default=["http://localhost:3000", "http://localhost:3001"],
-        env="CORS_ORIGINS",
-    )
-
-    class Config:
-        """Pydantic config."""
-
-        env_file = ".env"
-        case_sensitive = False
+    # CORS — list of allowed origins. Accepts CSV in the env var, e.g.
+    # CORS_ORIGINS="http://localhost:3000,https://app.hailscout.com"
+    cors_origins: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+    ]
 
 
 def get_settings() -> Settings:
