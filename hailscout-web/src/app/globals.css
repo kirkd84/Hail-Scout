@@ -4,49 +4,96 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ──────────────────────────────────────────────────────────
+   HailScout — Topographic theme
+   Brand: cream + deep teal + copper. Field-guide / atlas vibe.
+   All values are HSL triplets (no `hsl(...)` wrapper) so shadcn's
+   `hsl(var(--primary))` Tailwind utilities resolve correctly.
+   ────────────────────────────────────────────────────────── */
+
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.6%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.6%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.6%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 9.0%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --primary: 0 0% 9.0%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9.0%;
-    --ring: 0 0% 3.6%;
+    /* Surfaces (cream paper) */
+    --background: 36 38% 94%;        /* #F5F1EA */
+    --foreground: 33 14% 15%;        /* #2B2620 charcoal text */
+    --card:       36 47% 97%;        /* #FAF7F1 lifted surface */
+    --card-foreground: 33 14% 15%;
+    --popover:    36 47% 97%;
+    --popover-foreground: 33 14% 15%;
+
+    /* Primary — deep teal (the brand mark color) */
+    --primary:    194 71% 21%;       /* #0F4C5C */
+    --primary-foreground: 36 38% 94%;
+
+    /* Secondary — warm beige */
+    --secondary:  36 31% 87%;        /* #E8E1D4 */
+    --secondary-foreground: 33 14% 15%;
+
+    /* Muted */
+    --muted:      36 31% 87%;
+    --muted-foreground: 32 13% 37%;  /* #6B6052 */
+
+    /* Accent — copper (the highlight color) */
+    --accent:     21 65% 57%;        /* #D87C4A */
+    --accent-foreground: 36 38% 94%;
+
+    /* Borders + rings */
+    --border:     36 22% 83%;        /* #E0D9CC */
+    --input:      36 22% 83%;
+    --ring:       21 65% 57%;        /* copper focus ring */
+
+    /* Destructive — terracotta, not pure red, to stay on-palette */
+    --destructive: 9 74% 47%;
+    --destructive-foreground: 36 38% 94%;
+
+    /* Radii — atlas page rounded only slightly */
+    --radius: 0.625rem;
+
+    /* Brand-specific direct tokens (not shadcn semantics) */
+    --teal-50:  192 38% 95%;
+    --teal-200: 192 38% 78%;
+    --teal-500: 194 56% 35%;
+    --teal-700: 194 71% 21%;
+    --teal-900: 195 60% 12%;
+    --copper-50:  24 70% 95%;
+    --copper-300: 22 70% 72%;
+    --copper-500: 21 65% 57%;
+    --copper-700: 21 60% 42%;
+    --forest-500: 100 29% 32%;
+    --cream-50:   36 47% 97%;
+    --cream-100:  36 38% 94%;
+    --cream-200:  36 31% 87%;
   }
 
   .dark {
-    --background: 0 0% 3.6%;
-    --foreground: 0 0% 98.2%;
-    --card: 0 0% 3.6%;
-    --card-foreground: 0 0% 98.2%;
-    --popover: 0 0% 3.6%;
-    --popover-foreground: 0 0% 98.2%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 98.2%;
-    --accent-foreground: 0 0% 9.0%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 9.0%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --primary: 0 0% 98.2%;
-    --primary-foreground: 0 0% 9.0%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98.2%;
-    --ring: 0 0% 83.1%;
+    /* Atlas night — warm charcoal, not pure black */
+    --background: 40 12% 9%;         /* #1A1814 */
+    --foreground: 36 38% 94%;        /* cream text */
+    --card:       30 11% 12%;        /* #231F1A */
+    --card-foreground: 36 38% 94%;
+    --popover:    30 11% 12%;
+    --popover-foreground: 36 38% 94%;
+
+    /* Lighter teal in dark mode for contrast */
+    --primary:    192 38% 55%;       /* #5BA8BC */
+    --primary-foreground: 40 12% 9%;
+
+    --secondary:  25 13% 16%;
+    --secondary-foreground: 36 38% 94%;
+
+    --muted:      25 13% 16%;
+    --muted-foreground: 35 10% 61%;  /* #A89F92 */
+
+    /* Copper stays — it's the brand */
+    --accent:     21 65% 57%;
+    --accent-foreground: 40 12% 9%;
+
+    --border:     25 13% 20%;        /* #3A332D */
+    --input:      25 13% 20%;
+    --ring:       21 65% 57%;
+
+    --destructive: 9 60% 55%;
+    --destructive-foreground: 36 38% 94%;
   }
 }
 
@@ -54,7 +101,82 @@
   * {
     @apply border-border;
   }
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "ss01", "cv11";
   }
+  ::selection {
+    background: hsl(var(--accent) / 0.25);
+    color: hsl(var(--foreground));
+  }
+}
+
+/* ──────────────────────────────────────────────────────────
+   Atlas / topographic decorations
+   ────────────────────────────────────────────────────────── */
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display, "Fraunces", "Cambria", "Times New Roman", serif);
+    font-feature-settings: "ss01", "ss02";
+    letter-spacing: -0.02em;
+  }
+  .font-mono-num {
+    font-family: var(--font-mono, "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum", "cv01";
+  }
+  .text-balance { text-wrap: balance; }
+  .text-pretty  { text-wrap: pretty;  }
+
+  /* Soft topographic contour background — used on hero / empty states */
+  .bg-topo {
+    background-image:
+      radial-gradient(at 20% 20%, hsl(var(--copper-500) / 0.06) 0, transparent 40%),
+      radial-gradient(at 80% 60%, hsl(var(--teal-500) / 0.07) 0, transparent 45%);
+  }
+  .bg-paper {
+    background-color: hsl(var(--background));
+    background-image:
+      radial-gradient(circle at 1px 1px, hsl(var(--foreground) / 0.04) 1px, transparent 0);
+    background-size: 22px 22px;
+  }
+
+  /* Glass surface for floating panels over the map */
+  .glass {
+    background: hsl(var(--card) / 0.85);
+    backdrop-filter: saturate(140%) blur(14px);
+    -webkit-backdrop-filter: saturate(140%) blur(14px);
+    border: 1px solid hsl(var(--border) / 0.7);
+  }
+  .dark .glass {
+    background: hsl(var(--card) / 0.78);
+  }
+
+  /* Quiet horizontal divider with a single copper tick — atlas-style */
+  .rule-atlas {
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      transparent 0%,
+      hsl(var(--border)) 8%,
+      hsl(var(--border)) 48%,
+      hsl(var(--accent)) 50%,
+      hsl(var(--border)) 52%,
+      hsl(var(--border)) 92%,
+      transparent 100%
+    );
+  }
+
+  /* Subtle radar pulse — used on the wordmark mark */
+  @keyframes radar-pulse {
+    0%   { transform: scale(0.85); opacity: 0.6; }
+    70%  { transform: scale(1.6);  opacity: 0;   }
+    100% { transform: scale(0.85); opacity: 0;   }
+  }
+  .radar-pulse { animation: radar-pulse 2.6s ease-out infinite; transform-origin: center; }
 }

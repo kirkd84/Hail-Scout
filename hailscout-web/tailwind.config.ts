@@ -10,12 +10,12 @@ const config: Config = {
   theme: {
     container: {
       center: true,
-      padding: "2rem",
-      screens: { "2xl": "1400px" },
+      padding: { DEFAULT: "1.25rem", md: "2rem" },
+      screens: { "2xl": "1320px" },
     },
     extend: {
       colors: {
-        // shadcn/ui CSS-variable mapping. These all read from globals.css :root.
+        // shadcn semantic tokens — read from globals.css HSL triplets
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -49,23 +49,76 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Hail size palette per PRD §2.5 — direct hex (not theme-variable).
-        "hail-0-75": "#22c55e",
-        "hail-1-0": "#eab308",
-        "hail-1-25": "#f97316",
-        "hail-1-5": "#f97316",
-        "hail-1-75": "#ef4444",
-        "hail-2-0": "#ef4444",
-        "hail-2-5": "#a855f7",
-        "hail-3-0": "#000000",
+
+        // Brand palette — Topographic
+        cream: {
+          DEFAULT: "hsl(var(--cream-100))",
+          50:  "hsl(var(--cream-50))",
+          100: "hsl(var(--cream-100))",
+          200: "hsl(var(--cream-200))",
+        },
+        teal: {
+          DEFAULT: "hsl(var(--teal-700))",
+          50:  "hsl(var(--teal-50))",
+          200: "hsl(var(--teal-200))",
+          500: "hsl(var(--teal-500))",
+          700: "hsl(var(--teal-700))",
+          900: "hsl(var(--teal-900))",
+        },
+        copper: {
+          DEFAULT: "hsl(var(--copper-500))",
+          50:  "hsl(var(--copper-50))",
+          300: "hsl(var(--copper-300))",
+          500: "hsl(var(--copper-500))",
+          700: "hsl(var(--copper-700))",
+        },
+        forest: {
+          DEFAULT: "hsl(var(--forest-500))",
+        },
+
+        // Hail size palette — kept across all directions, anchors brand
+        hail: {
+          "0-75": "#5DCAA5",  // teal-leaning green (atlas-friendly)
+          "1-0":  "#E2B843",  // amber
+          "1-25": "#D88A3D",  // copper
+          "1-5":  "#C46434",  // burnt orange
+          "1-75": "#A8412D",  // brick
+          "2-0":  "#822424",  // oxblood
+          "2-5":  "#5B2059",  // plum
+          "3-0":  "#1F1B33",  // deep purple
+        },
       },
       fontFamily: {
-        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+        sans:    ["var(--font-sans)", "Inter", "system-ui", "sans-serif"],
+        display: ["var(--font-display)", "Fraunces", "Cambria", "serif"],
+        mono:    ["var(--font-mono)", "JetBrains Mono", "ui-monospace", "monospace"],
+      },
+      letterSpacing: {
+        "tight-display": "-0.025em",
+        "wide-caps":     "0.12em",
       },
       borderRadius: {
-        lg: "var(--radius, 0.5rem)",
-        md: "calc(var(--radius, 0.5rem) - 2px)",
-        sm: "calc(var(--radius, 0.5rem) - 4px)",
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
+      boxShadow: {
+        "atlas":      "0 1px 0 0 hsl(var(--border)), 0 1px 2px 0 hsl(var(--foreground) / 0.04)",
+        "atlas-lg":   "0 1px 0 0 hsl(var(--border)), 0 8px 24px -8px hsl(var(--foreground) / 0.08)",
+        "panel":      "0 12px 40px -12px hsl(var(--foreground) / 0.18), 0 0 0 1px hsl(var(--border) / 0.6)",
+        "focus-ring": "0 0 0 3px hsl(var(--accent) / 0.25)",
+      },
+      transitionTimingFunction: {
+        "atlas": "cubic-bezier(0.16, 1, 0.3, 1)",
+      },
+      keyframes: {
+        "fade-up": {
+          "0%":   { opacity: "0", transform: "translateY(8px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+      },
+      animation: {
+        "fade-up": "fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both",
       },
     },
   },
