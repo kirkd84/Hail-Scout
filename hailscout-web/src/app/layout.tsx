@@ -3,6 +3,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { Inter, Fraunces, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { APP_NAME, APP_DESCRIPTION } from "@/lib/constants";
+import { ThemeProvider } from "@/components/theme/theme-provider";
 
 const sans = Inter({
   subsets: ["latin"],
@@ -54,8 +55,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         },
       }}
     >
-      <html lang="en" className={`${sans.variable} ${display.variable} ${mono.variable}`}>
-        <body className="bg-background text-foreground antialiased">{children}</body>
+      <html
+        lang="en"
+        className={`${sans.variable} ${display.variable} ${mono.variable}`}
+        suppressHydrationWarning
+      >
+        <body className="bg-background text-foreground antialiased">
+          <ThemeProvider>{children}</ThemeProvider>
+        </body>
       </html>
     </ClerkProvider>
   );
