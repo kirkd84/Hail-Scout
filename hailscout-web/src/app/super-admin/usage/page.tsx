@@ -1,15 +1,9 @@
 "use client";
 
-/**
- * Super-admin: per-org usage drilldown.
- *
- * Lists every org and lets you click into per-tenant stats from
- * GET /v1/admin/orgs/{id}/usage.
- */
 import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.hailscout.com";
+const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://hail-scout-production.up.railway.app";
 
 type OrgSummary = {
   id: string;
@@ -70,72 +64,87 @@ export default function SuperAdminUsagePage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Usage & Billing</h1>
-        <p className="text-sm text-muted-foreground">
-          Per-tenant stats. Most counters are stubbed pending Month 3 data
-          pipeline integration.
+      <div>
+        <p className="font-mono-num text-[11px] uppercase tracking-wide-caps text-copper">Cross-tenant</p>
+        <h1 className="mt-1 font-display text-3xl font-medium tracking-tight-display text-foreground">
+          Usage &amp; billing
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Per-tenant stats. Most counters stubbed until the data pipeline lands.
         </p>
-      </header>
+      </div>
+      <div className="rule-atlas" />
 
       {error && (
-        <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
           {error}
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4">
-        <ul className="rounded-md border divide-y">
-          {orgs.map((o) => (
-            <li key={o.id}>
+      <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-5">
+        <ul className="rounded-xl border border-border bg-card overflow-hidden">
+          {orgs.map((o, i) => (
+            <li key={o.id} className={i < orgs.length - 1 ? "border-b border-border/60" : ""}>
               <button
                 onClick={() => loadUsage(o.id)}
-                className={`w-full text-left px-4 py-3 hover:bg-muted ${
-                  selected === o.id ? "bg-muted" : ""
+                className={`w-full text-left px-4 py-3 transition-colors ${
+                  selected === o.id ? "bg-copper/10" : "hover:bg-secondary/50"
                 }`}
               >
-                <div className="font-medium">{o.name}</div>
-                <div className="text-xs text-muted-foreground">
-                  {o.user_count} users · {o.plan_tier}
-                </div>
+                <p className="font-medium text-foreground">{o.name}</p>
+                <p className="mt-0.5 font-mono-num text-[11px] text-foreground/55">
+                  {o.user_count} user{o.user_count === 1 ? "" : "s"} · {o.plan_tier}
+                </p>
               </button>
             </li>
           ))}
         </ul>
 
-        <div className="rounded-md border p-6">
+        <div className="rounded-xl border border-border bg-card p-6">
           {!selected && (
-            <p className="text-muted-foreground">
-              Select an org on the left to view usage.
-            </p>
+            <p className="text-sm text-muted-foreground">Select a tenant on the left.</p>
           )}
-          {selected && !usage && <p>Loading…</p>}
+          {selected && !usage && (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          )}
           {usage && (
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-              <dt className="text-muted-foreground">Name</dt>
-              <dd className="font-medium">{usage.name}</dd>
-              <dt className="text-muted-foreground">Plan tier</dt>
-              <dd>{usage.plan_tier}</dd>
-              <dt className="text-muted-foreground">Users</dt>
-              <dd>{usage.user_count}</dd>
-              <dt className="text-muted-foreground">Seats</dt>
-              <dd>{usage.seat_count}</dd>
-              <dt className="text-muted-foreground">Storms in period</dt>
-              <dd>{usage.storms_in_period}</dd>
-              <dt className="text-muted-foreground">Monitored addresses</dt>
-              <dd>{usage.monitored_addresses}</dd>
-              <dt className="text-muted-foreground">Impact reports</dt>
-              <dd>{usage.impact_reports_generated}</dd>
-              <dt className="text-muted-foreground">Last active</dt>
-              <dd>
-                {usage.last_active_at
-                  ? new Date(usage.last_active_at).toLocaleString()
-                  : "—"}
-              </dd>
-            </dl>
+            <>
+              <p className="font-mono-num text-[11px] uppercase tracking-wide-caps text-copper">Tenant</p>
+              <h2 className="mt-1 font-display text-2xl font-medium tracking-tight-display">{usage.name}</h2>
+              <p className="font-mono-num text-[11px] text-foreground/55">{usage.org_id}</p>
+
+              <div className="mt-6 grid grid-cols-2 md:grid-cols-3 gap-3">
+                <Stat label="Plan tier"          value={usage.plan_tier} />
+                <Stat label="Users"              value={String(usage.user_count)} />
+                <Stat label="Seats"              value={String(usage.seat_count)} />
+                <Stat label="Storms in period"   value={String(usage.storms_in_period)} />
+                <Stat label="Monitored adresses" value={String(usage.monitored_addresses)} />
+                <Stat label="Impact reports"     value={String(usage.impact_reports_generated)} />
+              </div>
+
+              <div className="rule-atlas mt-7" />
+              <p className="mt-4 text-sm">
+                <span className="font-mono-num text-[11px] uppercase tracking-wide-caps text-foreground/55">Last active</span>
+                <br />
+                <span className="font-mono-num text-foreground/85">
+                  {usage.last_active_at ? new Date(usage.last_active_at).toLocaleString() : "—"}
+                </span>
+              </p>
+            </>
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border bg-secondary/40 p-3">
+      <p className="font-mono-num text-[10px] uppercase tracking-wide-caps text-foreground/55">{label}</p>
+      <p className="mt-1 font-display text-2xl font-medium tracking-tight-display text-foreground">
+        {value}
+      </p>
     </div>
   );
 }

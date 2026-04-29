@@ -1,24 +1,19 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/app/empty-state";
+import { IconAddresses } from "@/components/icons";
 
 export default function AddressesPage() {
   return (
-    <div className="container py-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>Monitored Addresses</CardTitle>
-          <CardDescription>
-            Coming soon — manage your monitored properties and receive alerts
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-12 text-muted-foreground">
-            <p>This feature is coming in Month 2.</p>
-            <p className="text-sm mt-2">
-              For now, use the map to search addresses and view storm history.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="h-full overflow-y-auto">
+      <div className="container max-w-3xl py-10">
+        <EmptyState
+          icon={IconAddresses}
+          eyebrow="Coming soon"
+          title="Monitored addresses"
+          description="Pin your customers' addresses and get alerted the moment a hail event touches them. Save you a phone call and a truck roll."
+          primary={{ label: "Use the map for now", href: "/app/map" }}
+          secondary={{ label: "What's on the roadmap?", href: "/compare" }}
+        />
+      </div>
     </div>
   );
 }

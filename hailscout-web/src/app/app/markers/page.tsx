@@ -1,24 +1,19 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/app/empty-state";
+import { IconFlag } from "@/components/icons";
 
 export default function MarkersPage() {
   return (
-    <div className="container py-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>Canvassing Markers</CardTitle>
-          <CardDescription>
-            Coming soon — manage field canvassing status and lead tracking
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-12 text-muted-foreground">
-            <p>This feature is coming in Month 3.</p>
-            <p className="text-sm mt-2">
-              Mobile app will have full canvassing support with marker statuses: lead, knocked, appointment, contract.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="h-full overflow-y-auto">
+      <div className="container max-w-3xl py-10">
+        <EmptyState
+          icon={IconFlag}
+          eyebrow="Coming soon"
+          title="Canvassing markers"
+          description="Drop a marker every time your crew knocks. Tag with status — lead, knocked, no answer, appointment, contract — and watch your sales funnel light up the atlas."
+          primary={{ label: "Drop pins on the map", href: "/app/map" }}
+          secondary={{ label: "Mobile app preview", href: "/compare" }}
+        />
+      </div>
     </div>
   );
 }

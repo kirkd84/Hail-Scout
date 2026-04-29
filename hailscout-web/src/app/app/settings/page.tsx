@@ -1,54 +1,40 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserButton } from "@clerk/nextjs";
+import { EmptyState } from "@/components/app/empty-state";
+import { IconSettings, IconUsers } from "@/components/icons";
 
 export default function SettingsPage() {
   return (
-    <div className="container py-8 max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">Manage your account and organization</p>
-      </div>
+    <div className="h-full overflow-y-auto">
+      <div className="container max-w-3xl py-10 space-y-8">
+        <div>
+          <p className="font-mono-num text-[11px] uppercase tracking-wide-caps text-copper">Settings</p>
+          <h1 className="mt-2 font-display text-4xl font-medium tracking-tight-display text-foreground">
+            Account &amp; workspace
+          </h1>
+        </div>
+        <div className="rule-atlas" />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Account</CardTitle>
-          <CardDescription>Your user profile and sign-out</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <span>Account Management</span>
-            <UserButton />
+        {/* Account card */}
+        <section className="rounded-xl border border-border bg-card p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="font-mono-num text-[10px] uppercase tracking-wide-caps text-foreground/55">Account</p>
+              <h2 className="mt-1 font-display text-2xl font-medium tracking-tight-display">Your profile</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Manage email, password, and sign-out from the avatar menu.</p>
+            </div>
+            <UserButton appearance={{ elements: { avatarBox: "h-10 w-10 ring-1 ring-border" } }} />
           </div>
-        </CardContent>
-      </Card>
+        </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Organization</CardTitle>
-          <CardDescription>
-            Coming soon — manage team members and billing
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Organization settings, seat management, and billing portal will be available in Month 2.
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Integrations</CardTitle>
-          <CardDescription>
-            Coming soon — connect your CRM
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            CRM integrations (AccuLynx, JobNimbus) launching in Month 3.
-          </p>
-        </CardContent>
-      </Card>
+        {/* Organization placeholder */}
+        <EmptyState
+          icon={IconUsers}
+          eyebrow="Coming soon"
+          title="Workspace settings"
+          description="Invite teammates, set roles (owner / admin / member), pick a default territory, and manage your branding for Hail Impact Reports."
+          secondary={{ label: "Talk to us", href: "mailto:hello@hailscout.com" }}
+        />
+      </div>
     </div>
   );
 }

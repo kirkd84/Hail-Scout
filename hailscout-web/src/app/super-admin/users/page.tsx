@@ -1,15 +1,9 @@
 "use client";
 
-/**
- * Super-admin: promote/demote users to super-admin.
- *
- * Uses POST /v1/admin/users/super-admin. Server-side guard prevents
- * revoking the last super-admin.
- */
 import { useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.hailscout.com";
+const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://hail-scout-production.up.railway.app";
 
 export default function SuperAdminUsersPage() {
   const { getToken } = useAuth();
@@ -28,19 +22,14 @@ export default function SuperAdminUsersPage() {
       const token = await getToken();
       const res = await fetch(`${API}/v1/admin/users/super-admin`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ user_email: email, is_super_admin: grant }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(body.detail ?? `Failed (${res.status})`);
       } else {
-        setMessage(
-          `${grant ? "Promoted" : "Demoted"}: ${body.email} (org=${body.org_id})`,
-        );
+        setMessage(`${grant ? "Promoted" : "Demoted"}: ${body.email} (org=${body.org_id})`);
       }
     } finally {
       setBusy(false);
@@ -49,56 +38,66 @@ export default function SuperAdminUsersPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Users</h1>
-        <p className="text-sm text-muted-foreground">
-          Grant or revoke cross-tenant super-admin access.
+      <div>
+        <p className="font-mono-num text-[11px] uppercase tracking-wide-caps text-copper">Cross-tenant</p>
+        <h1 className="mt-1 font-display text-3xl font-medium tracking-tight-display text-foreground">
+          Super-admins
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Grant or revoke cross-tenant access. The system prevents revoking the last super-admin.
         </p>
-      </header>
+      </div>
+      <div className="rule-atlas" />
 
-      <form onSubmit={submit} className="rounded-md border p-4 space-y-3">
-        <input
-          type="email"
-          required
-          placeholder="user@example.com"
-          className="w-full rounded-md border px-3 py-2 text-sm"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <div className="flex items-center gap-4 text-sm">
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              checked={grant}
-              onChange={() => setGrant(true)}
-            />
-            Grant super-admin
+      <form onSubmit={submit} className="rounded-xl border border-border bg-card p-6 space-y-5">
+        <div>
+          <label className="font-mono-num text-[10px] uppercase tracking-wide-caps text-foreground/55 block mb-1.5">
+            User email
           </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              checked={!grant}
-              onChange={() => setGrant(false)}
-            />
-            Revoke super-admin
-          </label>
+          <input
+            type="email"
+            required
+            placeholder="user@example.com"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm focus:border-copper focus:outline-none"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
         </div>
-        <button
-          type="submit"
-          disabled={busy || !email}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-        >
-          {busy ? "Submitting…" : "Apply"}
-        </button>
+
+        <fieldset>
+          <legend className="font-mono-num text-[10px] uppercase tracking-wide-caps text-foreground/55 mb-1.5">
+            Action
+          </legend>
+          <div className="grid grid-cols-2 gap-2">
+            <label className={`flex items-center gap-2 rounded-md border px-3 py-2.5 text-sm cursor-pointer transition-colors ${grant ? "border-copper bg-copper/5" : "border-border hover:border-copper/40"}`}>
+              <input type="radio" name="grant" checked={grant} onChange={() => setGrant(true)} className="accent-copper" />
+              Grant super-admin
+            </label>
+            <label className={`flex items-center gap-2 rounded-md border px-3 py-2.5 text-sm cursor-pointer transition-colors ${!grant ? "border-destructive/60 bg-destructive/5" : "border-border hover:border-destructive/40"}`}>
+              <input type="radio" name="grant" checked={!grant} onChange={() => setGrant(false)} className="accent-destructive" />
+              Revoke super-admin
+            </label>
+          </div>
+        </fieldset>
+
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={busy || !email}
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas transition-colors hover:bg-teal-900 disabled:opacity-60"
+          >
+            {busy ? "Applying…" : "Apply change"}
+          </button>
+        </div>
       </form>
 
       {message && (
-        <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm text-emerald-700 dark:text-emerald-300">
+        <div className="rounded-lg border border-forest/30 bg-forest/5 p-4 text-sm text-forest">
           {message}
         </div>
       )}
       {error && (
-        <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
           {error}
         </div>
       )}

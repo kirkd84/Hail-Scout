@@ -1,24 +1,19 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/app/empty-state";
+import { IconReport } from "@/components/icons";
 
 export default function ReportsPage() {
   return (
-    <div className="container py-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>Hail Impact Reports</CardTitle>
-          <CardDescription>
-            Coming soon — generate branded reports for homeowners
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-12 text-muted-foreground">
-            <p>This feature is coming in Month 2.</p>
-            <p className="text-sm mt-2">
-              AI-drafted reports with custom branding, owner contact info, and optional meteorologist review.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="h-full overflow-y-auto">
+      <div className="container max-w-3xl py-10">
+        <EmptyState
+          icon={IconReport}
+          eyebrow="Coming soon"
+          title="Hail Impact Reports"
+          description="Branded, AI-drafted reports for any address. Storm timeline, hail size, swath polygon, satellite proof links — generated in under 6 seconds. Optional meteorologist review for legal-grade claims."
+          primary={{ label: "Try it on the map", href: "/app/map" }}
+          secondary={{ label: "See sample report", href: "/compare" }}
+        />
+      </div>
     </div>
   );
 }
