@@ -142,7 +142,9 @@ function Cell({
   );
 }
 
-function cellText(v: CompetitorRow["hailtrace"]): React.ReactNode {
+type CellValue = CompetitorRow["hailtrace"] | CompetitorRow["ihm"] | CompetitorRow["hailscout"];
+
+function cellText(v: CellValue): React.ReactNode {
   if (typeof v === "string") {
     if (v === "—") return <span className="text-muted-foreground">—</span>;
     return v;
