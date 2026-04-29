@@ -6,7 +6,8 @@ export const APP_DESCRIPTION =
 
 /** Default map settings — continental US. */
 export const MAP_CONFIG = {
-  DEFAULT_CENTER: [39.8, -98.58] as [number, number],
+  // MapLibre takes [lng, lat] order — geographic center of continental US.
+  DEFAULT_CENTER: [-98.58, 39.8] as [number, number],
   DEFAULT_ZOOM: 4,
   MIN_ZOOM: 2,
   MAX_ZOOM: 18,
