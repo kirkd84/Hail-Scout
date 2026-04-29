@@ -13,43 +13,64 @@ interface HailMapProps {
 }
 
 /**
- * Carto Positron / Dark-Matter basemaps.
+ * Carto raster basemaps — composited as base + labels-overlay so street
+ * names actually pop. Critical for crews navigating to cross streets in
+ * a moving truck.
  *
- * We use Carto's free CDN basemaps instead of raw OSM tiles because:
- *  - OSM rate-limits Vercel egress (the previous reason the map was blank)
- *  - Positron is a clean, paper-feel cartographic style — perfect for our
- *    "atlas / field guide" brand direction
- *  - dark_all matches our dark-mode design system
+ * Light mode: Voyager (single layer — has well-tuned road colors and
+ * labels baked in. Cream-tinted, matches our Topographic palette.)
  *
- * Carto's tile usage policy: free for non-commercial / low-volume traffic;
- * for production we should swap to a self-hosted tile service or MapTiler.
+ * Dark mode: dark_nolabels (base) + dark_only_labels (white labels) so
+ * road names render in high-contrast white instead of the muddy gray
+ * that ships in dark_all.
+ *
+ * When we move to MapTiler/Stadia/Mapbox we'll get vector tiles with
+ * native zoom-aware label sizing — much higher quality. This is the
+ * stop-gap until then.
  */
-const CARTO_LIGHT = [
-  "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-  "https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-  "https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-  "https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-];
-const CARTO_DARK = [
-  "https://a.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png",
-  "https://b.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png",
-  "https://c.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png",
-  "https://d.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png",
-];
-const CARTO_ATTRIBUTION =
+function buildCartoTileUrls(theme: string) {
+  const subdomains = ["a", "b", "c", "d"];
+  return subdomains.map(
+    (s) => `https://${s}.basemaps.cartocdn.com/${theme}/{z}/{x}/{y}@2x.png`,
+  );
+}
+
+const ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &middot; &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
 function buildStyle(isDark: boolean): maplibregl.StyleSpecification {
-  const tiles = isDark ? CARTO_DARK : CARTO_LIGHT;
+  if (isDark) {
+    return {
+      version: 8,
+      sources: {
+        "basemap-bg": {
+          type: "raster",
+          tiles: buildCartoTileUrls("dark_nolabels"),
+          tileSize: 256,
+          attribution: ATTRIBUTION,
+        },
+        "basemap-labels": {
+          type: "raster",
+          tiles: buildCartoTileUrls("dark_only_labels"),
+          tileSize: 256,
+        },
+      },
+      layers: [
+        { id: "basemap-bg",     type: "raster", source: "basemap-bg" },
+        { id: "basemap-labels", type: "raster", source: "basemap-labels" },
+      ],
+    };
+  }
+
+  // Light mode — Voyager has road hierarchy and labels baked in already
   return {
     version: 8,
     sources: {
       basemap: {
         type: "raster",
-        // {r} renders as @2x on Retina, empty otherwise
-        tiles: tiles.map((t) => t.replace("{r}", "@2x")),
+        tiles: buildCartoTileUrls("rastertiles/voyager"),
         tileSize: 256,
-        attribution: CARTO_ATTRIBUTION,
+        attribution: ATTRIBUTION,
       },
     },
     layers: [{ id: "basemap", type: "raster", source: "basemap" }],
@@ -83,7 +104,7 @@ export function HailMap({ onMapReady, onMarkerDrop }: HailMapProps) {
         positionOptions: { enableHighAccuracy: true },
         trackUserLocation: true,
       }),
-      "top-right"
+      "top-right",
     );
 
     map.on("load", () => {
@@ -103,7 +124,7 @@ export function HailMap({ onMapReady, onMarkerDrop }: HailMapProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Hot-swap basemap when the user toggles light/dark mode.
+  // Hot-swap basemap when the OS theme toggles.
   useEffect(() => {
     if (!mapRef.current || !mapReady) return;
     const isDark = resolvedTheme === "dark";
