@@ -11,6 +11,8 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 interface HailMapProps {
   basemap?: BasemapId;
+  /** When true, the cursor becomes a crosshair to signal "click to drop". */
+  dropMode?: boolean;
   onMapReady?: (map: MapLibreMap) => void;
   onMarkerDrop?: (lat: number, lng: number) => void;
 }
@@ -80,7 +82,7 @@ function fallbackCartoStyle(isDark: boolean): maplibregl.StyleSpecification {
   };
 }
 
-export function HailMap({ basemap = "atlas", onMapReady, onMarkerDrop }: HailMapProps) {
+export function HailMap({ basemap = "atlas", dropMode = false, onMapReady, onMarkerDrop }: HailMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -137,6 +139,12 @@ export function HailMap({ basemap = "atlas", onMapReady, onMarkerDrop }: HailMap
       : fallbackCartoStyle(isDark);
     mapRef.current.setStyle(next);
   }, [basemap, isDark, mapReady]);
+
+  // Cursor feedback for drop-pin mode
+  useEffect(() => {
+    if (!mapRef.current) return;
+    mapRef.current.getCanvas().style.cursor = dropMode ? "crosshair" : "";
+  }, [dropMode]);
 
   // Vector tile overlays (hail swaths) — wired in via the hook.
   useMapTiles(mapRef.current);

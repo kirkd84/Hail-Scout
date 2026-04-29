@@ -14,7 +14,10 @@ import {
   type SizeFilter,
 } from "@/components/map/map-filters";
 import { SwathLegend } from "@/components/map/swath-legend";
+import { MarkersLayer } from "@/components/map/markers-layer";
+import { DropModeToggle } from "@/components/map/drop-mode-toggle";
 import { AddressSearch } from "@/components/app/address-search";
+import { MarkerEditor } from "@/components/app/marker-editor";
 import {
   Sheet,
   SheetContent,
@@ -23,16 +26,27 @@ import {
 } from "@/components/ui/sheet";
 import { StormList } from "@/components/app/storm-list";
 import { StormDetailSheet } from "@/components/app/storm-detail-sheet";
+import { useMarkers } from "@/hooks/useMarkers";
 
 export default function MapPage() {
   const [map, setMap] = useState<MapLibreMap | null>(null);
   const [basemap, setBasemap] = useState<BasemapId>("atlas");
   const [date, setDate] = useState<DateFilter>("all");
   const [size, setSize] = useState<SizeFilter>("any");
+
   const [searchResults, setSearchResults] = useState<HailAtAddressResponse | null>(null);
   const [showResults, setShowResults] = useState(false);
+
   const [selectedStorm, setSelectedStorm] = useState<Storm | null>(null);
   const [showStormDetail, setShowStormDetail] = useState(false);
+
+  // Canvassing markers
+  const { markers, add, update, remove } = useMarkers();
+  const [dropMode, setDropMode] = useState(false);
+  const [editingMarkerId, setEditingMarkerId] = useState<string | null>(null);
+  const editingMarker = editingMarkerId
+    ? markers.find((m) => m.id === editingMarkerId) ?? null
+    : null;
 
   const handleAddressSearch = (data: HailAtAddressResponse) => {
     setSearchResults(data);
@@ -42,19 +56,42 @@ export default function MapPage() {
     }
   };
 
+  const handleMapClick = (lat: number, lng: number) => {
+    if (!dropMode) return;
+    const created = add({ lng, lat, status: "lead" });
+    setEditingMarkerId(created.id);
+    setDropMode(false); // exit drop mode after dropping one
+  };
+
   return (
     <div className="relative h-full w-full">
-      <HailMap basemap={basemap} onMapReady={setMap} />
+      <HailMap
+        basemap={basemap}
+        dropMode={dropMode}
+        onMapReady={setMap}
+        onMarkerDrop={handleMapClick}
+      />
       <StormFixturesLayer
         map={map}
         startTimeMin={dateFilterToCutoff(date)}
         minSizeIn={sizeFilterToMin(size)}
+      />
+      <MarkersLayer
+        map={map}
+        markers={markers}
+        onMarkerClick={(id) => setEditingMarkerId(id)}
       />
 
       <AddressSearch onResultsChange={handleAddressSearch} />
 
       <MapFilters date={date} size={size} onDateChange={setDate} onSizeChange={setSize} />
       <SwathLegend />
+
+      <DropModeToggle
+        active={dropMode}
+        onToggle={() => setDropMode((v) => !v)}
+        count={markers.length}
+      />
 
       <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex justify-center px-4">
         <BasemapToggle value={basemap} onChange={setBasemap} />
@@ -101,6 +138,14 @@ export default function MapPage() {
         storm={selectedStorm}
         isOpen={showStormDetail}
         onClose={() => setShowStormDetail(false)}
+      />
+
+      <MarkerEditor
+        marker={editingMarker}
+        isOpen={editingMarker !== null}
+        onClose={() => setEditingMarkerId(null)}
+        onSave={(id, patch) => update(id, patch)}
+        onDelete={(id) => remove(id)}
       />
     </div>
   );
