@@ -138,6 +138,7 @@ export default function MapPage() {
         storm={selectedStorm}
         isOpen={showStormDetail}
         onClose={() => setShowStormDetail(false)}
+        address={searchResults?.address}
       />
 
       <MarkerEditor

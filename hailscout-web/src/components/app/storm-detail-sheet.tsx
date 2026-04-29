@@ -3,6 +3,7 @@
 import type { Storm } from "@/lib/api-types";
 import { formatDateTime } from "@/lib/utils";
 import { hailColor } from "@/lib/hail";
+import { DownloadReportButton } from "@/components/reports/download-report-button";
 import {
   Sheet,
   SheetContent,
@@ -14,6 +15,8 @@ interface StormDetailSheetProps {
   storm: Storm | null;
   isOpen: boolean;
   onClose: () => void;
+  /** Optional address context (passed from the address-search flow). */
+  address?: string;
 }
 
 /**
@@ -23,7 +26,7 @@ interface StormDetailSheetProps {
  * inches in the display serif. Below: meta rows in a clean two-column
  * "term/definition" pattern.
  */
-export function StormDetailSheet({ storm, isOpen, onClose }: StormDetailSheetProps) {
+export function StormDetailSheet({ storm, isOpen, onClose, address }: StormDetailSheetProps) {
   if (!storm) return null;
   const c = hailColor(storm.max_hail_size_in);
 
@@ -121,6 +124,14 @@ export function StormDetailSheet({ storm, isOpen, onClose }: StormDetailSheetPro
             }
           />
         </dl>
+
+        <div className="px-6 pb-6">
+          <div className="rule-atlas mb-5" />
+          <DownloadReportButton storm={storm} address={address} />
+          <p className="mt-2 text-center text-[10px] font-mono uppercase tracking-wide-caps text-foreground/45">
+            Branded PDF · ~1 page · ready to share
+          </p>
+        </div>
       </SheetContent>
     </Sheet>
   );
