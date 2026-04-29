@@ -1,177 +1,212 @@
 /**
- * Hardcoded realistic storm fixtures for the demo / no-API-key path.
+ * Granular storm fixtures — nested concentric hail bands.
  *
- * Each storm:
- *  - Center on a real US hail-belt city
- *  - Swath polygon is a rough lozenge ~30-60 mi long oriented along
- *    typical NE-bound supercell tracks
- *  - Max hail size in the realistic 1.0–3.5" range
- *  - Date in the past 30 days
+ * Each storm event is rendered as 5–8 concentric polygons. The outermost
+ * band represents the lightest hail (≥ 0.75"), and each inner band
+ * steps up to a smaller area of larger hail. The innermost polygon is
+ * a tight "core" where the peak hail size fell — exactly how HailTrace
+ * and Interactive Hail Maps render real MRMS data.
  *
- * Used by:
- *  - The map's storm-fixtures-layer to render swath polygons
- *  - The demo "address search" path when the API isn't reachable
+ * Visual outcome: the user sees a topographic-style intensity gradient
+ * across each storm — green outer halo, yellow/orange mid band, red core.
+ * "Where did the big stuff fall?" reads from the map at a glance.
  *
- * GeoJSON conventions: coordinates are [lng, lat] order.
+ * The polygons are deterministic (seeded), so SSR + hydration match.
+ * GeoJSON convention: [lng, lat] order.
  */
 
+import { HAIL_THRESHOLDS } from "./hail";
 import type { Storm } from "./api-types";
 
-export interface StormFixture extends Storm {
-  /** Display label used in the storm-list UI. */
-  city: string;
-  /** GeoJSON Polygon ring of [lng, lat] pairs for the swath. */
-  swath: [number, number][];
+export interface StormBand {
+  min_size_in: number;  // hail diameter at this band's threshold
+  ring: [number, number][];  // outer ring of polygon, [lng, lat]
 }
 
-/** Helper to generate a lozenge polygon centered on (lng, lat). */
-function lozenge(lng: number, lat: number, halfLengthDeg: number, halfWidthDeg: number, bearing: number): [number, number][] {
-  const cos = Math.cos((bearing * Math.PI) / 180);
-  const sin = Math.sin((bearing * Math.PI) / 180);
-  // 8-point oriented lozenge
-  const points: [number, number][] = [
-    [+halfLengthDeg, 0],
-    [+halfLengthDeg * 0.7, +halfWidthDeg * 0.85],
-    [0, +halfWidthDeg],
-    [-halfLengthDeg * 0.7, +halfWidthDeg * 0.85],
-    [-halfLengthDeg, 0],
-    [-halfLengthDeg * 0.7, -halfWidthDeg * 0.85],
-    [0, -halfWidthDeg],
-    [+halfLengthDeg * 0.7, -halfWidthDeg * 0.85],
-  ];
-  // Rotate by bearing (deg from east), translate to center, close ring
-  const rotated = points.map(([x, y]) => {
+export interface StormFixture extends Storm {
+  city: string;
+  bands: StormBand[];
+}
+
+interface StormSpec {
+  id: string;
+  city: string;
+  start_time: string;
+  end_time: string;
+  centroid: [number, number]; // [lng, lat]
+  /** Half-length of OUTERMOST band, in degrees. ~0.4° = ~28mi at 35°N */
+  outer_half_length: number;
+  /** Half-width of OUTERMOST band, in degrees. */
+  outer_half_width: number;
+  /** Track bearing (degrees from east; 35–45° NE is typical for US plains supercells). */
+  bearing: number;
+  /** Peak hail size in inches (also the storm's max_hail_size_in). */
+  peak_size_in: number;
+  /**
+   * For multi-core storms, additional offset cores (relative to centroid,
+   * in degrees). Each gets its own peak — useful for big multi-cell
+   * events like the Amarillo 3.5" storm.
+   */
+  extra_cores?: { offset: [number, number]; peak: number }[];
+}
+
+const STORM_SPECS: StormSpec[] = [
+  { id: "fx-storm-dfw-04-12",   city: "Dallas–Fort Worth, TX", start_time: "2026-04-12T20:14:00Z", end_time: "2026-04-12T22:38:00Z", centroid: [-96.97, 32.81], outer_half_length: 0.55, outer_half_width: 0.18, bearing: 38, peak_size_in: 2.75 },
+  { id: "fx-storm-okc-04-14",   city: "Oklahoma City, OK",     start_time: "2026-04-14T22:02:00Z", end_time: "2026-04-15T00:18:00Z", centroid: [-97.50, 35.47], outer_half_length: 0.62, outer_half_width: 0.21, bearing: 35, peak_size_in: 3.0 },
+  { id: "fx-storm-wichita-04-15", city: "Wichita, KS",          start_time: "2026-04-15T19:31:00Z", end_time: "2026-04-15T21:14:00Z", centroid: [-97.34, 37.69], outer_half_length: 0.50, outer_half_width: 0.16, bearing: 40, peak_size_in: 1.75 },
+  { id: "fx-storm-denver-04-18", city: "Denver, CO",            start_time: "2026-04-18T22:48:00Z", end_time: "2026-04-19T00:36:00Z", centroid: [-104.99, 39.74], outer_half_length: 0.50, outer_half_width: 0.18, bearing: 22, peak_size_in: 2.25 },
+  { id: "fx-storm-omaha-04-19",  city: "Omaha, NE",             start_time: "2026-04-19T20:11:00Z", end_time: "2026-04-19T22:24:00Z", centroid: [-95.93, 41.26], outer_half_length: 0.46, outer_half_width: 0.16, bearing: 42, peak_size_in: 1.5 },
+  { id: "fx-storm-kc-04-20",     city: "Kansas City, MO",       start_time: "2026-04-20T23:05:00Z", end_time: "2026-04-21T01:42:00Z", centroid: [-94.58, 39.10], outer_half_length: 0.58, outer_half_width: 0.20, bearing: 38, peak_size_in: 2.5 },
+  { id: "fx-storm-lubbock-04-21",city: "Lubbock, TX",           start_time: "2026-04-21T21:18:00Z", end_time: "2026-04-21T23:09:00Z", centroid: [-101.86, 33.58], outer_half_length: 0.45, outer_half_width: 0.17, bearing: 36, peak_size_in: 2.0 },
+  { id: "fx-storm-stl-04-22",    city: "St. Louis, MO",         start_time: "2026-04-22T22:34:00Z", end_time: "2026-04-23T00:51:00Z", centroid: [-90.20, 38.63], outer_half_length: 0.45, outer_half_width: 0.14, bearing: 45, peak_size_in: 1.25 },
+  { id: "fx-storm-ind-04-25",    city: "Indianapolis, IN",      start_time: "2026-04-25T23:48:00Z", end_time: "2026-04-26T01:32:00Z", centroid: [-86.16, 39.77], outer_half_length: 0.45, outer_half_width: 0.17, bearing: 50, peak_size_in: 1.75 },
+  {
+    id: "fx-storm-amarillo-04-26", city: "Amarillo, TX",          start_time: "2026-04-26T20:55:00Z", end_time: "2026-04-26T22:48:00Z",
+    centroid: [-101.83, 35.22],
+    outer_half_length: 0.60, outer_half_width: 0.22, bearing: 32, peak_size_in: 3.5,
+    extra_cores: [
+      { offset: [+0.18, +0.10], peak: 3.0 },
+      { offset: [-0.22, -0.08], peak: 2.5 },
+    ],
+  },
+];
+
+/** Build a noisy oriented lozenge polygon. */
+function lozenge(
+  centerLng: number,
+  centerLat: number,
+  halfLen: number,
+  halfWid: number,
+  bearingDeg: number,
+  noiseSeed: number,
+): [number, number][] {
+  const cos = Math.cos((bearingDeg * Math.PI) / 180);
+  const sin = Math.sin((bearingDeg * Math.PI) / 180);
+  // 12-point lozenge for organic edges
+  const pts: [number, number][] = [];
+  for (let i = 0; i < 12; i++) {
+    const t = (i / 12) * Math.PI * 2;
+    // Base shape: slim ellipse (long along x, narrow along y)
+    let x = Math.cos(t) * halfLen;
+    let y = Math.sin(t) * halfWid;
+    // Pinch the ends slightly so it looks more like a track than an oval
+    if (Math.abs(Math.cos(t)) > 0.7) {
+      y *= 0.7;
+    }
+    // Edge noise — small perturbation, deterministic via seed + index
+    const noise = (((noiseSeed + i * 31) % 17) - 8) / 200;
+    x *= 1 + noise;
+    y *= 1 + noise * 0.6;
+    pts.push([x, y]);
+  }
+  // Rotate by bearing, translate to center, close ring
+  const rotated = pts.map(([x, y]) => {
     const rx = x * cos - y * sin;
     const ry = x * sin + y * cos;
-    return [lng + rx, lat + ry] as [number, number];
+    return [centerLng + rx, centerLat + ry] as [number, number];
   });
   rotated.push(rotated[0]);
   return rotated;
 }
 
-const NE = 35;  // typical supercell bearing
-const NNE = 20;
-
-export const STORM_FIXTURES: StormFixture[] = [
-  {
-    id: "fx-storm-dfw-04-12",
-    city: "Dallas–Fort Worth, TX",
-    start_time: "2026-04-12T20:14:00Z",
-    end_time:   "2026-04-12T22:38:00Z",
-    max_hail_size_in: 2.75,
-    centroid_lat: 32.81, centroid_lng: -96.97,
-    bbox: { min_lat: 32.55, min_lng: -97.42, max_lat: 33.07, max_lng: -96.52 },
-    source: "mrms",
-    swath: lozenge(-96.97, 32.81, 0.45, 0.13, NE),
-  },
-  {
-    id: "fx-storm-okc-04-14",
-    city: "Oklahoma City, OK",
-    start_time: "2026-04-14T22:02:00Z",
-    end_time:   "2026-04-15T00:18:00Z",
-    max_hail_size_in: 3.0,
-    centroid_lat: 35.47, centroid_lng: -97.50,
-    bbox: { min_lat: 35.18, min_lng: -97.95, max_lat: 35.76, max_lng: -97.05 },
-    source: "mrms",
-    swath: lozenge(-97.50, 35.47, 0.50, 0.16, NE),
-  },
-  {
-    id: "fx-storm-wichita-04-15",
-    city: "Wichita, KS",
-    start_time: "2026-04-15T19:31:00Z",
-    end_time:   "2026-04-15T21:14:00Z",
-    max_hail_size_in: 1.75,
-    centroid_lat: 37.69, centroid_lng: -97.34,
-    bbox: { min_lat: 37.45, min_lng: -97.74, max_lat: 37.93, max_lng: -96.94 },
-    source: "mrms",
-    swath: lozenge(-97.34, 37.69, 0.40, 0.12, NE),
-  },
-  {
-    id: "fx-storm-denver-04-18",
-    city: "Denver, CO",
-    start_time: "2026-04-18T22:48:00Z",
-    end_time:   "2026-04-19T00:36:00Z",
-    max_hail_size_in: 2.25,
-    centroid_lat: 39.74, centroid_lng: -104.99,
-    bbox: { min_lat: 39.49, min_lng: -105.39, max_lat: 39.99, max_lng: -104.59 },
-    source: "mrms",
-    swath: lozenge(-104.99, 39.74, 0.40, 0.14, NNE),
-  },
-  {
-    id: "fx-storm-omaha-04-19",
-    city: "Omaha, NE",
-    start_time: "2026-04-19T20:11:00Z",
-    end_time:   "2026-04-19T22:24:00Z",
-    max_hail_size_in: 1.5,
-    centroid_lat: 41.26, centroid_lng: -95.93,
-    bbox: { min_lat: 41.02, min_lng: -96.30, max_lat: 41.50, max_lng: -95.56 },
-    source: "mrms",
-    swath: lozenge(-95.93, 41.26, 0.37, 0.12, NE),
-  },
-  {
-    id: "fx-storm-kc-04-20",
-    city: "Kansas City, MO",
-    start_time: "2026-04-20T23:05:00Z",
-    end_time:   "2026-04-21T01:42:00Z",
-    max_hail_size_in: 2.5,
-    centroid_lat: 39.10, centroid_lng: -94.58,
-    bbox: { min_lat: 38.79, min_lng: -95.05, max_lat: 39.41, max_lng: -94.11 },
-    source: "mrms",
-    swath: lozenge(-94.58, 39.10, 0.47, 0.16, NE),
-  },
-  {
-    id: "fx-storm-lubbock-04-21",
-    city: "Lubbock, TX",
-    start_time: "2026-04-21T21:18:00Z",
-    end_time:   "2026-04-21T23:09:00Z",
-    max_hail_size_in: 2.0,
-    centroid_lat: 33.58, centroid_lng: -101.86,
-    bbox: { min_lat: 33.33, min_lng: -102.21, max_lat: 33.83, max_lng: -101.51 },
-    source: "mrms",
-    swath: lozenge(-101.86, 33.58, 0.35, 0.13, NE),
-  },
-  {
-    id: "fx-storm-stl-04-22",
-    city: "St. Louis, MO",
-    start_time: "2026-04-22T22:34:00Z",
-    end_time:   "2026-04-23T00:51:00Z",
-    max_hail_size_in: 1.25,
-    centroid_lat: 38.63, centroid_lng: -90.20,
-    bbox: { min_lat: 38.42, min_lng: -90.55, max_lat: 38.84, max_lng: -89.85 },
-    source: "mrms",
-    swath: lozenge(-90.20, 38.63, 0.35, 0.10, NE),
-  },
-  {
-    id: "fx-storm-ind-04-25",
-    city: "Indianapolis, IN",
-    start_time: "2026-04-25T23:48:00Z",
-    end_time:   "2026-04-26T01:32:00Z",
-    max_hail_size_in: 1.75,
-    centroid_lat: 39.77, centroid_lng: -86.16,
-    bbox: { min_lat: 39.51, min_lng: -86.51, max_lat: 40.03, max_lng: -85.81 },
-    source: "mrms",
-    swath: lozenge(-86.16, 39.77, 0.35, 0.13, NE),
-  },
-  {
-    id: "fx-storm-amarillo-04-26",
-    city: "Amarillo, TX",
-    start_time: "2026-04-26T20:55:00Z",
-    end_time:   "2026-04-26T22:48:00Z",
-    max_hail_size_in: 3.5,
-    centroid_lat: 35.22, centroid_lng: -101.83,
-    bbox: { min_lat: 34.92, min_lng: -102.30, max_lat: 35.52, max_lng: -101.36 },
-    source: "mrms",
-    swath: lozenge(-101.83, 35.22, 0.45, 0.16, NE),
-  },
-];
-
 /**
- * Returns storms whose swath polygon contains the given lng/lat point.
- * Simple ray-casting algorithm — sufficient for fixture data.
+ * Compute concentric bands for a single core.
+ * Returns bands ordered from outermost (smallest hail) to innermost (largest).
  */
-export function fixturesAtPoint(lng: number, lat: number): StormFixture[] {
-  return STORM_FIXTURES.filter((s) => pointInPolygon([lng, lat], s.swath));
+function bandsForCore(
+  centerLng: number,
+  centerLat: number,
+  outerHalfLen: number,
+  outerHalfWid: number,
+  bearingDeg: number,
+  peakSizeIn: number,
+  seedBase: number,
+): StormBand[] {
+  // Pick which thresholds are present in this core: from 0.75 up to peak.
+  const includedThresholds = HAIL_THRESHOLDS.filter(
+    (t) => t >= 0.75 && t <= peakSizeIn,
+  );
+  // For each, pick a scale factor relative to the outermost band.
+  // Linear interpolation: outermost = 1.0, innermost (peak) = ~0.18
+  const minScale = 0.18;
+  const n = includedThresholds.length;
+  return includedThresholds.map((threshold, i) => {
+    const t = n === 1 ? 1 : i / (n - 1);
+    const scale = 1 - t * (1 - minScale);
+    const noise = seedBase + i * 7;
+    return {
+      min_size_in: threshold,
+      ring: lozenge(
+        centerLng,
+        centerLat,
+        outerHalfLen * scale,
+        outerHalfWid * scale,
+        bearingDeg,
+        noise,
+      ),
+    };
+  });
 }
+
+function buildFixture(spec: StormSpec): StormFixture {
+  const seed = spec.id
+    .split("")
+    .reduce((acc, c) => acc + c.charCodeAt(0), 0);
+
+  const primary = bandsForCore(
+    spec.centroid[0],
+    spec.centroid[1],
+    spec.outer_half_length,
+    spec.outer_half_width,
+    spec.bearing,
+    spec.peak_size_in,
+    seed,
+  );
+
+  const extraBands: StormBand[] = (spec.extra_cores ?? []).flatMap((core, i) =>
+    bandsForCore(
+      spec.centroid[0] + core.offset[0],
+      spec.centroid[1] + core.offset[1],
+      spec.outer_half_length * 0.5,
+      spec.outer_half_width * 0.5,
+      spec.bearing,
+      core.peak,
+      seed + (i + 1) * 13,
+    ),
+  );
+
+  const bands = [...primary, ...extraBands];
+
+  // Compute bbox from all bands
+  let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+  for (const b of bands) {
+    for (const [lng, lat] of b.ring) {
+      if (lng < minLng) minLng = lng;
+      if (lng > maxLng) maxLng = lng;
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+    }
+  }
+
+  return {
+    id: spec.id,
+    city: spec.city,
+    start_time: spec.start_time,
+    end_time: spec.end_time,
+    max_hail_size_in: spec.peak_size_in,
+    centroid_lat: spec.centroid[1],
+    centroid_lng: spec.centroid[0],
+    bbox: { min_lat: minLat, min_lng: minLng, max_lat: maxLat, max_lng: maxLng },
+    source: "mrms",
+    bands,
+  };
+}
+
+export const STORM_FIXTURES: StormFixture[] = STORM_SPECS.map(buildFixture);
+
+/* ──────────────────────────────────────────────────────────
+   Geo helpers
+   ────────────────────────────────────────────────────────── */
 
 function pointInPolygon([px, py]: [number, number], ring: [number, number][]): boolean {
   let inside = false;
@@ -186,22 +221,55 @@ function pointInPolygon([px, py]: [number, number], ring: [number, number][]): b
   return inside;
 }
 
-/** Build a GeoJSON FeatureCollection from the fixtures. */
+/**
+ * Return storms whose footprint contains (lng, lat). For each storm, the
+ * `max_hail_size_in` we report back is the largest band threshold that
+ * actually contains the point — i.e., what hail diameter fell *here*.
+ */
+export function fixturesAtPoint(lng: number, lat: number): StormFixture[] {
+  const hits: StormFixture[] = [];
+  for (const s of STORM_FIXTURES) {
+    let bestThreshold: number | null = null;
+    for (const band of s.bands) {
+      if (pointInPolygon([lng, lat], band.ring)) {
+        if (bestThreshold === null || band.min_size_in > bestThreshold) {
+          bestThreshold = band.min_size_in;
+        }
+      }
+    }
+    if (bestThreshold !== null) {
+      hits.push({ ...s, max_hail_size_in: bestThreshold });
+    }
+  }
+  return hits;
+}
+
+/**
+ * Build a GeoJSON FeatureCollection of all bands across all storms,
+ * each feature carrying its `min_size_in` threshold. The map renders
+ * smallest first so larger-hail bands paint on top.
+ */
 export function fixturesAsGeoJSON(): GeoJSON.FeatureCollection {
-  return {
-    type: "FeatureCollection",
-    features: STORM_FIXTURES.map((s) => ({
-      type: "Feature",
-      id: s.id,
-      geometry: { type: "Polygon", coordinates: [s.swath] },
-      properties: {
-        id: s.id,
-        city: s.city,
-        max_hail_size_in: s.max_hail_size_in,
-        start_time: s.start_time,
-        end_time: s.end_time,
-        source: s.source,
-      },
-    })),
-  };
+  const features: GeoJSON.Feature[] = [];
+  for (const s of STORM_FIXTURES) {
+    // Outer-first ordering so the data-driven `step` paints small-then-large
+    const ordered = [...s.bands].sort((a, b) => a.min_size_in - b.min_size_in);
+    for (const band of ordered) {
+      features.push({
+        type: "Feature",
+        id: `${s.id}-${band.min_size_in}`,
+        geometry: { type: "Polygon", coordinates: [band.ring] },
+        properties: {
+          storm_id: s.id,
+          city: s.city,
+          min_size_in: band.min_size_in,
+          peak_size_in: s.max_hail_size_in,
+          start_time: s.start_time,
+          end_time: s.end_time,
+          source: s.source,
+        },
+      });
+    }
+  }
+  return { type: "FeatureCollection", features };
 }

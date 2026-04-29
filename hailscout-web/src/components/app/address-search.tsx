@@ -123,11 +123,20 @@ export function AddressSearch({
               </p>
             )}
             {data && !isLoading && !error && (
-              <p className="text-xs text-foreground/65">
+              <p className="text-xs text-foreground/65 leading-relaxed">
                 <span className="font-medium text-foreground">{data.address}</span>
                 {" — "}
                 <span className="font-mono-num text-copper">{data.storms.length}</span>{" "}
                 storm{data.storms.length === 1 ? "" : "s"} found
+                {data.storms.length > 0 && (
+                  <>
+                    {", "}
+                    peak{" "}
+                    <span className="font-mono-num font-medium text-foreground">
+                      {Math.max(...data.storms.map((s) => s.max_hail_size_in)).toFixed(2)}″
+                    </span>
+                  </>
+                )}
               </p>
             )}
           </div>

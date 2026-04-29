@@ -66,8 +66,11 @@ export function StormDetailSheet({ storm, isOpen, onClose }: StormDetailSheetPro
               <p className="font-display text-5xl font-medium tracking-tight-display" style={{ color: c.text }}>
                 {storm.max_hail_size_in.toFixed(2)}″
               </p>
-              <p className="mt-0.5 text-xs" style={{ color: c.text, opacity: 0.75 }}>
-                {c.label} severity bin
+              <p className="mt-1 text-sm font-medium" style={{ color: c.text, opacity: 0.85 }}>
+                {c.object}
+              </p>
+              <p className="mt-0.5 text-[11px] font-mono uppercase tracking-wide-caps" style={{ color: c.text, opacity: 0.55 }}>
+                MRMS · {c.label}
               </p>
             </div>
           </div>

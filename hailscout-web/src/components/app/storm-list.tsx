@@ -52,11 +52,14 @@ export function StormList({ storms, onStormClick }: StormListProps) {
               >
                 <div className="flex items-center gap-4">
                   <div
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-border"
+                    className="flex h-12 w-14 shrink-0 flex-col items-center justify-center rounded-md border"
                     style={{ background: c.bg, borderColor: c.border }}
                   >
-                    <span className="font-mono-num text-sm font-medium" style={{ color: c.text }}>
-                      {storm.max_hail_size_in.toFixed(2)}
+                    <span className="font-mono-num text-sm font-medium leading-none" style={{ color: c.text }}>
+                      {storm.max_hail_size_in.toFixed(2)}″
+                    </span>
+                    <span className="mt-0.5 text-[9px] uppercase tracking-wide-caps font-mono leading-none" style={{ color: c.text, opacity: 0.75 }}>
+                      {c.object}
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
