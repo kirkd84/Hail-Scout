@@ -1,6 +1,7 @@
-# HailScout — Live deployment
+# HailScout — Session Handoff (2026-04-29)
 
-**API is live and healthy.**
+What shipped during the autonomous design + build session, what's still
+queued, and the exact state of every surface.
 
 ---
 
@@ -8,110 +9,148 @@
 
 | Surface | Status | URL |
 |---|---|---|
-| GitHub repo (monorepo) | ✓ pushed | https://github.com/kirkd84/Hail-Scout |
-| Railway project | ✓ provisioned | `exciting-possibility` |
-| Postgres + **PostGIS** | ✓ Online | `postgis/postgis:16-3.4` |
-| **API service** | **✓ /v1/health = 200** | https://hail-scout-production.up.railway.app |
-| Web (Vercel) | ✗ not deployed | (next: deploy hailscout-web) |
-| Mobile (EAS) | ✗ not built | (later) |
-
-API endpoints (auth-gated where applicable):
-- `GET /` — service info
-- `GET /healthz` — root liveness probe (no DB)
-- `GET /v1/health` — full health (DB ping)
-- `GET /docs` — OpenAPI / Swagger UI
-- `GET /v1/me` — current user + org + seats
-- `GET /v1/storms?bbox=&from=&to=` — storms in bbox/date range
-- `GET /v1/hail-at-address?address=` — storm history at an address
-- `GET /v1/admin/orgs` — super-admin: list every tenant org
-- `POST /v1/admin/orgs` — super-admin: create new tenant
-- `GET /v1/admin/orgs/{id}/usage` — super-admin: per-tenant usage
-- `GET /v1/admin/orgs/{id}/users` — super-admin: list org users
-- `POST /v1/admin/users/super-admin` — super-admin: grant/revoke
+| GitHub repo (monorepo) | ✓ pushed (commit `e4e1716`) | https://github.com/kirkd84/Hail-Scout |
+| Railway API | ✓ deployed | https://hail-scout-production.up.railway.app |
+| Postgres + PostGIS | ✓ healthy | postgis/postgis:16-3.4 |
+| Vercel web | ✓ deployed | https://hail-scout.vercel.app |
+| Clerk auth | ✓ wired (test instance) | dashboard.clerk.com |
+| Clerk webhook | ✓ verified, reconciles seeded users | `/v1/webhooks/clerk` |
+| MapTiler | ⚠ key configured, **needs adding to Vercel env** | `NEXT_PUBLIC_MAPTILER_KEY` |
+| Mobile (EAS) | ✗ not built | — |
+| Data pipeline | ✗ not deployed | — |
+| Tile service | ✗ not deployed | — |
 
 ---
 
-## Seed identities
+## What's new in the web app
 
-These are inserted idempotently every container boot. Seed script lives at `hailscout-api/src/hailscout_api/seed.py`.
+### Brand: Topographic
+Cream + deep teal + copper. Field-guide / cartographer aesthetic. National
+Geographic meets Mapbox Studio. Locked 2026-04-28 after picking from three
+mocks (Storm Watch / Aurora / Topographic).
 
-| Email | Role | Org | Super admin? |
-|---|---|---|---|
-| kirk@copayee.com | admin | HailScout Demo | **yes (cross-tenant)** |
-| kirk@rooftechnologies.com | admin | Roof Technologies | no |
+Color tokens in `globals.css`. Brand scales (`cream`, `teal`, `copper`,
+`forest`) in `tailwind.config.ts`. Typography: Inter (UI) + Fraunces (display
+serif) + JetBrains Mono (numbers, coordinates).
 
-Both users have placeholder `clerk_user_id` values (`pending_kirk_*`). On first sign-in via Clerk, the webhook handler (TODO) needs to reconcile the Clerk user ID into the existing row. Until that webhook exists, do it manually with a SQL UPDATE.
+### Marketing site (`/`, `/pricing`, `/compare`)
+Apple-grade craft. Sticky header with the new contour-radar wordmark.
+Editorial hero ("Every hailstorm, on one atlas") with an animated SVG atlas
+plate beside it. Trust stats. Three-step "How it works." Alternating product
+rows. Pull-quote testimonial. Copper-on-teal final CTA. Atlas footer.
+
+Pricing redesigned with three tiers + FAQ in display serif. Compare page
+has a 4-column comparison grid with copper-tinted HailScout column and an
+honest take on competitors.
+
+### App shell
+- **Sidebar** (`Sidebar`): cream paper, contour decoration at top, copper
+  active dot, dedicated super-admin section in copper, settings footer.
+- **Topbar** (`Topbar`): minimal, glass, page title in display serif,
+  Cmd-K hint pill (palette wired next pass).
+- **Layout**: `overflow-hidden` on main so the map fills viewport.
+- **Sign-in / sign-up**: ContourBg + Wordmark hero, Clerk forms themed.
+
+### Map page (`/app/map`)
+- **HailMap**: MapTiler vector tiles, 4 styles (Atlas / Streets / Satellite
+  / Hybrid), hot-swap on theme + style change. Carto fallback when key is
+  unset.
+- **BasemapToggle**: glass-morphism segmented control bottom-center, copper
+  highlight on active.
+- **AddressSearch**: glass-morphism floating pill at top-center. Cmd-K
+  focuses. Inline loading/error/result hint.
+- **SwathLegend**: collapsible glass pill (default: 5 color dots → click
+  expands to full legend).
+- **StormFixturesLayer**: 10 hardcoded realistic storms across the US hail
+  belt, rendered as data-driven `step` color polygons + copper centroid dots.
+- **StormList** (in side sheet): atlas-card list with hail-color size badge.
+- **StormDetailSheet**: hero hail-size dial (topographic ring riff) +
+  display-serif date + term/definition meta rows.
+
+### Inner pages
+- `/app/addresses`, `/app/markers`, `/app/reports`: contour-decorated
+  EmptyState components with feature-specific copy and map CTAs.
+- `/app/settings`: profile card + workspace EmptyState.
+
+### Super-admin (`/super-admin/*`)
+- Layout: copper top bar with Wordmark + "Super" pill, sidebar nav.
+- `/orgs`: editorial header, atlas-table grid, inline copper-bordered
+  create-tenant form, plan-tier tone pills.
+- `/users`: themed grant/revoke radio cards (copper for grant, destructive
+  for revoke).
+- `/usage`: split-pane atlas list + Stat tiles.
+
+### Dark mode
+System-aware via `next-themes` (`defaultTheme="system"`). Light mode adopts
+the cream paper aesthetic; dark mode uses warm charcoal `#1A1814` with
+lighter teal `#5BA8BC` as primary. Map basemap hot-swaps on theme toggle.
 
 ---
 
-## What it took to get here (debug log)
+## Storm fixtures (demo data)
 
-In rough order of crashes & fixes during the deploy iteration:
+`src/lib/storm-fixtures.ts` exports 10 storms across the US hail belt:
+DFW · OKC · Wichita · Denver · Omaha · KC · Lubbock · STL · Indy · Amarillo.
+Each has an oriented lozenge swath polygon, max hail size in 1.0–3.5″, and
+a date in the past 30 days.
 
-1. Build failed: no Dockerfile at repo root → set Railway root directory to `hailscout-api/`.
-2. Crashed: missing `DATABASE_URL` → wired Postgres reference variable.
-3. Crashed: `/app/.venv/bin/uvicorn: No such file or directory` → poetry's in-project venv was unreliable in multi-stage; switched to single-stage pip install.
-4. Crashed: `extension "postgis" is not available` → swapped Railway Postgres image to `postgis/postgis:16-3.4`, wiped volume to clear PG18 config drift.
-5. Crashed: `ArgumentError: Column object 'created_at' already assigned to Table` → converted `id_column`/`created_at_column`/`updated_at_column` to factory functions in `db/base.py` (each model needs its OWN Column instance).
-6. Crashed: `ModuleNotFoundError: email_validator` → `pydantic[email]` extra now installed in Dockerfile.
-7. Crashed: `SyntaxError on main.py line 71 async ` → Drive sync was silently truncating files I wrote via the Drive folder. Switched to bypass-Drive workflow: write directly into `/tmp` git clone, push from there.
+`useStormsAtAddress` hook tries the API first; on failure (401, 404, network)
+it falls back to client-side geocode (MapTiler if key is set; fixture city
+fallback otherwise) + point-in-polygon hit-test. So the demo flow works
+**before the data pipeline is deployed**.
 
-After fix #7: clean boot, `/v1/health` returns 200.
+Try it: visit `/app/map`, search "Dallas TX" → sheet shows storm history,
+map flies to the storm centroid, swaths are visible.
 
 ---
 
-## Next steps
+## ⚠ One thing for Kirk to do
 
-### 1. Wire Clerk auth (so users can actually sign in)
+Add the MapTiler key to Vercel:
 
-a. Sign up at https://clerk.com (free tier). Create an Application.
-b. From the Clerk dashboard, copy:
-   - **Publishable key** (`pk_test_...`)
-   - **Secret key** (`sk_test_...`)
-   - **JWKS endpoint** — under "API keys" → "Show JWT public key" → copy the full URL (something like `https://<your-instance>.clerk.accounts.dev/.well-known/jwks.json`)
-c. In Railway → Hail-Scout service → Variables tab, add:
-   - `CLERK_SECRET_KEY` = `sk_test_...`
-   - `CLERK_JWKS_ENDPOINT` = `https://<your-instance>.clerk.accounts.dev/.well-known/jwks.json`
-d. Click Deploy on the pending change.
-e. Sign up at the (yet-to-be-deployed) web app as `kirk@copayee.com`. The first sign-in needs the Clerk webhook to reconcile the `pending_kirk_*` placeholder to the real Clerk user ID — until the webhook exists, manually update via psql:
-   ```sql
-   UPDATE users SET clerk_user_id = '<the-real-clerk-user-id>'
-   WHERE email = 'kirk@copayee.com';
+1. https://vercel.com → `hailscout-web` → Settings → Environments → Production
+2. Edit env vars → add:
    ```
+   NEXT_PUBLIC_MAPTILER_KEY=dXpxElwSr8RaGE7PdgFl
+   ```
+3. Mirror to Preview + Development if you want PR previews to work
+4. Redeploy without build cache
 
-### 2. Deploy `hailscout-web` to Vercel
-
-a. https://vercel.com → Add New → Project → Import `kirkd84/Hail-Scout`
-b. **Root Directory:** `hailscout-web`
-c. Framework Preset: Next.js (auto-detected)
-d. Environment Variables:
-   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` = `pk_test_...`
-   - `CLERK_SECRET_KEY` = `sk_test_...`
-   - `NEXT_PUBLIC_API_BASE_URL` = `https://hail-scout-production.up.railway.app`
-   - `NEXT_PUBLIC_TILES_BASE_URL` = (placeholder; tiles service not yet deployed)
-e. Deploy.
-
-### 3. Smoke test the super-admin flow
-
-- Open the Vercel URL → sign in as `kirk@copayee.com`
-- Sidebar should show the amber "Super: Tenant management" link (visible only when `me.user.is_super_admin === true`)
-- Click → `/super-admin/orgs` should list `HailScout Demo` and `Roof Technologies`
-- Click `/super-admin/users` to test promote/demote
-- Click `/super-admin/usage` to see per-tenant stats (most counters are stubbed pending data pipeline)
+Until you do this, the map falls back to Carto rasters (still works,
+just lower quality on dark mode and no Streets/Satellite/Hybrid layers).
 
 ---
 
-## Hard-blocked / needs a human
+## Backlog (next session priorities)
 
-1. **Clerk webhook handler** — the seed creates users with `pending_*` placeholders. Until a Clerk webhook reconciles them on first sign-in, you'll need to manually `UPDATE users SET clerk_user_id = ...` after the first login. Building the webhook is a small lift (~30 min) — not done tonight.
-2. **Data pipeline (`hailscout-data-pipeline`)** — not yet deployed. Without it, the API has no storm data. Storm endpoints return empty results until the pipeline is live.
-3. **Tiles service (`hailscout-tiles`)** — not yet deployed. Map will show base tiles only; no swath overlays.
-4. **Mobile (`hailscout-mobile`)** — not yet built. EAS build is a separate workstream.
+1. **Real Cmd-K command palette** (cmdk lib) — search across pages, addresses,
+   storms, super-admin actions. Topbar already has the trigger.
+2. **Address autocomplete dropdown** — call MapTiler geocoder on each
+   keystroke, render suggestions below the search pill.
+3. **Marker drop persistence** — wire up the click-to-drop pin → save
+   to API → render as a permanent marker layer.
+4. **Hail Impact Report PDF generation** — first version probably uses
+   `@react-pdf/renderer` for client-side generation, server-side template
+   later when the data pipeline is online.
+5. **Mobile bottom-sheet pattern** for the storm list on small screens
+   (right now it's a side sheet on mobile too, which is cramped).
+6. **Data pipeline deployment** — connect to MRMS, ingest swaths, populate
+   real DB, retire fixture fallback.
+7. **Tile service deployment** — vector PBF tiles for live swath rendering
+   on the map (replaces the static GeoJSON fixture layer).
+8. **Mobile app** (Expo) — start from the same design system tokens.
 
 ---
 
-## Recovery / iteration notes
+## Useful files for next-session context
 
-- **Push workflow:** clone `kirkd84/Hail-Scout` into a fresh dir, edit, `git push` with the PAT URL `https://${TOKEN}@github.com/kirkd84/Hail-Scout.git`. Railway auto-deploys on push to `main`.
-- **Drive sync warning:** Drive folder periodically truncates files I write through Cowork's Write tool. Always verify with `wc -l` and `python3 -c "import ast; ast.parse(open(F).read())"` before pushing. Or skip Drive entirely and write directly into the cloned repo.
-- **Boot diagnostic:** the Dockerfile's CMD echoes every step (`[boot] step 0/4`, `[boot] step 1/4`...) so the Deploy Logs tab tells you exactly where any future crash happens.
+- `src/lib/storm-fixtures.ts` — demo data (replace when pipeline ships)
+- `src/lib/hail.ts` — hail-size color palette (the topographic version,
+  kept distinct from the legacy `HAIL_SIZE_COLORS` in `constants.ts`)
+- `src/components/brand/atlas-map-preview.tsx` — the SVG hero plate (no
+  MapLibre, all hand-drawn)
+- `src/components/brand/contour-bg.tsx` — decorative topo-line background
+- `src/components/icons/index.tsx` — 16 inline SVG icons in the
+  topographic stroke language
+
+The latest commit on `main` is `e4e1716`. Vercel auto-deploys on push.
