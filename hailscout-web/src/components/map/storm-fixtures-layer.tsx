@@ -15,6 +15,10 @@ const LAYER_CENTROID_RING = "hs-fx-centroid-ring";
 interface Props {
   map: MapLibreMap | null;
   visible?: boolean;
+  /** Unix-millis cutoff. Storms older than this are hidden. null = no filter. */
+  startTimeMin?: number | null;
+  /** Hail size threshold in inches. Bands smaller than this are hidden. */
+  minSizeIn?: number;
 }
 
 /**
@@ -27,7 +31,7 @@ interface Props {
  * `min_size_in` property (green → yellow → orange → red → magenta →
  * purple). See `lib/hail.ts` for the canonical palette.
  */
-export function StormFixturesLayer({ map, visible = true }: Props) {
+export function StormFixturesLayer({ map, visible = true, startTimeMin = null, minSizeIn = 0 }: Props) {
   useEffect(() => {
     if (!map) return;
 
@@ -181,6 +185,91 @@ export function StormFixturesLayer({ map, visible = true }: Props) {
       }
     }
   }, [map, visible]);
+
+  // Date + size filters — applied via setFilter (no source mutation)
+  useEffect(() => {
+    if (!map) return;
+    const buildBandFilter = (): unknown[] => {
+      const clauses: unknown[] = ["all"];
+      if (minSizeIn > 0) {
+        clauses.push([">=", ["get", "min_size_in"], minSizeIn]);
+      }
+      if (startTimeMin !== null) {
+        clauses.push([">=", ["to-number", ["slice", ["get", "start_time"], 0, 4]], 0]);
+        // ^ no-op placeholder; real time-range filtering needs a numeric ts.
+        // We compute a ts by parsing start_time on the client and filtering
+        // the source data directly; see source-data filtering below.
+      }
+      return clauses;
+    };
+    const buildCentroidFilter = (): unknown[] => {
+      const clauses: unknown[] = ["all"];
+      if (minSizeIn > 0) {
+        clauses.push([">=", ["get", "peak_size_in"], minSizeIn]);
+      }
+      return clauses;
+    };
+
+    if (map.getLayer(LAYER_FILL)) {
+      // setFilter accepts maplibre's FilterSpecification typed union; cast safely.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      map.setFilter(LAYER_FILL, buildBandFilter() as any);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      map.setFilter(LAYER_LINE, buildBandFilter() as any);
+    }
+    if (map.getLayer(LAYER_CENTROID)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      map.setFilter(LAYER_CENTROID, buildCentroidFilter() as any);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      map.setFilter(LAYER_CENTROID_RING, buildCentroidFilter() as any);
+    }
+  }, [map, minSizeIn]);
+
+  // Date filter — re-evaluate the source data so old storms drop out
+  useEffect(() => {
+    if (!map) return;
+    const src = map.getSource(SOURCE_BANDS);
+    const csrc = map.getSource(SOURCE_CENTROIDS);
+    if (!src || !csrc) return;
+
+    const fc = fixturesAsGeoJSON();
+    let filtered = fc;
+    if (startTimeMin !== null) {
+      filtered = {
+        ...fc,
+        features: fc.features.filter(
+          (f) => new Date(f.properties?.start_time as string).getTime() >= startTimeMin,
+        ),
+      };
+    }
+    filtered.features.sort(
+      (a, b) =>
+        (Number(a.properties?.min_size_in) || 0) -
+        (Number(b.properties?.min_size_in) || 0),
+    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (src as any).setData(filtered);
+
+    const centroidFC: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: STORM_FIXTURES.filter((s) =>
+        startTimeMin === null
+          ? true
+          : new Date(s.start_time).getTime() >= startTimeMin,
+      ).map((s) => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [s.centroid_lng, s.centroid_lat] },
+        properties: {
+          id: s.id,
+          city: s.city,
+          peak_size_in: s.max_hail_size_in,
+          start_time: s.start_time,
+        },
+      })),
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (csrc as any).setData(centroidFC);
+  }, [map, startTimeMin]);
 
   return null;
 }

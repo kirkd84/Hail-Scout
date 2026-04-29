@@ -2,10 +2,17 @@
 
 import { useState } from "react";
 import type { Map as MapLibreMap } from "maplibre-gl";
-import type { HailAtAddressResponse } from "@/lib/api-types";
+import type { HailAtAddressResponse, Storm } from "@/lib/api-types";
 import { HailMap } from "@/components/map/HailMap";
 import { BasemapToggle, type BasemapId } from "@/components/map/basemap-toggle";
 import { StormFixturesLayer } from "@/components/map/storm-fixtures-layer";
+import {
+  MapFilters,
+  dateFilterToCutoff,
+  sizeFilterToMin,
+  type DateFilter,
+  type SizeFilter,
+} from "@/components/map/map-filters";
 import { SwathLegend } from "@/components/map/swath-legend";
 import { AddressSearch } from "@/components/app/address-search";
 import {
@@ -16,11 +23,12 @@ import {
 } from "@/components/ui/sheet";
 import { StormList } from "@/components/app/storm-list";
 import { StormDetailSheet } from "@/components/app/storm-detail-sheet";
-import type { Storm } from "@/lib/api-types";
 
 export default function MapPage() {
   const [map, setMap] = useState<MapLibreMap | null>(null);
   const [basemap, setBasemap] = useState<BasemapId>("atlas");
+  const [date, setDate] = useState<DateFilter>("all");
+  const [size, setSize] = useState<SizeFilter>("any");
   const [searchResults, setSearchResults] = useState<HailAtAddressResponse | null>(null);
   const [showResults, setShowResults] = useState(false);
   const [selectedStorm, setSelectedStorm] = useState<Storm | null>(null);
@@ -37,9 +45,15 @@ export default function MapPage() {
   return (
     <div className="relative h-full w-full">
       <HailMap basemap={basemap} onMapReady={setMap} />
-      <StormFixturesLayer map={map} />
+      <StormFixturesLayer
+        map={map}
+        startTimeMin={dateFilterToCutoff(date)}
+        minSizeIn={sizeFilterToMin(size)}
+      />
 
       <AddressSearch onResultsChange={handleAddressSearch} />
+
+      <MapFilters date={date} size={size} onDateChange={setDate} onSizeChange={setSize} />
       <SwathLegend />
 
       <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex justify-center px-4">
