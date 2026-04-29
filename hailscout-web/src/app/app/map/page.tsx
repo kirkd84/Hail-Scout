@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import type { HailAtAddressResponse, Storm } from "@/lib/api-types";
 import { HailMap } from "@/components/map/HailMap";
@@ -47,6 +47,20 @@ export default function MapPage() {
   const editingMarker = editingMarkerId
     ? markers.find((m) => m.id === editingMarkerId) ?? null
     : null;
+
+  // Handle hand-off from the command palette (fly-to-storm)
+  useEffect(() => {
+    if (!map) return;
+    try {
+      const raw = sessionStorage.getItem("hs.flyto");
+      if (!raw) return;
+      const { lng, lat, zoom } = JSON.parse(raw) as { lng: number; lat: number; zoom?: number };
+      sessionStorage.removeItem("hs.flyto");
+      map.flyTo({ center: [lng, lat], zoom: zoom ?? 9, duration: 1100 });
+    } catch {
+      // ignore
+    }
+  }, [map]);
 
   const handleAddressSearch = (data: HailAtAddressResponse) => {
     setSearchResults(data);

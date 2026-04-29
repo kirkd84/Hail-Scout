@@ -32,7 +32,7 @@ function pageTitleFor(pathname: string): string {
   return prefix ? PAGE_TITLES[prefix] : "HailScout";
 }
 
-export function Topbar() {
+export function Topbar({ onSearchClick }: { onSearchClick?: () => void } = {}) {
   const pathname = usePathname();
   const [isMac, setIsMac] = useState(false);
 
@@ -62,6 +62,7 @@ export function Topbar() {
           {/* Cmd-K trigger — currently a hint, becomes a real palette later */}
           <button
             type="button"
+            onClick={onSearchClick}
             className={cn(
               "hidden md:inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5",
               "text-xs text-muted-foreground transition-colors hover:border-copper/40 hover:text-foreground",
