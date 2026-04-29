@@ -5,55 +5,67 @@ import maplibregl, { Map as MapLibreMap } from "maplibre-gl";
 import { useTheme } from "next-themes";
 import { useMapTiles } from "@/hooks/useMapTiles";
 import { MAP_CONFIG } from "@/lib/constants";
+import { env } from "@/lib/env";
+import type { BasemapId } from "./basemap-toggle";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 interface HailMapProps {
+  basemap?: BasemapId;
   onMapReady?: (map: MapLibreMap) => void;
   onMarkerDrop?: (lat: number, lng: number) => void;
 }
 
 /**
- * Carto raster basemaps — composited as base + labels-overlay so street
- * names actually pop. Critical for crews navigating to cross streets in
- * a moving truck.
+ * HailMap — MapLibre rendering with MapTiler vector tiles.
  *
- * Light mode: Voyager (single layer — has well-tuned road colors and
- * labels baked in. Cream-tinted, matches our Topographic palette.)
+ * 4 basemap layers, swap-able via the BasemapToggle:
+ *   • atlas      — Voyager (cream-tinted, navigation-grade, our default)
+ *   • streets    — Streets v2 (light) / Streets v2 dark (dark mode)
+ *   • satellite  — pure imagery
+ *   • hybrid     — imagery + street labels overlaid
  *
- * Dark mode: dark_nolabels (base) + dark_only_labels (white labels) so
- * road names render in high-contrast white instead of the muddy gray
- * that ships in dark_all.
+ * Light/dark adapts only for atlas + streets (satellite stays imagery).
  *
- * When we move to MapTiler/Stadia/Mapbox we'll get vector tiles with
- * native zoom-aware label sizing — much higher quality. This is the
- * stop-gap until then.
+ * Falls back to Carto rasters when NEXT_PUBLIC_MAPTILER_KEY is unset
+ * so previews-without-key still load. In production, the key MUST be
+ * present in Vercel env or you'll see the lower-quality fallback.
  */
-function buildCartoTileUrls(theme: string) {
-  const subdomains = ["a", "b", "c", "d"];
-  return subdomains.map(
-    (s) => `https://${s}.basemaps.cartocdn.com/${theme}/{z}/{x}/{y}@2x.png`,
-  );
+
+const MAPTILER_KEY = env.NEXT_PUBLIC_MAPTILER_KEY;
+
+function maptilerStyleUrl(style: string): string {
+  return `https://api.maptiler.com/maps/${style}/style.json?key=${MAPTILER_KEY}`;
 }
 
-const ATTRIBUTION =
+function pickMaptilerStyle(basemap: BasemapId, isDark: boolean): string {
+  switch (basemap) {
+    case "atlas":
+      // Voyager has cream/teal tones that match our brand. No "voyager-dark"
+      // exists — we map to streets-v2-dark for dark mode atlas.
+      return isDark ? "streets-v2-dark" : "voyager";
+    case "streets":
+      return isDark ? "streets-v2-dark" : "streets-v2";
+    case "satellite":
+      return "satellite";
+    case "hybrid":
+      return "hybrid";
+  }
+}
+
+const CARTO_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &middot; &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
-function buildStyle(isDark: boolean): maplibregl.StyleSpecification {
+function fallbackCartoStyle(isDark: boolean): maplibregl.StyleSpecification {
+  const subdomains = ["a", "b", "c", "d"];
+  const tiles = (theme: string) =>
+    subdomains.map((s) => `https://${s}.basemaps.cartocdn.com/${theme}/{z}/{x}/{y}@2x.png`);
+
   if (isDark) {
     return {
       version: 8,
       sources: {
-        "basemap-bg": {
-          type: "raster",
-          tiles: buildCartoTileUrls("dark_nolabels"),
-          tileSize: 256,
-          attribution: ATTRIBUTION,
-        },
-        "basemap-labels": {
-          type: "raster",
-          tiles: buildCartoTileUrls("dark_only_labels"),
-          tileSize: 256,
-        },
+        "basemap-bg":     { type: "raster", tiles: tiles("dark_nolabels"),    tileSize: 256, attribution: CARTO_ATTRIBUTION },
+        "basemap-labels": { type: "raster", tiles: tiles("dark_only_labels"), tileSize: 256 },
       },
       layers: [
         { id: "basemap-bg",     type: "raster", source: "basemap-bg" },
@@ -61,36 +73,31 @@ function buildStyle(isDark: boolean): maplibregl.StyleSpecification {
       ],
     };
   }
-
-  // Light mode — Voyager has road hierarchy and labels baked in already
   return {
     version: 8,
-    sources: {
-      basemap: {
-        type: "raster",
-        tiles: buildCartoTileUrls("rastertiles/voyager"),
-        tileSize: 256,
-        attribution: ATTRIBUTION,
-      },
-    },
-    layers: [{ id: "basemap", type: "raster", source: "basemap" }],
+    sources: { basemap: { type: "raster", tiles: tiles("rastertiles/voyager"), tileSize: 256, attribution: CARTO_ATTRIBUTION } },
+    layers:  [{ id: "basemap", type: "raster", source: "basemap" }],
   };
 }
 
-export function HailMap({ onMapReady, onMarkerDrop }: HailMapProps) {
+export function HailMap({ basemap = "atlas", onMapReady, onMarkerDrop }: HailMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
 
   // Initialize the map once.
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
-    const isDark = resolvedTheme === "dark";
+
+    const initialStyle = MAPTILER_KEY
+      ? maptilerStyleUrl(pickMaptilerStyle(basemap, isDark))
+      : fallbackCartoStyle(isDark);
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: buildStyle(isDark),
+      style: initialStyle,
       center: MAP_CONFIG.DEFAULT_CENTER as [number, number],
       zoom: MAP_CONFIG.DEFAULT_ZOOM,
       minZoom: MAP_CONFIG.MIN_ZOOM,
@@ -113,9 +120,7 @@ export function HailMap({ onMapReady, onMarkerDrop }: HailMapProps) {
       onMapReady?.(map);
     });
 
-    map.on("click", (e) => {
-      onMarkerDrop?.(e.lngLat.lat, e.lngLat.lng);
-    });
+    map.on("click", (e) => onMarkerDrop?.(e.lngLat.lat, e.lngLat.lng));
 
     return () => {
       map.remove();
@@ -124,12 +129,14 @@ export function HailMap({ onMapReady, onMarkerDrop }: HailMapProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Hot-swap basemap when the OS theme toggles.
+  // Hot-swap the style when basemap or theme changes.
   useEffect(() => {
     if (!mapRef.current || !mapReady) return;
-    const isDark = resolvedTheme === "dark";
-    mapRef.current.setStyle(buildStyle(isDark));
-  }, [resolvedTheme, mapReady]);
+    const next = MAPTILER_KEY
+      ? maptilerStyleUrl(pickMaptilerStyle(basemap, isDark))
+      : fallbackCartoStyle(isDark);
+    mapRef.current.setStyle(next);
+  }, [basemap, isDark, mapReady]);
 
   // Vector tile overlays (hail swaths) — wired in via the hook.
   useMapTiles(mapRef.current);
