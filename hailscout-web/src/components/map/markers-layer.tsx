@@ -29,11 +29,6 @@ export function MarkersLayer({ map, markers, onMarkerClick }: Props) {
     for (const s of MARKER_STATUSES) {
       colorStops.push(s.id, s.color);
     }
-    const outlineStops: (string | number)[] = [];
-    for (const s of MARKER_STATUSES) {
-      outlineStops.push(s.id, s.outline);
-    }
-
     const addLayers = () => {
       if (map.getSource(SOURCE_ID)) return;
       map.addSource(SOURCE_ID, {
@@ -41,13 +36,20 @@ export function MarkersLayer({ map, markers, onMarkerClick }: Props) {
         data: { type: "FeatureCollection", features: [] },
       });
 
+      // MapLibre's `match` expression types can't infer that ...colorStops
+      // provides paired (input, output) entries from a generic spread.
+      // The runtime contract is correct (alternating MarkerStatus -> hex),
+      // so cast through unknown to satisfy the strict expression type.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const colorMatch: any = ["match", ["get", "status"], ...colorStops, "#888"];
+
       map.addLayer({
         id: HALO_LAYER,
         type: "circle",
         source: SOURCE_ID,
         paint: {
           "circle-radius": 11,
-          "circle-color": ["match", ["get", "status"], ...colorStops, "#888"],
+          "circle-color": colorMatch,
           "circle-opacity": 0.18,
         },
       });
@@ -58,7 +60,7 @@ export function MarkersLayer({ map, markers, onMarkerClick }: Props) {
         source: SOURCE_ID,
         paint: {
           "circle-radius": 6,
-          "circle-color": ["match", ["get", "status"], ...colorStops, "#888"],
+          "circle-color": colorMatch,
           "circle-stroke-color": "#FFFFFF",
           "circle-stroke-width": 2,
         },
