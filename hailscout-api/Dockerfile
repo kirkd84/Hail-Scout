@@ -42,7 +42,8 @@ RUN pip install \
         'python-json-logger>=2.0,<3.0' \
         'PyJWT>=2.8,<3.0' \
         'sentry-sdk>=1.40,<3.0' \
-        'tenacity>=8.2,<9.0'
+        'tenacity>=8.2,<9.0' \
+        'svix>=1.30,<2.0'
 
 # Application code
 COPY src/ /app/src/

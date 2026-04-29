@@ -40,6 +40,9 @@ class Settings(BaseSettings):
 
     # Clerk Authentication
     clerk_secret_key: str = ""
+    # Svix-signed Clerk webhook secret (from Clerk dashboard → Webhooks).
+    # Used by /v1/webhooks/clerk to verify event payloads.
+    clerk_webhook_secret: str = ""
     clerk_jwks_endpoint: str = (
         "https://your-instance.clerk.accounts.com/.well-known/jwks.json"
     )
@@ -63,6 +66,8 @@ class Settings(BaseSettings):
     cors_origins: list[str] = [
         "http://localhost:3000",
         "http://localhost:3001",
+        # Production web app on Vercel.
+        "https://hail-scout.vercel.app",
     ]
 
 

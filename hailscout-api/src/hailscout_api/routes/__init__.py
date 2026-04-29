@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from hailscout_api.routes import (
+    webhooks,
     admin,
     ai,
     contacts,
@@ -28,4 +29,5 @@ __all__ = [
     "contacts",
     "ai",
     "admin",
+    "webhooks",
 ]

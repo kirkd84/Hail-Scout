@@ -12,6 +12,7 @@ from hailscout_api.config import get_settings
 from hailscout_api.core import setup_logging
 from hailscout_api.db import init_db
 from hailscout_api.routes import (
+    webhooks,
     admin,
     ai,
     contacts,
@@ -80,8 +81,21 @@ def create_app() -> FastAPI:
     v1.include_router(contacts.router, tags=["contacts"])
     v1.include_router(ai.router, tags=["ai"])
     v1.include_router(admin.router, tags=["super-admin"])
+    # Webhooks — externally-called endpoints, signature-verified, no auth dep.
+    v1.include_router(webhooks.router, tags=["webhooks"])
 
     app.include_router(v1)
+
+    # Map domain auth errors to 401/403 instead of falling through to 500.
+    from hailscout_api.core import AuthenticationError, AuthorizationError
+
+    @app.exception_handler(AuthenticationError)
+    async def _auth_error(_request: Request, exc: AuthenticationError) -> JSONResponse:
+        return JSONResponse(status_code=401, content={"error": "unauthorized", "detail": str(exc)})
+
+    @app.exception_handler(AuthorizationError)
+    async def _authz_error(_request: Request, exc: AuthorizationError) -> JSONResponse:
+        return JSONResponse(status_code=403, content={"error": "forbidden", "detail": str(exc)})
 
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
