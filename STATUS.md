@@ -1,7 +1,7 @@
-# HailScout — Session Handoff (2026-04-29)
+# HailScout — Session Handoff (2026-04-29, evening)
 
-What shipped during the autonomous design + build session, what's still
-queued, and the exact state of every surface.
+What shipped during the autonomous design + Phase 2 build, what's queued.
+Latest commit: `016c410` (Cmd-K command palette).
 
 ---
 
@@ -9,148 +9,157 @@ queued, and the exact state of every surface.
 
 | Surface | Status | URL |
 |---|---|---|
-| GitHub repo (monorepo) | ✓ pushed (commit `e4e1716`) | https://github.com/kirkd84/Hail-Scout |
-| Railway API | ✓ deployed | https://hail-scout-production.up.railway.app |
-| Postgres + PostGIS | ✓ healthy | postgis/postgis:16-3.4 |
-| Vercel web | ✓ deployed | https://hail-scout.vercel.app |
-| Clerk auth | ✓ wired (test instance) | dashboard.clerk.com |
-| Clerk webhook | ✓ verified, reconciles seeded users | `/v1/webhooks/clerk` |
-| MapTiler | ⚠ key configured, **needs adding to Vercel env** | `NEXT_PUBLIC_MAPTILER_KEY` |
+| GitHub repo | ✓ pushed | https://github.com/kirkd84/Hail-Scout |
+| Railway API | ⚠ Image Registry (Metal) outage during build | https://hail-scout-production.up.railway.app |
+| Vercel web | ✓ deploys on push | https://hail-scout.vercel.app |
+| Postgres + PostGIS | ✓ healthy | (Railway managed) |
+| Clerk auth + webhook | ✓ wired, reconciles | dashboard.clerk.com |
+| MapTiler | ✓ key in Vercel env | `NEXT_PUBLIC_MAPTILER_KEY` set |
 | Mobile (EAS) | ✗ not built | — |
 | Data pipeline | ✗ not deployed | — |
 | Tile service | ✗ not deployed | — |
 
 ---
 
-## What's new in the web app
+## Phase 1 — Design system (already shipped)
 
-### Brand: Topographic
-Cream + deep teal + copper. Field-guide / cartographer aesthetic. National
-Geographic meets Mapbox Studio. Locked 2026-04-28 after picking from three
-mocks (Storm Watch / Aurora / Topographic).
+- **Topographic brand**: cream + deep teal + copper (locked 2026-04-28)
+- Marketing landing, pricing, compare — all rewritten Apple-grade
+- App shell (sidebar + topbar + layout)
+- Map page polish (glass panels, redesigned storm list + detail sheet)
+- Sign-in / sign-up themed via Clerk appearance prop
+- Super-admin pages restyled
+- Empty states for inner-app surfaces
+- Favicon + Apple touch + 1200×630 OG share image
+- System-aware dark mode via `next-themes`
+- Carto Voyager + Carto Dark Matter basemap
+- 10 hardcoded storm fixtures across the US hail belt
 
-Color tokens in `globals.css`. Brand scales (`cream`, `teal`, `copper`,
-`forest`) in `tailwind.config.ts`. Typography: Inter (UI) + Fraunces (display
-serif) + JetBrains Mono (numbers, coordinates).
+## Phase 1.5 — Industry-aligned data layer (already shipped)
 
-### Marketing site (`/`, `/pricing`, `/compare`)
-Apple-grade craft. Sticky header with the new contour-radar wordmark.
-Editorial hero ("Every hailstorm, on one atlas") with an animated SVG atlas
-plate beside it. Trust stats. Three-step "How it works." Alternating product
-rows. Pull-quote testimonial. Copper-on-teal final CTA. Atlas footer.
+- Industry-standard hail palette (HailTrace / IHM / NWS):
+  green pea → lime penny → yellow quarter → orange half-dollar/walnut →
+  red golf-ball → dark-red hen-egg → magenta tennis → purple baseball →
+  deep-purple softball
+- Reference object names everywhere (storm cards show "1.75″ Golf ball")
+- **Granular nested-band swaths** — each storm renders 5–8 concentric polygons
+  showing the gradient from outer (light) to inner (peak hail core)
+- 12-point oriented lozenges with deterministic edge noise read like real
+  radar data
+- Multi-core storms (Amarillo 3.5″) render multiple hot cores within outer
+  track footprint
+- `fixturesAtPoint` returns the *largest band threshold* the point falls in,
+  i.e. what hail diameter actually fell at that address
 
-Pricing redesigned with three tiers + FAQ in display serif. Compare page
-has a 4-column comparison grid with copper-tinted HailScout column and an
-honest take on competitors.
+## Phase 1.75 — MapTiler integration (already shipped)
 
-### App shell
-- **Sidebar** (`Sidebar`): cream paper, contour decoration at top, copper
-  active dot, dedicated super-admin section in copper, settings footer.
-- **Topbar** (`Topbar`): minimal, glass, page title in display serif,
-  Cmd-K hint pill (palette wired next pass).
-- **Layout**: `overflow-hidden` on main so the map fills viewport.
-- **Sign-in / sign-up**: ContourBg + Wordmark hero, Clerk forms themed.
-
-### Map page (`/app/map`)
-- **HailMap**: MapTiler vector tiles, 4 styles (Atlas / Streets / Satellite
-  / Hybrid), hot-swap on theme + style change. Carto fallback when key is
-  unset.
-- **BasemapToggle**: glass-morphism segmented control bottom-center, copper
-  highlight on active.
-- **AddressSearch**: glass-morphism floating pill at top-center. Cmd-K
-  focuses. Inline loading/error/result hint.
-- **SwathLegend**: collapsible glass pill (default: 5 color dots → click
-  expands to full legend).
-- **StormFixturesLayer**: 10 hardcoded realistic storms across the US hail
-  belt, rendered as data-driven `step` color polygons + copper centroid dots.
-- **StormList** (in side sheet): atlas-card list with hail-color size badge.
-- **StormDetailSheet**: hero hail-size dial (topographic ring riff) +
-  display-serif date + term/definition meta rows.
-
-### Inner pages
-- `/app/addresses`, `/app/markers`, `/app/reports`: contour-decorated
-  EmptyState components with feature-specific copy and map CTAs.
-- `/app/settings`: profile card + workspace EmptyState.
-
-### Super-admin (`/super-admin/*`)
-- Layout: copper top bar with Wordmark + "Super" pill, sidebar nav.
-- `/orgs`: editorial header, atlas-table grid, inline copper-bordered
-  create-tenant form, plan-tier tone pills.
-- `/users`: themed grant/revoke radio cards (copper for grant, destructive
-  for revoke).
-- `/usage`: split-pane atlas list + Stat tiles.
-
-### Dark mode
-System-aware via `next-themes` (`defaultTheme="system"`). Light mode adopts
-the cream paper aesthetic; dark mode uses warm charcoal `#1A1814` with
-lighter teal `#5BA8BC` as primary. Map basemap hot-swaps on theme toggle.
+- 4 basemap layers (Atlas / Streets / Satellite / Hybrid) with hot-swap
+- Glass-morphism BasemapToggle bottom-center
+- Falls back to Carto rasters when MAPTILER_KEY is unset
 
 ---
 
-## Storm fixtures (demo data)
+## Phase 2 (this session)
 
-`src/lib/storm-fixtures.ts` exports 10 storms across the US hail belt:
-DFW · OKC · Wichita · Denver · Omaha · KC · Lubbock · STL · Indy · Amarillo.
-Each has an oriented lozenge swath polygon, max hail size in 1.0–3.5″, and
-a date in the past 30 days.
+### 2.1 Address autocomplete ✓ `4c81649`
+- MapTiler geocoder with US country lock + autocomplete=true
+- Debounced (180ms) suggestion fetch, max 5 results
+- Glass dropdown anchored to the search pill
+- ArrowUp/Down/Enter keyboard nav, click-to-select flies map immediately
+- Fixture-city fallback when no key/network
 
-`useStormsAtAddress` hook tries the API first; on failure (401, 404, network)
-it falls back to client-side geocode (MapTiler if key is set; fixture city
-fallback otherwise) + point-in-polygon hit-test. So the demo flow works
-**before the data pipeline is deployed**.
+### 2.2 Map filter pills ✓ `4c81649`
+- Glass pill top-left, copper-bordered when filters active
+- Date range: 24h · 7d · 30d · all
+- Min hail size: any · ≥1.0″ · ≥1.75″ · ≥2.5″
+- Size filter via setFilter on layers (no source mutation)
+- Date filter via setData (storms outside window drop entirely)
+- Reset link when filters active
 
-Try it: visit `/app/map`, search "Dallas TX" → sheet shows storm history,
-map flies to the storm centroid, swaths are visible.
+### 2.3 Marker drop with localStorage ✓ `191e855`
+- 6-status canvassing model (lead/knocked/no_answer/appt/contract/not_interested)
+- localStorage-backed CRUD store with cross-tab storage event
+- `useMarkers` hook (reactive)
+- MarkersLayer renders status-encoded colored dots + halos on the map
+- DropModeToggle pill bottom-right (copper-fill when active)
+- Crosshair cursor on the map when in drop mode
+- MarkerEditor side sheet: status hero, picker grid, notes textarea, save/delete
+- `/app/markers` rebuilt as a real list page: status-breakdown KPIs,
+  sortable table, delete row, clear-all confirmation
+
+### 2.4 Hail Impact Report PDF ✓ `a42acf9`
+- `@react-pdf/renderer ^4.1.5` added
+- `HailImpactReport` component: full LETTER-sized branded PDF
+- Brand wordmark + radar mark in header, display-style title
+- Hero card with hail-size dial (matches in-app detail sheet)
+- 6-cell meta grid (start/end/duration/source/centroid/bounds)
+- Narrative section, numbered next steps, legal disclaimer block
+- Footer with Report ID + brand line
+- `DownloadReportButton` — lazy-loads renderer, generates Blob, triggers
+  download with clean filename like
+  `HailScout-Impact-Report-2026-04-26-amarillo-tx.pdf`
+- Wired into the storm detail sheet
+- `/app/reports` rebuilt with "How it works" 3-step instruction panel
+
+### 2.5 Cmd-K command palette ✓ `016c410`
+- `cmdk ^1.1.1` added
+- Glass modal at 12vh from top, backdrop blur
+- Sections: Pages · Recent storms · Super-admin (when is_super_admin) ·
+  Theme · Account
+- Storm rows fly the map to that centroid via sessionStorage handoff
+- Wired to topbar's Search button + global Cmd-K listener
+- Skips its own binding when the address search input has focus
 
 ---
 
-## ⚠ One thing for Kirk to do
+## ⚠ Note on Railway
 
-Add the MapTiler key to Vercel:
+You mentioned a Railway "Image Registry (Metal)" investigating outage. That
+might surface as a queued or failed deploy on the API side. The web app is
+on Vercel and is unaffected — every Phase 2 commit deployed cleanly.
 
-1. https://vercel.com → `hailscout-web` → Settings → Environments → Production
-2. Edit env vars → add:
-   ```
-   NEXT_PUBLIC_MAPTILER_KEY=dXpxElwSr8RaGE7PdgFl
-   ```
-3. Mirror to Preview + Development if you want PR previews to work
-4. Redeploy without build cache
-
-Until you do this, the map falls back to Carto rasters (still works,
-just lower quality on dark mode and no Streets/Satellite/Hybrid layers).
+API is still on the previous `e399e2a` build (Clerk webhook + /v1/me 401
+fix). When Railway is healthy, no action needed — the latest commit on
+main contains no API changes.
 
 ---
 
-## Backlog (next session priorities)
+## Backlog (post-Phase-2)
 
-1. **Real Cmd-K command palette** (cmdk lib) — search across pages, addresses,
-   storms, super-admin actions. Topbar already has the trigger.
-2. **Address autocomplete dropdown** — call MapTiler geocoder on each
-   keystroke, render suggestions below the search pill.
-3. **Marker drop persistence** — wire up the click-to-drop pin → save
-   to API → render as a permanent marker layer.
-4. **Hail Impact Report PDF generation** — first version probably uses
-   `@react-pdf/renderer` for client-side generation, server-side template
-   later when the data pipeline is online.
-5. **Mobile bottom-sheet pattern** for the storm list on small screens
-   (right now it's a side sheet on mobile too, which is cramped).
-6. **Data pipeline deployment** — connect to MRMS, ingest swaths, populate
-   real DB, retire fixture fallback.
-7. **Tile service deployment** — vector PBF tiles for live swath rendering
-   on the map (replaces the static GeoJSON fixture layer).
-8. **Mobile app** (Expo) — start from the same design system tokens.
+1. **Mobile bottom-sheet pattern** for storm list + storm detail on small
+   screens — currently uses a side sheet which feels cramped on mobile
+2. **Map snapshot in PDF** — use html2canvas on the live map and embed as
+   `<Image>` in the report, showing the actual storm swath on a basemap
+3. **Saved Reports library** — sync to backend, re-download from history,
+   custom contractor branding (logo, colors)
+4. **Marker → API persistence** — swap localStorage for `/v1/markers`
+   when the endpoint ships
+5. **Real-time storm alerts** — push notifications when a hail event
+   touches a monitored address
+6. **Mobile app (Expo)** — ship from the same design tokens
+7. **Data pipeline + tile service** — replace fixture data with live MRMS
 
 ---
 
 ## Useful files for next-session context
 
-- `src/lib/storm-fixtures.ts` — demo data (replace when pipeline ships)
-- `src/lib/hail.ts` — hail-size color palette (the topographic version,
-  kept distinct from the legacy `HAIL_SIZE_COLORS` in `constants.ts`)
-- `src/components/brand/atlas-map-preview.tsx` — the SVG hero plate (no
-  MapLibre, all hand-drawn)
-- `src/components/brand/contour-bg.tsx` — decorative topo-line background
-- `src/components/icons/index.tsx` — 16 inline SVG icons in the
-  topographic stroke language
+**Brand / design:**
+- `src/components/brand/{wordmark,contour-bg,atlas-map-preview}.tsx`
+- `src/app/globals.css` — Topographic tokens, glass utility, atlas rule, contour bg
+- `tailwind.config.ts` — brand color scales
 
-The latest commit on `main` is `e4e1716`. Vercel auto-deploys on push.
+**Data:**
+- `src/lib/hail.ts` — industry-standard hail palette + reference object names
+- `src/lib/storm-fixtures.ts` — 10 nested-band storms across US hail belt
+- `src/lib/markers.ts` — canvassing model + localStorage store
+- `src/lib/geocode.ts` — MapTiler geocoder with fixture fallback
+
+**Map:**
+- `src/components/map/HailMap.tsx` — MapTiler vector tiles, theme + basemap swap
+- `src/components/map/storm-fixtures-layer.tsx` — band rendering with filter support
+- `src/components/map/markers-layer.tsx`
+- `src/components/map/{basemap-toggle,map-filters,swath-legend,drop-mode-toggle}.tsx`
+
+**App:**
+- `src/components/app/{sidebar,topbar,command-palette,address-search,marker-editor,storm-list,storm-detail-sheet,empty-state}.tsx`
+- `src/components/reports/{hail-impact-report,download-report-button}.tsx`
