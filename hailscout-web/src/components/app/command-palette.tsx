@@ -121,6 +121,7 @@ export function CommandPalette({ open, setOpen }: PaletteContextProps) {
             <Command.Group heading="Pages">
               <Item icon={<IconMap className="h-4 w-4" />}        onSelect={() => go("/app/map")}>The atlas (map)</Item>
               <Item icon={<IconAddresses className="h-4 w-4" />}  onSelect={() => go("/app/addresses")}>Monitored addresses</Item>
+              <Item icon={<IconBolt className="h-4 w-4 text-copper" />} onSelect={() => go("/app/alerts")}>Storm alerts</Item>
               <Item icon={<IconFlag className="h-4 w-4" />}       onSelect={() => go("/app/markers")}>Canvassing markers</Item>
               <Item icon={<IconReport className="h-4 w-4" />}     onSelect={() => go("/app/reports")}>Hail Impact Reports</Item>
               <Item icon={<IconBolt className="h-4 w-4 text-copper" />} onSelect={() => go("/app/photo-ai")}>Photo damage triage</Item>

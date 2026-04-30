@@ -24,6 +24,7 @@ interface NavItem {
 const APP_NAV: NavItem[] = [
   { label: "Map",         href: "/app/map",       icon: IconMap },
   { label: "Addresses",   href: "/app/addresses", icon: IconAddresses },
+  { label: "Alerts",      href: "/app/alerts",    icon: IconBolt },
   { label: "Markers",     href: "/app/markers",   icon: IconFlag },
   { label: "Reports",     href: "/app/reports",   icon: IconReport },
   { label: "Photo AI",    href: "/app/photo-ai",  icon: IconBolt },

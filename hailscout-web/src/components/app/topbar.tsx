@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { UserButton } from "@clerk/nextjs";
+import { NotificationBell } from "@/components/app/notification-bell";
 import { usePathname } from "next/navigation";
 import { IconCommand, IconSearch } from "@/components/icons";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/app/addresses": "Addresses",
   "/app/markers":   "Markers",
   "/app/reports":   "Reports",
+  "/app/alerts":    "Alerts",
   "/app/photo-ai":  "Photo damage triage",
   "/app/settings":  "Settings",
   "/super-admin/orgs":  "Tenant management",
@@ -76,6 +78,8 @@ export function Topbar({ onSearchClick }: { onSearchClick?: () => void } = {}) {
               {isMac ? "⌘" : "Ctrl"} <span>K</span>
             </span>
           </button>
+
+          <NotificationBell />
 
           <UserButton
             afterSignOutUrl="/"
