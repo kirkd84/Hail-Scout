@@ -1,7 +1,7 @@
-# HailScout — Session Handoff (2026-04-29, post Phase 5)
+# HailScout — Session Handoff (2026-04-29, post Phase 6)
 
 What shipped during the autonomous design + Phase 2 build, what's queued.
-Latest commit: `9571a2a` (web hooks sync to API when signed in). Phase 5 complete.
+Latest commit: `fe78dd6` (saved reports + branding). Phase 6 complete.
 
 ---
 
