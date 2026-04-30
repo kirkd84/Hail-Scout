@@ -1,7 +1,7 @@
-# HailScout — Session Handoff (2026-04-29, late evening)
+# HailScout — Session Handoff (2026-04-29, post Phase 4)
 
 What shipped during the autonomous design + Phase 2 build, what's queued.
-Latest commit: `3f3b247` (first-run welcome tour). Phase 3 complete.
+Latest commit: `e19b09a` (Photo AI demo + ROI calculator). Phase 4 complete.
 
 ---
 
@@ -138,6 +138,8 @@ Latest commit: `3f3b247` (first-run welcome tour). Phase 3 complete.
   side='bottom' on small screens (max-h 88vh, rounded-t-2xl, scrolls)
 - Right-side behaviour preserved on >=sm
 
+
+
 ### 3.4 First-run welcome tour ✓ `3f3b247`
 - 4-step glass modal with copper-bordered icon ring per step
   (search · basemap · drop-pin · cmd-K)
@@ -145,6 +147,47 @@ Latest commit: `3f3b247` (first-run welcome tour). Phase 3 complete.
 - Step dots, Skip + Next/Finish controls
 - Persists 'seen' flag in localStorage; never re-appears
 - Settings page: 'Take the welcome tour again' card resets the flag
+
+---
+
+## Phase 4 (this session)
+
+### 4.1 Live storms with pulse animation ✓ `0de7b29`
+- 4 live storm specs computed at module load (Wichita Falls, Dodge City,
+  Tulsa, Greenville) with timestamps inside the last 2 hours
+- StormFixture.is_live boolean flag, propagated through GeoJSON
+- LIVE_PULSE map layer filtered by is_live === true with copper fill
+- requestAnimationFrame loop drives radius (8→30) + opacity (0.55→0)
+  at 1.5 Hz with ease-out for a clean radar-pulse breath
+
+### 4.2 Storm activity feed widget ✓ `0de7b29`
+- Bottom-left glass pill, copper-bordered when storms are live, with a
+  Tailwind animate-ping dot in the collapsed state
+- Expanded panel: 'Live now' group (copper eyebrow + bolt icon) +
+  'Earlier today' / 'Recent storms' below
+- Each row: hail-size badge in industry palette, city, time-ago
+- Click row flies the map to the storm's centroid
+- 30-second timer keeps time-ago labels fresh
+- New lib/time-ago.ts compact relative-time formatter
+
+### 4.3 ROI calculator on marketing landing ✓ `e19b09a`
+- New section between product rows and testimonial
+- 3 sliders: crew size (1-25), avg ticket ($5k-$50k), close-rate lift (5-35%)
+- Conservative defaults (6% baseline close, 25 incremental doors/rep/mo)
+- Live outputs: projected annual revenue in display teal, ROI multiple
+  in copper, payback time, narrative breakdown
+- Copper-bordered methodology disclaimer keeps the math transparent
+
+### 4.4 Photo damage AI triage demo ✓ `e19b09a`
+- New /app/photo-ai page with drag-drop or click-to-upload
+- 1.8s 'Analyzing…' state with pulsing copper dot
+- Deterministic-ish hash of filename+size yields the same result on
+  re-upload (repeatable demos)
+- Result panel: severity-tinted hero (Low/Moderate/Severe/Total Loss),
+  3 KPI tiles, estimated replacement cost, copper strike-marker overlays
+  on the photo
+- Privacy note: photos processed entirely in the browser
+- Sidebar + command palette + topbar nav all updated
 
 ---
 
