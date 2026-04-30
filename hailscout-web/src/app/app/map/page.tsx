@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import type { HailAtAddressResponse, Storm } from "@/lib/api-types";
 import { HailMap } from "@/components/map/HailMap";
@@ -32,6 +33,7 @@ import { searchAddress } from "@/lib/geocode";
 import { useMarkers } from "@/hooks/useMarkers";
 
 export default function MapPage() {
+  const isMobile = useIsMobile();
   const [map, setMap] = useState<MapLibreMap | null>(null);
   const [basemap, setBasemap] = useState<BasemapId>("atlas");
   const [date, setDate] = useState<DateFilter>("all");
@@ -141,8 +143,8 @@ export default function MapPage() {
 
       <Sheet open={showResults} onOpenChange={setShowResults}>
         <SheetContent
-          side="right"
-          className="w-full sm:max-w-md p-0 bg-card border-l border-border"
+          side={isMobile ? "bottom" : "right"}
+          className={isMobile ? "p-0 bg-card border-t border-border max-h-[88vh] overflow-y-auto rounded-t-2xl" : "w-full sm:max-w-md p-0 bg-card border-l border-border"}
         >
           <SheetHeader className="px-6 pt-6 pb-3">
             <p className="text-[10px] font-mono uppercase tracking-wide-caps text-copper">

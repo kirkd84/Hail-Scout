@@ -1,6 +1,7 @@
 "use client";
 
 import type { Map as MapLibreMap } from "maplibre-gl";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import type { Storm } from "@/lib/api-types";
 import { formatDateTime } from "@/lib/utils";
 import { hailColor } from "@/lib/hail";
@@ -30,6 +31,7 @@ interface StormDetailSheetProps {
  * "term/definition" pattern.
  */
 export function StormDetailSheet({ storm, isOpen, onClose, address, map }: StormDetailSheetProps) {
+  const isMobile = useIsMobile();
   if (!storm) return null;
   const c = hailColor(storm.max_hail_size_in);
 
@@ -39,7 +41,10 @@ export function StormDetailSheet({ storm, isOpen, onClose, address, map }: Storm
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent side="right" className="w-full sm:max-w-md p-0 bg-card border-l border-border">
+      <SheetContent
+        side={isMobile ? "bottom" : "right"}
+        className={isMobile ? "p-0 bg-card border-t border-border max-h-[88vh] overflow-y-auto rounded-t-2xl" : "w-full sm:max-w-md p-0 bg-card border-l border-border"}
+      >
         <SheetHeader className="px-6 pt-6 pb-3">
           <p className="text-[10px] font-mono uppercase tracking-wide-caps text-copper">Storm record</p>
           <SheetTitle className="font-display text-2xl font-medium tracking-tight-display">

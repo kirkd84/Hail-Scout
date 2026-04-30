@@ -9,6 +9,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 interface MarkerEditorProps {
   marker: Marker | null;
@@ -25,6 +26,7 @@ export function MarkerEditor({
   onSave,
   onDelete,
 }: MarkerEditorProps) {
+  const isMobile = useIsMobile();
   const [status, setStatus] = useState<MarkerStatus>(marker?.status ?? "lead");
   const [notes, setNotes] = useState(marker?.notes ?? "");
 
@@ -41,8 +43,8 @@ export function MarkerEditor({
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent
-        side="right"
-        className="w-full sm:max-w-md p-0 bg-card border-l border-border"
+        side={isMobile ? "bottom" : "right"}
+        className={isMobile ? "p-0 bg-card border-t border-border max-h-[88vh] overflow-y-auto rounded-t-2xl" : "w-full sm:max-w-md p-0 bg-card border-l border-border"}
       >
         <SheetHeader className="px-6 pt-6 pb-3">
           <p className="text-[10px] font-mono uppercase tracking-wide-caps text-copper">
