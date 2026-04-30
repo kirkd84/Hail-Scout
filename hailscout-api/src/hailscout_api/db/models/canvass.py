@@ -127,3 +127,29 @@ class StormAlert(Base):
 
     def __repr__(self) -> str:
         return f"<StormAlert(id={self.id}, storm={self.storm_id}, addr={self.monitored_address_id})>"
+
+
+class SavedReport(Base):
+    """Persisted record of a Hail Impact Report download."""
+
+    __tablename__ = "saved_reports"
+
+    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    org_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id"), nullable=False, index=True
+    )
+    storm_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    storm_city: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    address: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    address_lat: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    address_lng: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    peak_size_in: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    storm_started_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = created_at_column()

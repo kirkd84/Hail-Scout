@@ -2,6 +2,7 @@
 
 import { UserButton } from "@clerk/nextjs";
 import { EmptyState } from "@/components/app/empty-state";
+import { BrandingCard } from "@/components/app/branding-card";
 import { IconUsers } from "@/components/icons";
 
 export default function SettingsPage() {
@@ -64,11 +65,13 @@ export default function SettingsPage() {
           </button>
         </section>
 
+        <BrandingCard />
+
         <EmptyState
           icon={IconUsers}
           eyebrow="Coming soon"
-          title="Workspace settings"
-          description="Invite teammates, set roles (owner / admin / member), pick a default territory, and manage your branding for Hail Impact Reports."
+          title="Team management"
+          description="Invite teammates, set roles (owner / admin / member), and pick a default territory."
           secondary={{ label: "Talk to us", href: "mailto:hello@hailscout.com" }}
         />
       </div>

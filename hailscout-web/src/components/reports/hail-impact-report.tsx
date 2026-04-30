@@ -29,12 +29,14 @@ import { hailColor } from "@/lib/hail";
 
 interface ReportProps {
   storm: Storm;
-  /** Optional address — set when generated from address-search context. */
   address?: string;
-  /** PNG dataURL of a live map snapshot. When provided, renders above the hero. */
   mapImage?: string;
   organizationName?: string;
   preparedBy?: string;
+  /** Hex override for the brand primary (defaults to topographic teal). */
+  brandPrimary?: string;
+  /** Hex override for the brand accent (defaults to copper). */
+  brandAccent?: string;
 }
 
 const COLORS = {
@@ -63,6 +65,7 @@ const styles = StyleSheet.create({
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
   brand: { flexDirection: "row", alignItems: "center", gap: 8 },
   brandText: { fontSize: 14, fontFamily: "Helvetica-Bold", color: COLORS.teal, letterSpacing: -0.4 },
+  brandTextOverride: { color: undefined as unknown as string },
   topMeta: { fontSize: 8, color: COLORS.textMuted, fontFamily: "Helvetica-Oblique" },
 
   /* Atlas rule */
@@ -162,8 +165,12 @@ export function HailImpactReport({
   mapImage,
   organizationName = "HailScout",
   preparedBy = "HailScout AI",
+  brandPrimary,
+  brandAccent,
 }: ReportProps) {
   const c = hailColor(storm.max_hail_size_in);
+  const primary = brandPrimary || COLORS.teal;
+  const accent  = brandAccent  || COLORS.copper;
   const reportDate = new Date().toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
@@ -179,13 +186,13 @@ export function HailImpactReport({
         <View style={styles.topRow}>
           <View style={styles.brand}>
             <Svg width={22} height={22} viewBox="0 0 28 28">
-              <Circle cx={14} cy={14} r={11} stroke={COLORS.teal} strokeWidth={1.4} fill="none" />
-              <Circle cx={14} cy={14} r={7} stroke={COLORS.teal} strokeWidth={1.2} fill="none" />
-              <Circle cx={14} cy={14} r={3.5} stroke={COLORS.copper} strokeWidth={1.2} fill="none" />
-              <Path d="M5 14 Q14 7 23 14" stroke={COLORS.copper} strokeWidth={1.2} fill="none" />
-              <Circle cx={14} cy={14} r={1.4} fill={COLORS.copper} />
+              <Circle cx={14} cy={14} r={11} stroke={primary} strokeWidth={1.4} fill="none" />
+              <Circle cx={14} cy={14} r={7} stroke={primary} strokeWidth={1.2} fill="none" />
+              <Circle cx={14} cy={14} r={3.5} stroke={accent} strokeWidth={1.2} fill="none" />
+              <Path d="M5 14 Q14 7 23 14" stroke={accent} strokeWidth={1.2} fill="none" />
+              <Circle cx={14} cy={14} r={1.4} fill={accent} />
             </Svg>
-            <Text style={styles.brandText}>HailScout</Text>
+            <Text style={[styles.brandText, { color: primary }]}>{organizationName}</Text>
           </View>
           <Text style={styles.topMeta}>Hail Impact Report · {reportDate}</Text>
         </View>

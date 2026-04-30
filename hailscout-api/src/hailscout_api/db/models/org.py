@@ -23,6 +23,11 @@ class Organization(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     plan_tier: Mapped[str] = mapped_column(String(50), default="free", nullable=False)
     stripe_customer_id: Mapped[str | None] = mapped_column(String(255))
+    # Branding overrides for Hail Impact Reports
+    brand_logo_url:     Mapped[str | None] = mapped_column(String(500))
+    brand_primary:      Mapped[str | None] = mapped_column(String(16))
+    brand_accent:       Mapped[str | None] = mapped_column(String(16))
+    brand_company_name: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = created_at_column()
 
     # Relationships

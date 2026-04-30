@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import type { Storm } from "@/lib/api-types";
 import { captureMapSnapshot } from "@/lib/map-snapshot";
+import { useReports, useBranding } from "@/hooks/useReports";
 import { cn } from "@/lib/utils";
 import { IconReport } from "@/components/icons";
 
@@ -25,6 +26,8 @@ interface Props {
  */
 export function DownloadReportButton({ storm, address, map, className }: Props) {
   const [busy, setBusy] = useState<"capture" | "render" | null>(null);
+  const { save: saveReport } = useReports();
+  const { branding } = useBranding();
 
   const handleClick = async () => {
     if (busy) return;
@@ -54,7 +57,14 @@ export function DownloadReportButton({ storm, address, map, className }: Props) 
         import("./hail-impact-report"),
       ]);
       const blob = await pdf(
-        <HailImpactReport storm={storm} address={address} mapImage={mapImage} />,
+        <HailImpactReport
+          storm={storm}
+          address={address}
+          mapImage={mapImage}
+          organizationName={branding?.company_name ?? undefined}
+          brandPrimary={branding?.primary ?? undefined}
+          brandAccent={branding?.accent ?? undefined}
+        />,
       ).toBlob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -66,6 +76,18 @@ export function DownloadReportButton({ storm, address, map, className }: Props) 
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+
+      // Best-effort: persist a record of this report so it shows up in the library.
+      void saveReport({
+        storm_id: storm.id,
+        storm_city: undefined,
+        address: address ?? null,
+        address_lat: storm.centroid_lat ?? null,
+        address_lng: storm.centroid_lng ?? null,
+        peak_size_in: storm.max_hail_size_in ?? null,
+        storm_started_at: storm.start_time ?? null,
+        title: address ? `Hail Impact · ${address}` : null,
+      }).catch(() => null);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error("PDF generation failed", err);
