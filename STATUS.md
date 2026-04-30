@@ -1,7 +1,7 @@
-# HailScout — Session Handoff (2026-04-29, post Phase 4)
+# HailScout — Session Handoff (2026-04-29, post Phase 5)
 
 What shipped during the autonomous design + Phase 2 build, what's queued.
-Latest commit: `e19b09a` (Photo AI demo + ROI calculator). Phase 4 complete.
+Latest commit: `9571a2a` (web hooks sync to API when signed in). Phase 5 complete.
 
 ---
 
@@ -178,6 +178,8 @@ Latest commit: `e19b09a` (Photo AI demo + ROI calculator). Phase 4 complete.
   in copper, payback time, narrative breakdown
 - Copper-bordered methodology disclaimer keeps the math transparent
 
+
+
 ### 4.4 Photo damage AI triage demo ✓ `e19b09a`
 - New /app/photo-ai page with drag-drop or click-to-upload
 - 1.8s 'Analyzing…' state with pulsing copper dot
@@ -191,7 +193,55 @@ Latest commit: `e19b09a` (Photo AI demo + ROI calculator). Phase 4 complete.
 
 ---
 
-## Phase 2 (previous session)
+## Phase 5 (this session) — Real persistence
+
+### 5.1 Migration + models for markers + addresses ✓ `63d0939`
+
+Migration 003 simplifies the existing canvass schema so the API can
+actually write rows without the parcel/storm ingest pipelines being live.
+
+- monitored_addresses: parcel_id/label/threshold -> nullable; add
+  lat/lng/address/last_storm_at/last_storm_size_in/user_id columns;
+  indexes on user_id and (lat, lng)
+- markers: storm_id/parcel_id/geom_point -> nullable; add lat/lng/client_id;
+  indexes on client_id and (lat, lng). client_id supports idempotent
+  upsert from the localStorage->API migration path.
+- SQLAlchemy models in db/models/canvass.py rewritten to match.
+
+### 5.2 Implement /v1/markers + /v1/monitored-addresses routes ✓ `63d0939`
+
+Replaced the 501 stubs with auth-scoped CRUD.
+
+Routes now live (markers + monitored-addresses):
+- `GET /v1/markers` · `POST /v1/markers` · `PATCH /v1/markers/{id}` · `DELETE /v1/markers/{id}`
+- `POST /v1/markers/bulk` (idempotent via client_id collision check)
+- `GET /v1/monitored-addresses` · `POST` · `PATCH` · `DELETE`
+- `POST /v1/monitored-addresses/bulk` (~50m near-dedup on insert)
+- `GET /v1/alerts` returns `[]` (Phase 5.5 wires the generator)
+
+Every request resolves the local User row via `clerk_user_id` (the
+JWT `sub`), enforces `org_id` scoping on read/write/delete, and 404s
+on cross-tenant access attempts.
+
+### 5.3 Web hooks sync to API when signed in ✓ `9571a2a`
+
+- `useMarkers` and `useSavedAddresses` rewritten with a dual-mode
+  surface: SWR-cached fetch when signed in, localStorage when not
+- async add/update/remove (was sync). Map page + save-address-button
+  updated to await
+- One-time migration of existing localStorage rows on first sign-in
+  via `/markers/bulk` and `/monitored-addresses/bulk`. Persists a
+  `hs.{markers,addresses}.migrated.v1` flag so it never re-runs.
+  Falls back gracefully if the API call fails (retries on next mount).
+
+What this means for the demo:
+- Anonymous users still get a working app via localStorage
+- Signed-in users see their data on every device
+- No data loss when an anonymous user signs up (migration kicks in)
+
+---
+
+## Phase 4 (previous session)## Phase 2 (previous session)
 - `cmdk ^1.1.1` added
 - Glass modal at 12vh from top, backdrop blur
 - Sections: Pages · Recent storms · Super-admin (when is_super_admin) ·
