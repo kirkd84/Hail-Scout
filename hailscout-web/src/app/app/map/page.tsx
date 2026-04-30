@@ -28,6 +28,7 @@ import {
 import { StormList } from "@/components/app/storm-list";
 import { StormDetailSheet } from "@/components/app/storm-detail-sheet";
 import { SaveAddressButton } from "@/components/app/save-address-button";
+import { WelcomeTour } from "@/components/app/welcome-tour";
 import { useSearchParams } from "next/navigation";
 import { searchAddress } from "@/lib/geocode";
 import { useMarkers } from "@/hooks/useMarkers";
@@ -218,6 +219,8 @@ export default function MapPage() {
         onSave={(id, patch) => update(id, patch)}
         onDelete={(id) => remove(id)}
       />
+
+      <WelcomeTour />
     </div>
   );
 }
