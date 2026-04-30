@@ -6,6 +6,7 @@ import type { Storm } from "@/lib/api-types";
 import { formatDateTime } from "@/lib/utils";
 import { hailColor } from "@/lib/hail";
 import { DownloadReportButton } from "@/components/reports/download-report-button";
+import { ExportLeadsButton } from "@/components/reports/export-leads-button";
 import {
   Sheet,
   SheetContent,
@@ -138,6 +139,12 @@ export function StormDetailSheet({ storm, isOpen, onClose, address, map }: Storm
           <DownloadReportButton storm={storm} address={address} map={map} />
           <p className="mt-2 text-center text-[10px] font-mono uppercase tracking-wide-caps text-foreground/45">
             Branded PDF · ~1 page · ready to share
+          </p>
+          <div className="mt-3">
+            <ExportLeadsButton storm={storm} />
+          </div>
+          <p className="mt-2 text-center text-[10px] font-mono uppercase tracking-wide-caps text-foreground/45">
+            CSV · monitored addresses inside this storm
           </p>
         </div>
       </SheetContent>

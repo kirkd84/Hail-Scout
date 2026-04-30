@@ -9,7 +9,7 @@ import { useMe } from "@/hooks/useMe";
 import { STORM_FIXTURES } from "@/lib/storm-fixtures";
 import {
   IconMap, IconAddresses, IconFlag, IconReport, IconSettings,
-  IconUsers, IconSearch, IconLayers, IconClose, IconPin, IconBolt,
+  IconUsers, IconSearch, IconLayers, IconClose, IconPin, IconBolt, IconCompass,
 } from "@/components/icons";
 
 interface PaletteContextProps {
@@ -119,6 +119,7 @@ export function CommandPalette({ open, setOpen }: PaletteContextProps) {
             </Command.Empty>
 
             <Command.Group heading="Pages">
+              <Item icon={<IconCompass className="h-4 w-4" />}    onSelect={() => go("/app")}>Dashboard</Item>
               <Item icon={<IconMap className="h-4 w-4" />}        onSelect={() => go("/app/map")}>The atlas (map)</Item>
               <Item icon={<IconAddresses className="h-4 w-4" />}  onSelect={() => go("/app/addresses")}>Monitored addresses</Item>
               <Item icon={<IconBolt className="h-4 w-4 text-copper" />} onSelect={() => go("/app/alerts")}>Storm alerts</Item>

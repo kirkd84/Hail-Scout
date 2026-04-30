@@ -4,16 +4,19 @@ import Link from "next/link";
 import { useSavedAddresses } from "@/hooks/useSavedAddresses";
 import { hailColor } from "@/lib/hail";
 import { EmptyState } from "@/components/app/empty-state";
+import { useState } from "react";
 import { IconAddresses, IconChevronRight } from "@/components/icons";
+import { BulkImportAddresses } from "@/components/app/bulk-import-addresses";
 import { cn } from "@/lib/utils";
 
 export default function AddressesPage() {
   const { addresses, remove } = useSavedAddresses();
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   if (addresses.length === 0) {
     return (
       <div className="h-full overflow-y-auto">
-        <div className="container max-w-3xl py-10">
+        <div className="container max-w-3xl py-10 space-y-5">
           <EmptyState
             icon={IconAddresses}
             eyebrow="Monitored addresses"
@@ -21,6 +24,16 @@ export default function AddressesPage() {
             description="Search any address on the map and click ‘Monitor address’ to save it. Come back here every morning to see what hit your customers overnight."
             primary={{ label: "Search the atlas", href: "/app/map" }}
           />
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={() => setBulkOpen(true)}
+              className="text-sm font-medium text-copper hover:text-copper-700"
+            >
+              Or bulk import a customer list →
+            </button>
+          </div>
+          <BulkImportAddresses open={bulkOpen} onOpenChange={setBulkOpen} />
         </div>
       </div>
     );
@@ -58,12 +71,21 @@ export default function AddressesPage() {
               {total} address{total === 1 ? "" : "es"} on your watchlist. Stored locally on this device.
             </p>
           </div>
-          <Link
-            href="/app/map"
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-teal-900"
-          >
-            Add from map <span aria-hidden>→</span>
-          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setBulkOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:border-copper/50"
+            >
+              Bulk import
+            </button>
+            <Link
+              href="/app/map"
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-teal-900"
+            >
+              Add from map <span aria-hidden>→</span>
+            </Link>
+          </div>
         </div>
 
         <div className="rule-atlas" />
@@ -154,6 +176,7 @@ export default function AddressesPage() {
           })}
         </div>
       </div>
+      <BulkImportAddresses open={bulkOpen} onOpenChange={setBulkOpen} />
     </div>
   );
 }

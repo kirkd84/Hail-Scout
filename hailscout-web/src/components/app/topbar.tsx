@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
  * a real command palette in a future pass.
  */
 const PAGE_TITLES: Record<string, string> = {
+  "/app":           "Overview",
   "/app/map":       "Atlas",
   "/app/addresses": "Addresses",
   "/app/markers":   "Markers",

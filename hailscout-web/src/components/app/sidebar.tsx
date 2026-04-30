@@ -7,6 +7,7 @@ import { useMe } from "@/hooks/useMe";
 import { Wordmark } from "@/components/brand/wordmark";
 import {
   IconMap,
+  IconCompass,
   IconAddresses,
   IconFlag,
   IconReport,
@@ -22,6 +23,7 @@ interface NavItem {
 }
 
 const APP_NAV: NavItem[] = [
+  { label: "Overview",    href: "/app",           icon: IconCompass },
   { label: "Map",         href: "/app/map",       icon: IconMap },
   { label: "Addresses",   href: "/app/addresses", icon: IconAddresses },
   { label: "Alerts",      href: "/app/alerts",    icon: IconBolt },
@@ -56,7 +58,9 @@ export function Sidebar() {
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           {APP_NAV.map((item) => {
             const isActive =
-              pathname === item.href || pathname.startsWith(item.href + "/");
+              item.href === "/app"
+                ? pathname === "/app"
+                : pathname === item.href || pathname.startsWith(item.href + "/");
             const Icon = item.icon;
             return (
               <Link
