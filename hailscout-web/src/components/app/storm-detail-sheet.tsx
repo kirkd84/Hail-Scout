@@ -5,6 +5,7 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import type { Storm } from "@/lib/api-types";
 import { formatDateTime } from "@/lib/utils";
 import { hailColor } from "@/lib/hail";
+import * as React from "react";
 import { synthesize } from "@/lib/storm-narrative";
 import { DownloadReportButton } from "@/components/reports/download-report-button";
 import { ExportLeadsButton } from "@/components/reports/export-leads-button";
@@ -152,6 +153,7 @@ export function StormDetailSheet({ storm, isOpen, onClose, address, map }: Storm
           <p className="mt-2 text-center text-[10px] font-mono uppercase tracking-wide-caps text-foreground/45">
             CSV · monitored addresses inside this storm
           </p>
+          <ShareLinkButton storm={storm} className="mt-3" />
         </div>
       </SheetContent>
     </Sheet>
@@ -164,6 +166,42 @@ function Row({ term, def }: { term: string; def: React.ReactNode }) {
       <dt className="text-[11px] font-mono uppercase tracking-wide-caps text-foreground/55">{term}</dt>
       <dd className="text-foreground">{def}</dd>
     </div>
+  );
+}
+
+function ShareLinkButton({ storm, className }: { storm: Storm; className?: string }) {
+  const [copied, setCopied] = React.useState(false);
+  const url =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/storm/${storm.id}`
+      : `/storm/${storm.id}`;
+
+  const handle = async () => {
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(url);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      // ignore
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handle}
+      className={
+        "inline-flex w-full items-center justify-center gap-2 rounded-md border border-border bg-card px-4 py-2.5 text-sm text-foreground/85 hover:border-copper/50 hover:text-foreground transition-colors " +
+        (className ?? "")
+      }
+    >
+      <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 text-copper" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 9 L10 5 M6 7 L4 7 A3 3 0 0 0 4 13 L7 13 M10 9 L12 9 A3 3 0 0 1 12 15 L9 15" />
+      </svg>
+      {copied ? "Copied · share away" : "Copy share link"}
+    </button>
   );
 }
 

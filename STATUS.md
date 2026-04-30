@@ -1,7 +1,7 @@
-# HailScout — Session Handoff (2026-04-29, post Phase 7)
+# HailScout — Session Handoff (2026-04-30, conference-ready)
 
 What shipped during the autonomous design + Phase 2 build, what's queued.
-Latest commit: `5d22e95` (dashboard + bulk import + leads CSV + toasts). Phase 7 complete.
+Latest commit: `0fc6470` (public storm URLs + live-count badge). Phase 8 complete.
 
 ---
 
