@@ -102,10 +102,15 @@ export default function MapPage() {
     }
   };
 
-  const handleMapClick = (lat: number, lng: number) => {
+  const handleMapClick = async (lat: number, lng: number) => {
     if (!dropMode) return;
-    const created = add({ lng, lat, status: "lead" });
-    setEditingMarkerId(created.id);
+    try {
+      const created = await add({ lng, lat, status: "lead" });
+      setEditingMarkerId(created.id);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to drop marker", err);
+    }
     setDropMode(false); // exit drop mode after dropping one
   };
 

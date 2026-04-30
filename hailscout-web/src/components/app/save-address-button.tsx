@@ -36,21 +36,26 @@ export function SaveAddressButton({
 
   const [busy, setBusy] = useState(false);
 
-  const handleClick = () => {
+  const handleClick = async () => {
     setBusy(true);
-    if (saved && existingId) {
-      remove(existingId);
-    } else {
-      save({
-        address,
-        lat,
-        lng,
-        last_storm_size_in: lastStormSizeIn,
-        last_storm_at: lastStormAt,
-      });
+    try {
+      if (saved && existingId) {
+        await remove(existingId);
+      } else {
+        await save({
+          address,
+          lat,
+          lng,
+          last_storm_size_in: lastStormSizeIn,
+          last_storm_at: lastStormAt,
+        });
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("save-address failed", err);
+    } finally {
+      setBusy(false);
     }
-    // Tiny micro-interaction
-    setTimeout(() => setBusy(false), 200);
   };
 
   return (
