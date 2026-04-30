@@ -3,6 +3,7 @@ import { Wordmark } from "@/components/brand/wordmark";
 import { ContourBg } from "@/components/brand/contour-bg";
 import { AtlasMapPreview } from "@/components/brand/atlas-map-preview";
 import { RoiCalculator } from "@/components/marketing/roi-calculator";
+import { LiveCountBadge } from "@/components/marketing/live-count-badge";
 
 /**
  * HailScout marketing landing.
@@ -71,10 +72,7 @@ function Hero() {
       <ContourBg className="opacity-90" density="normal" />
       <div className="container relative grid gap-12 pb-24 pt-16 md:gap-16 md:pb-32 md:pt-24 lg:grid-cols-12 lg:items-center">
         <div className="lg:col-span-6 animate-fade-up">
-          <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-xs text-muted-foreground">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-copper" />
-            <span className="font-mono-num tracking-wide-caps uppercase">Storm intelligence · 2026</span>
-          </p>
+          <LiveCountBadge className="mb-5" />
           <h1 className="font-display text-balance text-5xl font-medium leading-[1.02] tracking-tight-display text-foreground md:text-6xl lg:text-7xl">
             Every hailstorm,
             <span className="block text-primary">on one atlas.</span>

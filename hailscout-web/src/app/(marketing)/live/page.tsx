@@ -220,10 +220,10 @@ function StormCard({ storm, live }: { storm: StormFixture; live: boolean }) {
         </div>
         <p className="text-sm text-foreground/85 leading-relaxed line-clamp-3">{n.body}</p>
         <Link
-          href="/sign-up"
+          href={`/storm/${storm.id}`}
           className="mt-4 inline-flex items-center gap-1 text-xs font-mono uppercase tracking-wide-caps text-copper hover:text-copper-700"
         >
-          Track addresses in this area <span aria-hidden>→</span>
+          See storm details <span aria-hidden>→</span>
         </Link>
       </div>
     </article>
