@@ -22,8 +22,7 @@ import {
   Svg,
   Path,
   Circle,
-  Line,
-  G,
+  Image,
 } from "@react-pdf/renderer";
 import type { Storm } from "@/lib/api-types";
 import { hailColor } from "@/lib/hail";
@@ -32,6 +31,8 @@ interface ReportProps {
   storm: Storm;
   /** Optional address — set when generated from address-search context. */
   address?: string;
+  /** PNG dataURL of a live map snapshot. When provided, renders above the hero. */
+  mapImage?: string;
   organizationName?: string;
   preparedBy?: string;
 }
@@ -71,6 +72,29 @@ const styles = StyleSheet.create({
   eyebrow: { fontSize: 8, fontFamily: "Helvetica-Bold", color: COLORS.copper, letterSpacing: 1.4, textTransform: "uppercase", marginBottom: 4 },
   display: { fontSize: 28, fontFamily: "Helvetica-Bold", color: COLORS.charcoal, letterSpacing: -0.7, marginBottom: 4, lineHeight: 1.1 },
   subtitle: { fontSize: 11, color: COLORS.textMuted, marginBottom: 8 },
+
+  /* Map snapshot block */
+  mapBlock: {
+    marginTop: 14,
+    marginBottom: 4,
+    borderRadius: 8,
+    borderWidth: 0.6,
+    borderColor: COLORS.border,
+    overflow: "hidden",
+    backgroundColor: COLORS.creamLift,
+  },
+  mapImage: { width: "100%", height: 220, objectFit: "cover" },
+  mapCaption: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    fontSize: 8,
+    color: COLORS.textMuted,
+    fontFamily: "Courier",
+    borderTopWidth: 0.5,
+    borderTopColor: COLORS.border,
+  },
 
   /* Hero card */
   heroCard: {
@@ -135,6 +159,7 @@ function durationMin(start: string, end: string): number {
 export function HailImpactReport({
   storm,
   address,
+  mapImage,
   organizationName = "HailScout",
   preparedBy = "HailScout AI",
 }: ReportProps) {
@@ -172,6 +197,20 @@ export function HailImpactReport({
         <Text style={styles.subtitle}>
           {address ?? "Affected location"} · prepared by {organizationName}
         </Text>
+
+        {mapImage && (
+          <View style={styles.mapBlock}>
+            <Image src={mapImage} style={styles.mapImage} />
+            <View style={styles.mapCaption}>
+              <Text>STORM SWATH · {address ?? "affected area"}</Text>
+              <Text>
+                {storm.bbox
+                  ? `${storm.bbox.min_lat.toFixed(2)},${storm.bbox.min_lng.toFixed(2)} → ${storm.bbox.max_lat.toFixed(2)},${storm.bbox.max_lng.toFixed(2)}`
+                  : ""}
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* Hero card */}
         <View

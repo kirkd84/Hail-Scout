@@ -105,6 +105,10 @@ export function HailMap({ basemap = "atlas", dropMode = false, onMapReady, onMar
       minZoom: MAP_CONFIG.MIN_ZOOM,
       maxZoom: MAP_CONFIG.MAX_ZOOM,
       attributionControl: { compact: true },
+      // Required for getCanvas().toDataURL() snapshots — used by the
+      // Hail Impact Report PDF generator. Slight perf cost on each
+      // frame; negligible for our use case.
+      preserveDrawingBuffer: true,
     });
 
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), "top-right");

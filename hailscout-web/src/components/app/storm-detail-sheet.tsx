@@ -1,5 +1,6 @@
 "use client";
 
+import type { Map as MapLibreMap } from "maplibre-gl";
 import type { Storm } from "@/lib/api-types";
 import { formatDateTime } from "@/lib/utils";
 import { hailColor } from "@/lib/hail";
@@ -17,6 +18,8 @@ interface StormDetailSheetProps {
   onClose: () => void;
   /** Optional address context (passed from the address-search flow). */
   address?: string;
+  /** Live MapLibre instance — when present, the report embeds a swath snapshot. */
+  map?: MapLibreMap | null;
 }
 
 /**
@@ -26,7 +29,7 @@ interface StormDetailSheetProps {
  * inches in the display serif. Below: meta rows in a clean two-column
  * "term/definition" pattern.
  */
-export function StormDetailSheet({ storm, isOpen, onClose, address }: StormDetailSheetProps) {
+export function StormDetailSheet({ storm, isOpen, onClose, address, map }: StormDetailSheetProps) {
   if (!storm) return null;
   const c = hailColor(storm.max_hail_size_in);
 
@@ -127,7 +130,7 @@ export function StormDetailSheet({ storm, isOpen, onClose, address }: StormDetai
 
         <div className="px-6 pb-6">
           <div className="rule-atlas mb-5" />
-          <DownloadReportButton storm={storm} address={address} />
+          <DownloadReportButton storm={storm} address={address} map={map} />
           <p className="mt-2 text-center text-[10px] font-mono uppercase tracking-wide-caps text-foreground/45">
             Branded PDF · ~1 page · ready to share
           </p>
