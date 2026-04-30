@@ -26,6 +26,9 @@ import {
 } from "@/components/ui/sheet";
 import { StormList } from "@/components/app/storm-list";
 import { StormDetailSheet } from "@/components/app/storm-detail-sheet";
+import { SaveAddressButton } from "@/components/app/save-address-button";
+import { useSearchParams } from "next/navigation";
+import { searchAddress } from "@/lib/geocode";
 import { useMarkers } from "@/hooks/useMarkers";
 
 export default function MapPage() {
@@ -61,6 +64,31 @@ export default function MapPage() {
       // ignore
     }
   }, [map]);
+
+  // Deep-link: if ?address= is in the URL, kick off a search on mount.
+  const params = useSearchParams();
+  const queryAddress = params.get("address");
+  useEffect(() => {
+    if (!queryAddress || !map) return;
+    let cancelled = false;
+    void (async () => {
+      const r = await searchAddress(queryAddress);
+      if (!r || cancelled) return;
+      const { fixturesAtPoint } = await import("@/lib/storm-fixtures");
+      const storms = fixturesAtPoint(r.lng, r.lat);
+      handleAddressSearch({
+        lat: r.lat,
+        lng: r.lng,
+        address: r.pretty,
+        storms,
+        events: [],
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, queryAddress]);
 
   const handleAddressSearch = (data: HailAtAddressResponse) => {
     setSearchResults(data);
@@ -133,6 +161,31 @@ export default function MapPage() {
           <div className="px-6">
             <div className="rule-atlas" />
           </div>
+
+          {searchResults && (
+            <div className="px-6 pt-4 pb-1">
+              <SaveAddressButton
+                address={searchResults.address}
+                lat={searchResults.lat}
+                lng={searchResults.lng}
+                lastStormSizeIn={
+                  searchResults.storms.length > 0
+                    ? Math.max(...searchResults.storms.map((s) => s.max_hail_size_in))
+                    : undefined
+                }
+                lastStormAt={
+                  searchResults.storms.length > 0
+                    ? searchResults.storms.reduce((latest, s) =>
+                        new Date(s.start_time).getTime() > new Date(latest).getTime()
+                          ? s.start_time
+                          : latest,
+                        searchResults.storms[0].start_time,
+                      )
+                    : undefined
+                }
+              />
+            </div>
+          )}
 
           <div className="px-6 py-5">
             {searchResults && (
