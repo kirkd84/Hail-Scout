@@ -29,6 +29,7 @@ import { StormList } from "@/components/app/storm-list";
 import { StormDetailSheet } from "@/components/app/storm-detail-sheet";
 import { SaveAddressButton } from "@/components/app/save-address-button";
 import { WelcomeTour } from "@/components/app/welcome-tour";
+import { StormActivityFeed } from "@/components/map/storm-activity-feed";
 import { useSearchParams } from "next/navigation";
 import { searchAddress } from "@/lib/geocode";
 import { useMarkers } from "@/hooks/useMarkers";
@@ -137,6 +138,8 @@ export default function MapPage() {
         onToggle={() => setDropMode((v) => !v)}
         count={markers.length}
       />
+
+      <StormActivityFeed map={map} />
 
       <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex justify-center px-4">
         <BasemapToggle value={basemap} onChange={setBasemap} />

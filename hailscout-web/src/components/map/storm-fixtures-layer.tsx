@@ -11,6 +11,7 @@ const LAYER_FILL      = "hs-fx-fill";
 const LAYER_LINE      = "hs-fx-line";
 const LAYER_CENTROID  = "hs-fx-centroid";
 const LAYER_CENTROID_RING = "hs-fx-centroid-ring";
+const LAYER_LIVE_PULSE = "hs-fx-live-pulse";
 
 interface Props {
   map: MapLibreMap | null;
@@ -137,6 +138,25 @@ export function StormFixturesLayer({ map, visible = true, startTimeMin = null, m
         },
       });
 
+      // Live-storm pulse — only renders for is_live === true. The radius
+      // and opacity are mutated on every animation frame in a separate effect.
+      map.addLayer({
+        id: LAYER_LIVE_PULSE,
+        type: "circle",
+        source: SOURCE_CENTROIDS,
+        filter: ["==", ["get", "is_live"], true],
+        paint: {
+          "circle-radius": 12,
+          "circle-color": "hsl(var(--copper-500))" as unknown as string,
+          // The CSS var won't resolve in MapLibre — use a literal copper hex
+          // matching --copper-500 (HSL 21 65% 57% ≈ #D87C4A).
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...({ "circle-color": "#D87C4A" } as any),
+          "circle-opacity": 0.5,
+          "circle-stroke-width": 0,
+        },
+      });
+
       // Solid centroid dot
       map.addLayer({
         id: LAYER_CENTROID,
@@ -177,7 +197,7 @@ export function StormFixturesLayer({ map, visible = true, startTimeMin = null, m
   // Visibility toggle
   useEffect(() => {
     if (!map) return;
-    const layers = [LAYER_FILL, LAYER_LINE, LAYER_CENTROID_RING, LAYER_CENTROID];
+    const layers = [LAYER_FILL, LAYER_LINE, LAYER_CENTROID_RING, LAYER_CENTROID, LAYER_LIVE_PULSE];
     const v = visible ? "visible" : "none";
     for (const id of layers) {
       if (map.getLayer(id)) {
@@ -270,6 +290,33 @@ export function StormFixturesLayer({ map, visible = true, startTimeMin = null, m
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (csrc as any).setData(centroidFC);
   }, [map, startTimeMin]);
+
+  // Animate the live pulse — 1.5 Hz radial breath
+  useEffect(() => {
+    if (!map) return;
+    let raf = 0;
+    let start = performance.now();
+    const loop = () => {
+      if (!map.getLayer(LAYER_LIVE_PULSE)) {
+        raf = requestAnimationFrame(loop);
+        return;
+      }
+      const t = (performance.now() - start) / 1000; // seconds
+      const phase = (t * 1.5) % 1; // 0..1, 1.5 cycles/sec
+      const eased = 1 - Math.pow(1 - phase, 2); // ease-out
+      const radius = 8 + eased * 22;
+      const opacity = 0.55 * (1 - eased);
+      try {
+        map.setPaintProperty(LAYER_LIVE_PULSE, "circle-radius", radius);
+        map.setPaintProperty(LAYER_LIVE_PULSE, "circle-opacity", opacity);
+      } catch {
+        // layer may have been removed mid-update
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [map]);
 
   return null;
 }

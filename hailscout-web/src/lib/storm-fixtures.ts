@@ -26,6 +26,8 @@ export interface StormBand {
 export interface StormFixture extends Storm {
   city: string;
   bands: StormBand[];
+  /** Storm is currently 'live' — within the last 2 hours. Used for pulse animations. */
+  is_live: boolean;
 }
 
 interface StormSpec {
@@ -49,6 +51,54 @@ interface StormSpec {
    */
   extra_cores?: { offset: [number, number]; peak: number }[];
 }
+
+// Live storms — timestamps computed at module-load so the demo always
+// has 'currently active' events. The set re-evaluates on each page load.
+const NOW = Date.now();
+const minsAgo = (m: number) => new Date(NOW - m * 60_000).toISOString();
+
+const LIVE_STORM_SPECS: (StormSpec & { is_live: boolean })[] = [
+  {
+    id: "fx-storm-live-wichita-falls",
+    city: "Wichita Falls, TX",
+    start_time: minsAgo(14),
+    end_time: minsAgo(-30), // still ongoing — ETA 30 min
+    centroid: [-98.49, 33.91],
+    outer_half_length: 0.40, outer_half_width: 0.14, bearing: 38,
+    peak_size_in: 2.25,
+    is_live: true,
+  },
+  {
+    id: "fx-storm-live-dodge-city",
+    city: "Dodge City, KS",
+    start_time: minsAgo(38),
+    end_time: minsAgo(-12),
+    centroid: [-100.02, 37.75],
+    outer_half_length: 0.42, outer_half_width: 0.15, bearing: 32,
+    peak_size_in: 1.75,
+    is_live: true,
+  },
+  {
+    id: "fx-storm-live-tulsa",
+    city: "Tulsa, OK",
+    start_time: minsAgo(72),
+    end_time: minsAgo(8),
+    centroid: [-95.99, 36.15],
+    outer_half_length: 0.48, outer_half_width: 0.17, bearing: 35,
+    peak_size_in: 2.5,
+    is_live: true,
+  },
+  {
+    id: "fx-storm-live-greenville",
+    city: "Greenville, TX",
+    start_time: minsAgo(128),
+    end_time: minsAgo(72),
+    centroid: [-96.11, 33.14],
+    outer_half_length: 0.36, outer_half_width: 0.13, bearing: 40,
+    peak_size_in: 1.5,
+    is_live: false, // ended >1h ago — no pulse
+  },
+];
 
 const STORM_SPECS: StormSpec[] = [
   { id: "fx-storm-dfw-04-12",   city: "Dallas–Fort Worth, TX", start_time: "2026-04-12T20:14:00Z", end_time: "2026-04-12T22:38:00Z", centroid: [-96.97, 32.81], outer_half_length: 0.55, outer_half_width: 0.18, bearing: 38, peak_size_in: 2.75 },
@@ -199,10 +249,14 @@ function buildFixture(spec: StormSpec): StormFixture {
     bbox: { min_lat: minLat, min_lng: minLng, max_lat: maxLat, max_lng: maxLng },
     source: "mrms",
     bands,
+    is_live: (spec as StormSpec & { is_live?: boolean }).is_live ?? false,
   };
 }
 
-export const STORM_FIXTURES: StormFixture[] = STORM_SPECS.map(buildFixture);
+export const STORM_FIXTURES: StormFixture[] = [
+  ...LIVE_STORM_SPECS.map(buildFixture),
+  ...STORM_SPECS.map(buildFixture),
+];
 
 /* ──────────────────────────────────────────────────────────
    Geo helpers
@@ -267,6 +321,7 @@ export function fixturesAsGeoJSON(): GeoJSON.FeatureCollection {
           start_time: s.start_time,
           end_time: s.end_time,
           source: s.source,
+          is_live: s.is_live,
         },
       });
     }
