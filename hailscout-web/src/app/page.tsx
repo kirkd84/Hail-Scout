@@ -38,6 +38,7 @@ function SiteHeader() {
         <Wordmark size="md" pulse />
         <nav className="hidden items-center gap-8 md:flex">
           <Link href="/#how" className="text-sm text-muted-foreground transition-colors hover:text-foreground">How it works</Link>
+          <Link href="/live" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Live storms</Link>
           <Link href="/pricing" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Pricing</Link>
           <Link href="/compare" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Compare</Link>
         </nav>
@@ -313,6 +314,7 @@ function SiteFooter() {
         <div className="flex flex-col items-start justify-between gap-8 md:flex-row md:items-center">
           <Wordmark size="sm" />
           <nav className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+            <Link href="/live" className="hover:text-foreground">Live storms</Link>
             <Link href="/pricing" className="hover:text-foreground">Pricing</Link>
             <Link href="/compare" className="hover:text-foreground">Compare</Link>
             <Link href="/sign-in" className="hover:text-foreground">Sign in</Link>
