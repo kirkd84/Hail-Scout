@@ -20,6 +20,9 @@ interface Props {
   startTimeMin?: number | null;
   /** Hail size threshold in inches. Bands smaller than this are hidden. */
   minSizeIn?: number;
+  /** Time scrubber cursor (ms epoch). Storms started after this are hidden.
+   *  null = no scrubber filter. */
+  startTimeMax?: number | null;
 }
 
 /**
@@ -32,7 +35,7 @@ interface Props {
  * `min_size_in` property (green → yellow → orange → red → magenta →
  * purple). See `lib/hail.ts` for the canonical palette.
  */
-export function StormFixturesLayer({ map, visible = true, startTimeMin = null, minSizeIn = 0 }: Props) {
+export function StormFixturesLayer({ map, visible = true, startTimeMin = null, minSizeIn = 0, startTimeMax = null }: Props) {
   useEffect(() => {
     if (!map) return;
 
@@ -245,7 +248,9 @@ export function StormFixturesLayer({ map, visible = true, startTimeMin = null, m
     }
   }, [map, minSizeIn]);
 
-  // Date filter — re-evaluate the source data so old storms drop out
+  // Date filter — re-evaluate the source data so storms outside the
+  // selected window drop entirely. Considers both the "min" filter
+  // (last 24h / 7d / 30d) AND the time-scrubber "max" cursor.
   useEffect(() => {
     if (!map) return;
     const src = map.getSource(SOURCE_BANDS);
@@ -254,12 +259,15 @@ export function StormFixturesLayer({ map, visible = true, startTimeMin = null, m
 
     const fc = fixturesAsGeoJSON();
     let filtered = fc;
-    if (startTimeMin !== null) {
+    if (startTimeMin !== null || startTimeMax !== null) {
       filtered = {
         ...fc,
-        features: fc.features.filter(
-          (f) => new Date(f.properties?.start_time as string).getTime() >= startTimeMin,
-        ),
+        features: fc.features.filter((f) => {
+          const t = new Date(f.properties?.start_time as string).getTime();
+          if (startTimeMin !== null && t < startTimeMin) return false;
+          if (startTimeMax !== null && t > startTimeMax) return false;
+          return true;
+        }),
       };
     }
     filtered.features.sort(
@@ -272,11 +280,12 @@ export function StormFixturesLayer({ map, visible = true, startTimeMin = null, m
 
     const centroidFC: GeoJSON.FeatureCollection = {
       type: "FeatureCollection",
-      features: STORM_FIXTURES.filter((s) =>
-        startTimeMin === null
-          ? true
-          : new Date(s.start_time).getTime() >= startTimeMin,
-      ).map((s) => ({
+      features: STORM_FIXTURES.filter((s) => {
+        const t = new Date(s.start_time).getTime();
+        if (startTimeMin !== null && t < startTimeMin) return false;
+        if (startTimeMax !== null && t > startTimeMax) return false;
+        return true;
+      }).map((s) => ({
         type: "Feature",
         geometry: { type: "Point", coordinates: [s.centroid_lng, s.centroid_lat] },
         properties: {
@@ -289,7 +298,7 @@ export function StormFixturesLayer({ map, visible = true, startTimeMin = null, m
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (csrc as any).setData(centroidFC);
-  }, [map, startTimeMin]);
+  }, [map, startTimeMin, startTimeMax]);
 
   // Animate the live pulse — 1.5 Hz radial breath
   useEffect(() => {

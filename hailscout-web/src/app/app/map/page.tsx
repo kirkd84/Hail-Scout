@@ -7,6 +7,7 @@ import type { HailAtAddressResponse, Storm } from "@/lib/api-types";
 import { HailMap } from "@/components/map/HailMap";
 import { BasemapToggle, type BasemapId } from "@/components/map/basemap-toggle";
 import { StormFixturesLayer } from "@/components/map/storm-fixtures-layer";
+import { TimeScrubber } from "@/components/map/time-scrubber";
 import {
   MapFilters,
   dateFilterToCutoff,
@@ -40,6 +41,7 @@ export default function MapPage() {
   const [basemap, setBasemap] = useState<BasemapId>("atlas");
   const [date, setDate] = useState<DateFilter>("all");
   const [size, setSize] = useState<SizeFilter>("any");
+  const [scrubberMs, setScrubberMs] = useState<number | null>(null);
 
   const [searchResults, setSearchResults] = useState<HailAtAddressResponse | null>(null);
   const [showResults, setShowResults] = useState(false);
@@ -126,6 +128,7 @@ export default function MapPage() {
         map={map}
         startTimeMin={dateFilterToCutoff(date)}
         minSizeIn={sizeFilterToMin(size)}
+        startTimeMax={scrubberMs}
       />
       <MarkersLayer
         map={map}
@@ -146,6 +149,9 @@ export default function MapPage() {
 
       <StormActivityFeed map={map} />
 
+      <div className="pointer-events-none absolute inset-x-0 bottom-20 z-20 flex justify-center px-4">
+        <TimeScrubber cursorMs={scrubberMs} onCursorChange={setScrubberMs} />
+      </div>
       <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex justify-center px-4">
         <BasemapToggle value={basemap} onChange={setBasemap} />
       </div>

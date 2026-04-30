@@ -5,6 +5,7 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import type { Storm } from "@/lib/api-types";
 import { formatDateTime } from "@/lib/utils";
 import { hailColor } from "@/lib/hail";
+import { synthesize } from "@/lib/storm-narrative";
 import { DownloadReportButton } from "@/components/reports/download-report-button";
 import { ExportLeadsButton } from "@/components/reports/export-leads-button";
 import {
@@ -88,6 +89,11 @@ export function StormDetailSheet({ storm, isOpen, onClose, address, map }: Storm
           </div>
         </div>
 
+        {/* AI insight */}
+        <div className="px-6 pb-2">
+          <AiInsightPanel storm={storm} />
+        </div>
+
         {/* Meta rows */}
         <dl className="px-6 pb-8 grid grid-cols-1 gap-y-4 text-sm">
           <Row term="Duration" def={`${durationMin} min`} />
@@ -158,5 +164,32 @@ function Row({ term, def }: { term: string; def: React.ReactNode }) {
       <dt className="text-[11px] font-mono uppercase tracking-wide-caps text-foreground/55">{term}</dt>
       <dd className="text-foreground">{def}</dd>
     </div>
+  );
+}
+
+function AiInsightPanel({ storm }: { storm: Storm }) {
+  const n = synthesize(storm);
+  return (
+    <section className="rounded-lg border border-copper/40 bg-copper/5 p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-copper/20 text-copper">
+          <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 2 L9.5 6.5 L14 8 L9.5 9.5 L8 14 L6.5 9.5 L2 8 L6.5 6.5 Z" />
+          </svg>
+        </span>
+        <p className="font-mono-num text-[10px] uppercase tracking-wide-caps text-copper-700">
+          HailScout AI · Storm insight
+        </p>
+      </div>
+      <p className="font-display text-base font-medium tracking-tight-display text-foreground leading-snug">
+        {n.headline}
+      </p>
+      <p className="mt-2 text-sm leading-relaxed text-foreground/85">
+        {n.body}
+      </p>
+      <p className="mt-2 text-sm font-medium text-copper-700">
+        {n.next_step}
+      </p>
+    </section>
   );
 }
