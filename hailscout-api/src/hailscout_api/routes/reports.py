@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import secrets
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -102,7 +102,7 @@ async def create_report(
     return rpt
 
 
-@router.delete("/{report_id}", status_code=204)
+@router.delete("/{report_id}", status_code=204, response_class=Response)
 async def delete_report(
     request: Request,
     report_id: str,

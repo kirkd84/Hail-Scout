@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -206,7 +206,7 @@ async def update_monitored_address(
     return addr
 
 
-@router.delete("/monitored-addresses/{address_id}", status_code=204)
+@router.delete("/monitored-addresses/{address_id}", status_code=204, response_class=Response)
 async def delete_monitored_address(
     request: Request,
     address_id: int,
@@ -377,7 +377,7 @@ async def mark_alert_read(
     return alert
 
 
-@router.post("/alerts/read-all", status_code=204)
+@router.post("/alerts/read-all", status_code=204, response_class=Response)
 async def mark_all_alerts_read(
     request: Request,
     session: AsyncSession = Depends(get_db_session),
@@ -401,7 +401,7 @@ async def mark_all_alerts_read(
         await session.commit()
 
 
-@router.delete("/alerts/{alert_id}", status_code=204)
+@router.delete("/alerts/{alert_id}", status_code=204, response_class=Response)
 async def dismiss_alert(
     request: Request,
     alert_id: int,

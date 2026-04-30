@@ -6,7 +6,7 @@ import logging
 import secrets
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -221,7 +221,7 @@ async def update_marker(
     return marker
 
 
-@router.delete("/markers/{marker_id}", status_code=204)
+@router.delete("/markers/{marker_id}", status_code=204, response_class=Response)
 async def delete_marker(
     request: Request,
     marker_id: str,
