@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Wordmark } from "@/components/brand/wordmark";
 import { ContourBg } from "@/components/brand/contour-bg";
 import { AtlasMapPreview } from "@/components/brand/atlas-map-preview";
+import { RoiCalculator } from "@/components/marketing/roi-calculator";
 
 /**
  * HailScout marketing landing.
@@ -19,6 +20,7 @@ export default function HomePage() {
       <Numbers />
       <HowItWorks />
       <ProductSections />
+      <RoiCalculator />
       <Testimonial />
       <FinalCta />
       <SiteFooter />

@@ -9,7 +9,7 @@ import { useMe } from "@/hooks/useMe";
 import { STORM_FIXTURES } from "@/lib/storm-fixtures";
 import {
   IconMap, IconAddresses, IconFlag, IconReport, IconSettings,
-  IconUsers, IconSearch, IconLayers, IconClose, IconPin,
+  IconUsers, IconSearch, IconLayers, IconClose, IconPin, IconBolt,
 } from "@/components/icons";
 
 interface PaletteContextProps {
@@ -123,6 +123,7 @@ export function CommandPalette({ open, setOpen }: PaletteContextProps) {
               <Item icon={<IconAddresses className="h-4 w-4" />}  onSelect={() => go("/app/addresses")}>Monitored addresses</Item>
               <Item icon={<IconFlag className="h-4 w-4" />}       onSelect={() => go("/app/markers")}>Canvassing markers</Item>
               <Item icon={<IconReport className="h-4 w-4" />}     onSelect={() => go("/app/reports")}>Hail Impact Reports</Item>
+              <Item icon={<IconBolt className="h-4 w-4 text-copper" />} onSelect={() => go("/app/photo-ai")}>Photo damage triage</Item>
               <Item icon={<IconSettings className="h-4 w-4" />}   onSelect={() => go("/app/settings")}>Settings</Item>
             </Command.Group>
 
