@@ -1,39 +1,57 @@
-"""Schemas for canvassing markers (M3)."""
+"""Schemas for canvassing markers."""
 
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
+VALID_STATUSES = {"lead", "knocked", "no_answer", "appt", "contract", "not_interested"}
+
 
 class MarkerCreate(BaseModel):
-    """Create a canvassing marker (M3)."""
+    """Create a canvassing marker."""
 
-    storm_id: str | None = None
-    parcel_id: str | None = None
     lat: float = Field(..., description="Latitude")
     lng: float = Field(..., description="Longitude")
-    status: str = Field(default="lead", description="lead, knocked, no_answer, appt, contract, not_interested")
-    notes: str | None = None
+    status: str = Field(default="lead")
+    notes: Optional[str] = None
+    storm_id: Optional[str] = None
+    parcel_id: Optional[str] = None
+    client_id: Optional[str] = Field(
+        default=None,
+        description="Optional client-supplied id for idempotent upsert (used by localStorage->API migration).",
+    )
 
 
 class MarkerUpdate(BaseModel):
-    """Update marker status (M3)."""
+    """Update marker status / notes."""
 
-    status: str | None = None
-    notes: str | None = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
 
 
 class MarkerResponse(BaseModel):
-    """Canvassing marker (M3)."""
+    """Canvassing marker response."""
 
     id: str
     user_id: str
     org_id: str
+    lat: Optional[float]
+    lng: Optional[float]
     status: str
-    notes: str | None = None
+    notes: Optional[str] = None
+    storm_id: Optional[str] = None
+    parcel_id: Optional[str] = None
+    client_id: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class MarkerBulkCreate(BaseModel):
+    """Bulk create markers (used for localStorage->API migration on first sign-in)."""
+
+    markers: list[MarkerCreate]
