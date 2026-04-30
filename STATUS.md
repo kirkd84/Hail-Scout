@@ -1,7 +1,7 @@
-# HailScout — Session Handoff (2026-04-29, evening)
+# HailScout — Session Handoff (2026-04-29, late evening)
 
 What shipped during the autonomous design + Phase 2 build, what's queued.
-Latest commit: `016c410` (Cmd-K command palette).
+Latest commit: `3f3b247` (first-run welcome tour). Phase 3 complete.
 
 ---
 
@@ -59,7 +59,7 @@ Latest commit: `016c410` (Cmd-K command palette).
 
 ---
 
-## Phase 2 (this session)
+## Phase 2 (previous session)
 
 ### 2.1 Address autocomplete ✓ `4c81649`
 - MapTiler geocoder with US country lock + autocomplete=true
@@ -101,7 +101,54 @@ Latest commit: `016c410` (Cmd-K command palette).
 - Wired into the storm detail sheet
 - `/app/reports` rebuilt with "How it works" 3-step instruction panel
 
-### 2.5 Cmd-K command palette ✓ `016c410`
+- `cmdk ^1.1.1` added
+- Glass modal at 12vh from top, backdrop blur
+- Sections: Pages · Recent storms · Super-admin (when is_super_admin) ·
+  Theme · Account
+- Storm rows fly the map to that centroid via sessionStorage handoff
+- Wired to topbar's Search button + global Cmd-K listener
+- Skips its own binding when the address search input has focus
+
+---
+
+## Phase 3 (this session)
+
+### 3.1 Map snapshot embedded in PDF ✓ `5797c95`
+- HailMap: enabled `preserveDrawingBuffer` for canvas capture
+- lib/map-snapshot.ts: `captureMapSnapshot(map, {bounds, padding, duration})`
+  flies, awaits idle (4s timeout fallback), one extra rAF for GPU flush,
+  returns a PNG dataURL
+- DownloadReportButton flies to storm bbox + 0.05° padding before capture,
+  shows two-stage loading ('Capturing…' then 'Generating…')
+- HailImpactReport renders a 220pt-tall banded swath image inside a cream
+  card with mono caption above the hero. Real visual proof in the PDF.
+
+### 3.2 Monitored addresses ✓ `67535b2`
+- lib/saved-addresses.ts + useSavedAddresses hook (mirrors marker pattern)
+- 50m near-dedup on save, cross-tab storage sync
+- SaveAddressButton ('Monitor' / 'Monitoring') in the search-results sheet
+- /app/addresses rewritten: KPI cards (total / hit-in-30d / >=1.75″ hits),
+  sortable table with industry-palette hail badge, click row to deep-link
+  back to /app/map?address=...
+- Map page deep-link reader: ?address=... triggers the search flow on mount
+
+### 3.3 Mobile bottom-sheet pattern ✓ `74edaa8`
+- hooks/useIsMobile.ts (SSR-safe matchMedia, 640px breakpoint)
+- StormDetailSheet, MarkerEditor, search-results sheet now use
+  side='bottom' on small screens (max-h 88vh, rounded-t-2xl, scrolls)
+- Right-side behaviour preserved on >=sm
+
+### 3.4 First-run welcome tour ✓ `3f3b247`
+- 4-step glass modal with copper-bordered icon ring per step
+  (search · basemap · drop-pin · cmd-K)
+- Topographic contour decoration up top with a copper storm-trail accent
+- Step dots, Skip + Next/Finish controls
+- Persists 'seen' flag in localStorage; never re-appears
+- Settings page: 'Take the welcome tour again' card resets the flag
+
+---
+
+## Phase 2 (previous session)
 - `cmdk ^1.1.1` added
 - Glass modal at 12vh from top, backdrop blur
 - Sections: Pages · Recent storms · Super-admin (when is_super_admin) ·
