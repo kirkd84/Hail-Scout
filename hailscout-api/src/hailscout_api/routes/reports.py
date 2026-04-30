@@ -102,12 +102,12 @@ async def create_report(
     return rpt
 
 
-@router.delete("/{report_id}", status_code=204, response_class=Response)
+@router.delete("/{report_id}")
 async def delete_report(
     request: Request,
     report_id: str,
     session: AsyncSession = Depends(get_db_session),
-) -> None:
+) -> Response:
     user = await _resolve_user(request, session)
     rpt = (
         await session.execute(
@@ -120,6 +120,7 @@ async def delete_report(
         raise HTTPException(status_code=404, detail="Report not found")
     await session.delete(rpt)
     await session.commit()
+    return Response(status_code=204)
 
 
 # ── Org branding ──────────────────────────────────────────────────────

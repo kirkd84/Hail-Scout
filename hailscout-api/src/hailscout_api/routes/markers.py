@@ -221,12 +221,12 @@ async def update_marker(
     return marker
 
 
-@router.delete("/markers/{marker_id}", status_code=204, response_class=Response)
+@router.delete("/markers/{marker_id}")
 async def delete_marker(
     request: Request,
     marker_id: str,
     session: AsyncSession = Depends(get_db_session),
-) -> None:
+) -> Response:
     user = await _resolve_user(request, session)
 
     marker = (
@@ -241,3 +241,4 @@ async def delete_marker(
 
     await session.delete(marker)
     await session.commit()
+    return Response(status_code=204)

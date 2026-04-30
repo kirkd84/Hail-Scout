@@ -206,12 +206,12 @@ async def update_monitored_address(
     return addr
 
 
-@router.delete("/monitored-addresses/{address_id}", status_code=204, response_class=Response)
+@router.delete("/monitored-addresses/{address_id}")
 async def delete_monitored_address(
     request: Request,
     address_id: int,
     session: AsyncSession = Depends(get_db_session),
-) -> None:
+) -> Response:
     user = await _resolve_user(request, session)
 
     addr = (
@@ -229,6 +229,7 @@ async def delete_monitored_address(
 
     await session.delete(addr)
     await session.commit()
+    return Response(status_code=204)
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -377,11 +378,11 @@ async def mark_alert_read(
     return alert
 
 
-@router.post("/alerts/read-all", status_code=204, response_class=Response)
+@router.post("/alerts/read-all")
 async def mark_all_alerts_read(
     request: Request,
     session: AsyncSession = Depends(get_db_session),
-) -> None:
+) -> Response:
     user = await _resolve_user(request, session)
     rows = (
         await session.execute(
@@ -399,14 +400,15 @@ async def mark_all_alerts_read(
         r.read_at = now
     if rows:
         await session.commit()
+    return Response(status_code=204)
 
 
-@router.delete("/alerts/{alert_id}", status_code=204, response_class=Response)
+@router.delete("/alerts/{alert_id}")
 async def dismiss_alert(
     request: Request,
     alert_id: int,
     session: AsyncSession = Depends(get_db_session),
-) -> None:
+) -> Response:
     user = await _resolve_user(request, session)
     alert = (
         await session.execute(
@@ -419,3 +421,4 @@ async def dismiss_alert(
         raise HTTPException(status_code=404, detail="Alert not found")
     alert.dismissed_at = datetime.now(timezone.utc)
     await session.commit()
+    return Response(status_code=204)
