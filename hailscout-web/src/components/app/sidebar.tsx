@@ -30,6 +30,7 @@ const APP_NAV: NavItem[] = [
   { label: "Markers",     href: "/app/markers",   icon: IconFlag },
   { label: "Reports",     href: "/app/reports",   icon: IconReport },
   { label: "Photo AI",    href: "/app/photo-ai",  icon: IconBolt },
+  { label: "Team",        href: "/app/team",     icon: IconUsers },
 ];
 
 export function Sidebar() {
