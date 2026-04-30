@@ -21,6 +21,10 @@ from hailscout_api.schemas.monitored_address import (
     MonitoredAddressResponse,
     MonitoredAddressUpdate,
 )
+from hailscout_api.schemas.alert import StormAlertList, StormAlertResponse
+from hailscout_api.db.models.canvass import StormAlert
+from hailscout_api.data.storm_fixtures import all_fixtures, storm_at
+from datetime import datetime, timezone
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -227,9 +231,191 @@ async def delete_monitored_address(
     await session.commit()
 
 
-# Alerts placeholder — Phase 5.5
-@router.get("/alerts")
-async def list_alerts() -> list[dict]:
-    """Alerts feed — empty until the alert generator runs in the background.
-    Returns 200 + empty list so clients can poll without 501-handling."""
-    return []
+# ──────────────────────────────────────────────────────────────────
+# Storm alerts (Phase 6.1 — lazy generation)
+# ──────────────────────────────────────────────────────────────────
+
+
+@router.get("/alerts", response_model=StormAlertList)
+async def list_alerts(
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+) -> StormAlertList:
+    """Lazy-generated storm alerts.
+
+    On each fetch we:
+      1. Pull every monitored address for the user's org
+      2. For each address × every fixture storm, check bbox containment
+      3. If peak_size_in >= alert_threshold_in (default 0.75), persist an
+         alert (idempotent via (org_id, address_id, storm_id) unique index)
+      4. Return all non-dismissed alerts joined with the address record
+
+    Once the real MRMS pipeline ships, this becomes a background job — but
+    the API contract stays exactly the same.
+    """
+    user = await _resolve_user(request, session)
+
+    # 1. Load monitored addresses for the org
+    addresses = (
+        await session.execute(
+            select(MonitoredAddress).where(MonitoredAddress.org_id == user.org_id),
+        )
+    ).scalars().all()
+
+    address_by_id = {a.id: a for a in addresses}
+
+    # 2. Compute new matches
+    fixtures = all_fixtures()
+    new_matches: list[dict] = []
+    for addr in addresses:
+        if addr.lat is None or addr.lng is None:
+            continue
+        threshold = addr.alert_threshold_in or 0.75
+        for storm in fixtures:
+            if storm.peak_size_in < threshold:
+                continue
+            if not storm_at(addr.lat, addr.lng, storm):
+                continue
+            new_matches.append({
+                "monitored_address_id": addr.id,
+                "storm_id": storm.id,
+                "storm_city": storm.city,
+                "peak_size_in": storm.peak_size_in,
+                "storm_started_at": storm.start_time,
+            })
+
+    # 3. Persist new alerts (best-effort; UNIQUE index makes this idempotent)
+    new_count = 0
+    for m in new_matches:
+        # Check existence first (cheaper than catching IntegrityError per row)
+        exists = (
+            await session.execute(
+                select(StormAlert).where(
+                    and_(
+                        StormAlert.org_id == user.org_id,
+                        StormAlert.monitored_address_id == m["monitored_address_id"],
+                        StormAlert.storm_id == m["storm_id"],
+                    ),
+                ),
+            )
+        ).scalars().first()
+        if exists is not None:
+            continue
+        alert = StormAlert(
+            org_id=user.org_id,
+            monitored_address_id=m["monitored_address_id"],
+            storm_id=m["storm_id"],
+            storm_city=m["storm_city"],
+            peak_size_in=m["peak_size_in"],
+            storm_started_at=m["storm_started_at"],
+        )
+        session.add(alert)
+        new_count += 1
+
+    if new_count:
+        await session.commit()
+
+    # 4. Return the live list
+    rows = (
+        await session.execute(
+            select(StormAlert)
+            .where(
+                and_(
+                    StormAlert.org_id == user.org_id,
+                    StormAlert.dismissed_at.is_(None),
+                ),
+            )
+            .order_by(StormAlert.created_at.desc()),
+        )
+    ).scalars().all()
+
+    out: list[StormAlertResponse] = []
+    unread = 0
+    for r in rows:
+        addr = address_by_id.get(r.monitored_address_id)
+        out.append(
+            StormAlertResponse(
+                id=r.id,
+                org_id=r.org_id,
+                monitored_address_id=r.monitored_address_id,
+                storm_id=r.storm_id,
+                storm_city=r.storm_city,
+                peak_size_in=r.peak_size_in,
+                storm_started_at=r.storm_started_at,
+                read_at=r.read_at,
+                dismissed_at=r.dismissed_at,
+                created_at=r.created_at,
+                address=addr.address if addr else None,
+                address_label=addr.label if addr else None,
+            )
+        )
+        if r.read_at is None:
+            unread += 1
+
+    return StormAlertList(alerts=out, unread_count=unread, new_in_this_fetch=new_count)
+
+
+@router.post("/alerts/{alert_id}/read", response_model=StormAlertResponse)
+async def mark_alert_read(
+    request: Request,
+    alert_id: int,
+    session: AsyncSession = Depends(get_db_session),
+) -> StormAlert:
+    user = await _resolve_user(request, session)
+    alert = (
+        await session.execute(
+            select(StormAlert).where(
+                and_(StormAlert.id == alert_id, StormAlert.org_id == user.org_id),
+            ),
+        )
+    ).scalars().first()
+    if alert is None:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    alert.read_at = datetime.now(timezone.utc)
+    await session.commit()
+    await session.refresh(alert)
+    return alert
+
+
+@router.post("/alerts/read-all", status_code=204)
+async def mark_all_alerts_read(
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    user = await _resolve_user(request, session)
+    rows = (
+        await session.execute(
+            select(StormAlert).where(
+                and_(
+                    StormAlert.org_id == user.org_id,
+                    StormAlert.read_at.is_(None),
+                    StormAlert.dismissed_at.is_(None),
+                ),
+            ),
+        )
+    ).scalars().all()
+    now = datetime.now(timezone.utc)
+    for r in rows:
+        r.read_at = now
+    if rows:
+        await session.commit()
+
+
+@router.delete("/alerts/{alert_id}", status_code=204)
+async def dismiss_alert(
+    request: Request,
+    alert_id: int,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    user = await _resolve_user(request, session)
+    alert = (
+        await session.execute(
+            select(StormAlert).where(
+                and_(StormAlert.id == alert_id, StormAlert.org_id == user.org_id),
+            ),
+        )
+    ).scalars().first()
+    if alert is None:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    alert.dismissed_at = datetime.now(timezone.utc)
+    await session.commit()

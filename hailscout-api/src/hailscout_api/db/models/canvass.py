@@ -94,3 +94,36 @@ class Marker(Base):
 
     def __repr__(self) -> str:
         return f"<Marker(id={self.id}, status={self.status})>"
+
+
+class StormAlert(Base):
+    """Alert generated when a storm touches a monitored address."""
+
+    __tablename__ = "storm_alerts"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    org_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    monitored_address_id: Mapped[int] = mapped_column(
+        ForeignKey("monitored_addresses.id"), nullable=False, index=True
+    )
+    # Storm identity. We don't FK to storms.id since fixture storms aren't
+    # in the DB yet — store the id as a free string so the alert generator
+    # can dedupe by (storm_id, address_id) across fetches.
+    storm_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    storm_city: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    peak_size_in: Mapped[float] = mapped_column(Float, nullable=False)
+    storm_started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    read_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    dismissed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = created_at_column()
+
+    def __repr__(self) -> str:
+        return f"<StormAlert(id={self.id}, storm={self.storm_id}, addr={self.monitored_address_id})>"
