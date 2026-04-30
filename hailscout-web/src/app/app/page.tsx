@@ -21,6 +21,15 @@ import {
   IconPin,
 } from "@/components/icons";
 import { cn } from "@/lib/utils";
+import type { StormAlert as StormAlertT } from "@/hooks/useAlerts";
+import type { SavedReport as SavedReportT } from "@/hooks/useReports";
+import type { Marker as MarkerT, MarkerStatus as MarkerStatusT } from "@/lib/markers";
+
+type ActivityItem =
+  | { kind: "alert";  ts: string; alert: StormAlertT }
+  | { kind: "report"; ts: string; report: SavedReportT }
+  | { kind: "marker"; ts: string; marker: MarkerT };
+
 
 /**
  * /app — dashboard.
@@ -56,14 +65,10 @@ export default function DashboardPage() {
   }));
 
   // "Recent activity" — combine + sort 10 newest items
-  type Activity =
-    | { kind: "alert";  ts: string; alert: typeof alerts[number] }
-    | { kind: "report"; ts: string; report: typeof reports[number] }
-    | { kind: "marker"; ts: string; marker: typeof markers[number] };
-  const activity: Activity[] = [
-    ...alerts.slice(0, 6).map((a): Activity => ({ kind: "alert",  ts: a.created_at, alert: a })),
-    ...reports.slice(0, 6).map((r): Activity => ({ kind: "report", ts: r.created_at, report: r })),
-    ...markers.slice(0, 6).map((m): Activity => ({ kind: "marker", ts: m.updated_at, marker: m })),
+  const activity: ActivityItem[] = [
+    ...alerts.slice(0, 6).map((a): ActivityItem => ({ kind: "alert",  ts: a.created_at, alert: a })),
+    ...reports.slice(0, 6).map((r): ActivityItem => ({ kind: "report", ts: r.created_at, report: r })),
+    ...markers.slice(0, 6).map((m): ActivityItem => ({ kind: "marker", ts: m.updated_at, marker: m })),
   ];
   activity.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
   const activityToShow = activity.slice(0, 8);
@@ -322,9 +327,9 @@ function Card({ title, eyebrow, children }: { title: string; eyebrow?: string; c
   );
 }
 
-function ActivityRow({ activity }: { activity: { kind: "alert" | "report" | "marker"; ts: string } & Record<string, unknown> }) {
+function ActivityRow({ activity }: { activity: ActivityItem }) {
   if (activity.kind === "alert") {
-    const a = (activity as { alert: { id: number; address: string | null; address_label: string | null; storm_city: string | null; peak_size_in: number; created_at: string } }).alert;
+    const a = activity.alert;
     return (
       <Link href="/app/alerts" className="flex items-start gap-3">
         <span className="mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-copper/15 text-copper">
@@ -343,7 +348,7 @@ function ActivityRow({ activity }: { activity: { kind: "alert" | "report" | "mar
     );
   }
   if (activity.kind === "report") {
-    const r = (activity as { report: { id: string; title: string | null; address: string | null; created_at: string } }).report;
+    const r = activity.report;
     return (
       <Link href="/app/reports" className="flex items-start gap-3">
         <span className="mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -360,9 +365,8 @@ function ActivityRow({ activity }: { activity: { kind: "alert" | "report" | "mar
       </Link>
     );
   }
-  // marker
-  const m = (activity as { marker: { id: string; status: string; lat: number; lng: number; updated_at: string } }).marker;
-  const info = statusInfo(m.status as Parameters<typeof statusInfo>[0]);
+  const m = activity.marker;
+  const info = statusInfo(m.status as MarkerStatusT);
   return (
     <Link href="/app/markers" className="flex items-start gap-3">
       <span
