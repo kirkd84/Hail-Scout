@@ -6,6 +6,7 @@ import { hailColor } from "@/lib/hail";
 import { timeAgo } from "@/lib/time-ago";
 import { EmptyState } from "@/components/app/empty-state";
 import { IconReport, IconClose, IconChevronRight } from "@/components/icons";
+import { SkeletonRow } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 export default function ReportsPage() {
@@ -90,6 +91,18 @@ export default function ReportsPage() {
             <div className="px-5 py-3">Generated</div>
             <div className="px-5 py-3" />
           </div>
+          {isLoading && (
+            <>
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={`sk-${i}`}
+                  className="grid grid-cols-[80px_2.5fr_1fr_140px_60px] items-center"
+                >
+                  <div className="px-5 py-3"><SkeletonRow withBadge /></div>
+                </div>
+              ))}
+            </>
+          )}
           {reports.map((r, i) => {
             const c = r.peak_size_in ? hailColor(r.peak_size_in) : null;
             return (

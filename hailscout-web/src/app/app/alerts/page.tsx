@@ -8,8 +8,36 @@ import { EmptyState } from "@/components/app/empty-state";
 import { IconBolt, IconClose, IconChevronRight } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
+import { Skeleton } from "@/components/ui/skeleton";
+
 export default function AlertsPage() {
-  const { alerts, unreadCount, markAllRead, markRead, dismiss } = useAlerts();
+  const { alerts, unreadCount, markAllRead, markRead, dismiss, isLoading } = useAlerts();
+
+  if (isLoading && alerts.length === 0) {
+    return (
+      <div className="h-full overflow-y-auto">
+        <div className="container max-w-4xl py-10 space-y-6">
+          <div className="space-y-2">
+            <Skeleton width={120} height={10} />
+            <Skeleton width={260} height={36} />
+            <Skeleton width={180} height={10} subtle />
+          </div>
+          <div className="rule-atlas" />
+          <ul className="rounded-xl border border-border bg-card divide-y divide-border/60">
+            {[0, 1, 2].map((i) => (
+              <li key={i} className="px-5 py-4 flex items-center gap-4">
+                <Skeleton width={56} height={48} rounded="md" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton width="50%" height={14} />
+                  <Skeleton width="35%" height={10} subtle />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    );
+  }
 
   if (alerts.length === 0) {
     return (

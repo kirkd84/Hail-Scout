@@ -5,6 +5,7 @@ import { useTeam, type TeamMember } from "@/hooks/useTeam";
 import { useMe } from "@/hooks/useMe";
 import { EmptyState } from "@/components/app/empty-state";
 import { IconUsers, IconClose, IconChevronRight } from "@/components/icons";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 const ROLE_OPTIONS = ["owner", "admin", "member"] as const;
@@ -146,9 +147,25 @@ export default function TeamPage() {
           </div>
 
           {isLoading && (
-            <div className="px-5 py-12 text-center text-sm text-muted-foreground">
-              Loading…
-            </div>
+            <>
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="grid grid-cols-[3fr_140px_1fr_60px] items-center border-b border-border/60"
+                >
+                  <div className="px-5 py-3 flex items-center gap-3">
+                    <Skeleton width={36} height={36} rounded="full" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton width="50%" height={14} />
+                      <Skeleton width="70%" height={10} subtle />
+                    </div>
+                  </div>
+                  <div className="px-5 py-3"><Skeleton width={70} height={20} rounded="full" /></div>
+                  <div className="px-5 py-3"><Skeleton width={80} height={10} subtle /></div>
+                  <div className="px-5 py-3" />
+                </div>
+              ))}
+            </>
           )}
 
           {!isLoading && members.length === 0 && (
