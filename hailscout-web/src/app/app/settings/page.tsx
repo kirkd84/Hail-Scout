@@ -3,6 +3,7 @@
 import { UserButton } from "@clerk/nextjs";
 import { EmptyState } from "@/components/app/empty-state";
 import { BrandingCard } from "@/components/app/branding-card";
+import { SlackCard } from "@/components/app/slack-card";
 import { IconUsers } from "@/components/icons";
 
 export default function SettingsPage() {
@@ -66,6 +67,8 @@ export default function SettingsPage() {
         </section>
 
         <BrandingCard />
+
+        <SlackCard />
 
         <EmptyState
           icon={IconUsers}

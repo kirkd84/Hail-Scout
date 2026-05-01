@@ -24,6 +24,8 @@ from hailscout_api.schemas.monitored_address import (
 from hailscout_api.schemas.alert import StormAlertList, StormAlertResponse
 from hailscout_api.db.models.canvass import StormAlert
 from hailscout_api.data.storm_fixtures import all_fixtures, storm_at
+from hailscout_api.db.models.org import Organization
+from hailscout_api.services.slack import format_alert_message, send_slack_alert
 from datetime import datetime, timezone
 
 logger = get_logger(__name__)
@@ -315,6 +317,29 @@ async def list_alerts(
 
     if new_count:
         await session.commit()
+
+    # 3b. Fan out new alerts to Slack (best-effort, non-blocking)
+    if new_count:
+        org = (
+            await session.execute(
+                select(Organization).where(Organization.id == user.org_id),
+            )
+        ).scalars().first()
+        if org and org.slack_enabled and org.slack_webhook_url:
+            for m in new_matches:
+                addr = address_by_id.get(m["monitored_address_id"])
+                payload = format_alert_message(
+                    address=addr.address if addr else "",
+                    address_label=addr.label if addr else None,
+                    storm_city=m["storm_city"],
+                    peak_size_in=m["peak_size_in"],
+                    started_at=m["storm_started_at"].isoformat() if m["storm_started_at"] else "",
+                )
+                # Fire-and-forget — don't block alerts API on Slack latency
+                try:
+                    await send_slack_alert(org.slack_webhook_url, payload)
+                except Exception:
+                    pass
 
     # 4. Return the live list
     rows = (

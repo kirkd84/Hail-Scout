@@ -28,6 +28,12 @@ class Organization(Base):
     brand_primary:      Mapped[str | None] = mapped_column(String(16))
     brand_accent:       Mapped[str | None] = mapped_column(String(16))
     brand_company_name: Mapped[str | None] = mapped_column(String(255))
+    # Slack incoming webhook (per-org, optional). When set + slack_enabled
+    # is true, the alert generator POSTs new matches here.
+    slack_webhook_url: Mapped[str | None] = mapped_column(String(512))
+    slack_enabled:     Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, server_default="false"
+    )
     created_at: Mapped[datetime] = created_at_column()
 
     # Relationships
