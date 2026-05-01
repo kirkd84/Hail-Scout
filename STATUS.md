@@ -1,7 +1,8 @@
-# HailScout — Session Handoff (2026-04-30, post Phases 9–11)
+# HailScout — Session Handoff (2026-04-30, post Phases 9–14)
 
-Latest commit: pending push of Phase 11.5. The full conference-ready
-build, top-to-bottom.
+Latest commit: `6af1466`. Conference-ready build, top-to-bottom — now
+includes CRM-lite, follow-up calendar, tabbed settings, customer case
+study page, and 7-day hail outlook widget.
 
 ---
 
@@ -146,10 +147,118 @@ identical hail.ts + tokens across web and mobile.
 
 ---
 
+## Phase 12 — Atlas-grade collaboration
+
+**12.1 Territory zones** `f6f5b49` — `territories` table with polygon JSON +
+optional crew assignee. Map overlay layer with name labels, /app/territories
+zone card grid with mini SVG previews, "Save as territory" inside the
+sweep tool.
+
+**12.2 Notes timeline on markers** `54d0219` — `marker_notes` table with
+CASCADE delete, GET/POST `/v1/markers/{id}/notes`, chat-style thread UI
+inside the marker editor. Field history that survives crew turnover.
+
+**12.3 Crew dashboard** `24bfb77` — per-teammate metric cards, sorted by
+contracts desc, "Top closer" chip on the leader, status-distribution
+stacked bars per assignee.
+
+**12.4 CSV import for markers** `2c29b5a` — bulk-import button on
+`/app/markers`. Two formats supported: `address,status,notes` and
+`lat,lng,status,notes`. Diff preview before commit.
+
+**12.5 Multi-property impact report PDF** `e0d4f53` — portfolio-wide
+storm impact report. Cover page with totals + index, then per-address
+detail pages. Lazy-loaded react-pdf bundle.
+
+**12.6 Public stat ticker** `36c182c` — anonymous `/v1/public/stats`
+aggregate counts. Polls every 60s, falls back to fixture counts. Wired
+into landing, pricing, compare, live, claim pages.
+
+---
+
+## Phase 13 — CRM-lite and operations
+
+**13.1 Customer/contact records (CRM-lite)** `b25a0b4` + `f42e33a` —
+`hs_contacts` table with name/email/phone/status/notes/follow_up_at,
+optional FK to monitored address. Full CRUD at `/v1/customers`. On the
+web: `useContacts` hook (SWR + Clerk), `ContactsPanel` inline editor,
+expandable rows on `/app/addresses`, full `/app/customers` list page
+with status filter chips, sidebar + Cmd-K palette wiring.
+
+**13.2 Follow-up reminders** `6552f59` — `/app/calendar` page with
+overdue / this-week / upcoming groups, sorted by date. "+1 week" snooze
+and "Done" actions per row. `FollowUpsWidget` on the dashboard
+surfaces the 6 most urgent. Sidebar nav + Cmd-K entry.
+
+**13.3 Settings tab navigation** `9daddb5` — `/app/settings`
+reorganized into 5 URL-driven tabs (Profile, Workspace, Integrations,
+Notifications, Help). `?tab=` deep-linking, sticky left rail on
+desktop, horizontal scroll on mobile.
+
+---
+
+## Phase 14 — Marketing polish for the conference
+
+**14.1 Customer case study page** `e1616dd` — `/case-studies` index +
+`/case-studies/[slug]` route. First story: Ridgeline Roofing OKC (3.2×
+close rate, $840K Q2). Atlas-page editorial layout, stat band, pull
+quote treatment, topographic motif card art. Shared `SiteHeader` +
+`SiteFooter` with new "Customers" nav link. Linked from landing FAQ.
+
+**14.2 7-day hail outlook widget** `6af1466` — marketing landing strip
+showing forecast risk by region for the next week. 5 regions × 7 days
+grid, NWS SPC-style risk levels (Quiet → Moderate), cream/teal/copper
+legend. Wired into the landing page between ROI calculator and
+testimonials. Reinforces "we see what's coming" positioning.
+
+**14.3 STATUS.md refresh** — this document.
+
+---
+
+## Conference demo script
+
+1. **Open landing** at `/`. Scroll past hero → Numbers → How it works →
+   Product sections → ROI calculator. Pause on **7-day hail outlook**
+   ("here's what's coming next week, by region"). Continue to
+   testimonials, FAQ ("read the case study →"), final CTA.
+2. **Click Customers** in nav → land on `/case-studies` → click into
+   Ridgeline → walk the stat band ("3.2× close rate"), pull quote, the
+   "shift" section.
+3. **Sign in** → land on `/app`. Point at the dashboard:
+   - Live storm pulse on the atlas
+   - Activity feed (alerts + reports + markers)
+   - **Follow-ups due** widget — "this is the morning page"
+   - Marker pipeline strip
+4. **Open /app/customers** — show status filter chips, click a contact
+   row to expand the inline editor.
+5. **Open /app/calendar** — overdue group with copper accent. Show "+1
+   week" snooze.
+6. **Open /app/addresses** — click a row, the Contacts panel expands
+   inline. Add a contact in front of them.
+7. **Open the map** at `/app/map`. Show the granular nested-band hail
+   swaths. Drop a marker. Sweep-tool a polygon → "Save as territory".
+   Open the territories page. Pull up the impact report PDF.
+8. **Cmd-K** → "follow-up calendar" → land on calendar. Cmd-K →
+   "Slack" → settings opens on Integrations tab.
+9. **Phone**: open the Expo app, show the same map + alerts on mobile.
+
+---
+
+## Open tabs cheat sheet
+
+- https://hail-scout.vercel.app — landing
+- https://hail-scout.vercel.app/case-studies/ridgeline-roofing — story
+- https://hail-scout.vercel.app/app — dashboard (need login)
+- https://hail-scout.vercel.app/app/customers — CRM
+- https://hail-scout.vercel.app/app/calendar — follow-ups
+- https://hail-scout.vercel.app/app/map — atlas
+- https://hail-scout.vercel.app/app/settings?tab=integrations — Slack
+- https://github.com/kirkd84/Hail-Scout — repo (for the dev crowd)
+
+---
+
 ## Backlog (post-conference)
 
-- Custom contact records / CRM
-- Calendar integration for follow-ups
 - Email digest (needs SMTP)
 - More CRM integrations (AccuLynx, JobNimbus, ServiceTitan)
 - Real photo-damage CV model
@@ -159,3 +268,5 @@ identical hail.ts + tokens across web and mobile.
 - Stripe billing
 - Custom domain on Vercel
 - App Store + Play Store submission
+- More case studies (need 2-3 to look like a real customer base)
+- Email sequences for inbound trial users
