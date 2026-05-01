@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.4,
     borderBottomColor: COLORS.border,
   },
-  stormSize: { fontSize: 11, fontFamily: "Helvetica-Bold", width: 50, fontFamily: "Courier" },
+  stormSize: { fontSize: 11, fontFamily: "Courier", width: 50 },
   stormDate: { fontSize: 10, flex: 1 },
   stormSource: { fontSize: 8, color: COLORS.textMuted, fontFamily: "Helvetica-Bold", letterSpacing: 1, textTransform: "uppercase" },
 
