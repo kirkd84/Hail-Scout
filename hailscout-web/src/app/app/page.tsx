@@ -12,6 +12,7 @@ import { timeAgo } from "@/lib/time-ago";
 import { STORM_FIXTURES } from "@/lib/storm-fixtures";
 import { MARKER_STATUSES, statusInfo } from "@/lib/markers";
 import { ContourBg } from "@/components/brand/contour-bg";
+import { OnboardingWizard } from "@/components/app/onboarding-wizard";
 import {
   IconBolt,
   IconAddresses,
@@ -83,6 +84,7 @@ export default function DashboardPage() {
 
   return (
     <div className="h-full overflow-y-auto">
+      <OnboardingWizard />
       <NotificationsPermissionBar />
       {/* Hero strip with subtle topo decoration */}
       <div className="relative overflow-hidden border-b border-border bg-card">

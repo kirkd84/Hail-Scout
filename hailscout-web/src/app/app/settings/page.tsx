@@ -16,6 +16,15 @@ export default function SettingsPage() {
     window.location.href = "/app/map";
   };
 
+  const resetOnboarding = () => {
+    try {
+      localStorage.removeItem("hs.onboarding.v1");
+    } catch {
+      // ignore
+    }
+    window.location.href = "/app";
+  };
+
   return (
     <div className="h-full overflow-y-auto">
       <div className="container max-w-3xl py-10 space-y-8">
@@ -57,13 +66,22 @@ export default function SettingsPage() {
             Replays the first-run guide explaining search, filters, drop-pin
             mode, and the command palette.
           </p>
-          <button
-            type="button"
-            onClick={resetTour}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-copper/50 hover:bg-muted"
-          >
-            Show me again <span aria-hidden>→</span>
-          </button>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={resetTour}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-copper/50 hover:bg-muted"
+            >
+              Map tour <span aria-hidden>→</span>
+            </button>
+            <button
+              type="button"
+              onClick={resetOnboarding}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-copper/50 hover:bg-muted"
+            >
+              Onboarding wizard <span aria-hidden>→</span>
+            </button>
+          </div>
         </section>
 
         <BrandingCard />
