@@ -20,6 +20,57 @@ interface MarkerEditorProps {
   onDelete: (id: string) => void;
 }
 
+
+const ROOF_TYPES = ["Asphalt shingle", "Metal", "Tile", "Wood shake", "Flat / TPO", "Other"] as const;
+const DAMAGE_OPTIONS = [
+  "Granule loss",
+  "Shingle bruising",
+  "Cracked shingles",
+  "Dented metal",
+  "Broken tiles",
+  "Gutter damage",
+  "Window damage",
+  "Soft metal dents",
+  "Skylight damage",
+  "Vent / cap damage",
+] as const;
+
+interface Inspection {
+  roof_type?: string;
+  age_years?: number | null;
+  damage?: string[];
+  photos?: number;
+}
+
+function parseInspection(notes: string | undefined): { plain: string; inspection: Inspection | null } {
+  if (!notes) return { plain: "", inspection: null };
+  // Notes can be either plain string or "::INSPECT::{json}\n<plain text>"
+  const TAG = "::INSPECT::";
+  if (!notes.startsWith(TAG)) return { plain: notes, inspection: null };
+  const rest = notes.slice(TAG.length);
+  const newline = rest.indexOf("\n");
+  const jsonPart = newline === -1 ? rest : rest.slice(0, newline);
+  const plain = newline === -1 ? "" : rest.slice(newline + 1);
+  try {
+    const parsed = JSON.parse(jsonPart);
+    return { plain, inspection: parsed };
+  } catch {
+    return { plain: notes, inspection: null };
+  }
+}
+
+function serializeInspection(plain: string, inspection: Inspection | null): string {
+  if (!inspection || (
+    !inspection.roof_type &&
+    !inspection.age_years &&
+    (!inspection.damage || inspection.damage.length === 0) &&
+    !inspection.photos
+  )) {
+    return plain;
+  }
+  return "::INSPECT::" + JSON.stringify(inspection) + (plain ? "\n" + plain : "");
+}
+
 export function MarkerEditor({
   marker,
   isOpen,
@@ -30,6 +81,9 @@ export function MarkerEditor({
   const isMobile = useIsMobile();
   const { members } = useTeam();
   const [assignee, setAssignee] = useState<string | null>(marker?.assignee_user_id ?? null);
+  const initial = parseInspection(marker?.notes);
+  const [plainNotes, setPlainNotes] = useState(initial.plain);
+  const [inspection, setInspection] = useState<Inspection | null>(initial.inspection);
   const [status, setStatus] = useState<MarkerStatus>(marker?.status ?? "lead");
   const [notes, setNotes] = useState(marker?.notes ?? "");
 
@@ -38,6 +92,9 @@ export function MarkerEditor({
       setStatus(marker.status);
       setNotes(marker.notes ?? "");
       setAssignee(marker.assignee_user_id ?? null);
+      const parsed = parseInspection(marker.notes ?? undefined);
+      setPlainNotes(parsed.plain);
+      setInspection(parsed.inspection);
     }
   }, [marker]);
 
@@ -123,6 +180,11 @@ export function MarkerEditor({
             </div>
           </div>
 
+          {/* Inspection (only when status is knocked or beyond) */}
+          {(status === "knocked" || status === "appt" || status === "contract") && (
+            <InspectionPanel inspection={inspection} setInspection={setInspection} />
+          )}
+
           {/* Assignee */}
           {members.length > 0 && (
             <div>
@@ -146,8 +208,8 @@ export function MarkerEditor({
           <div>
             <p className="mb-2 text-[10px] font-mono uppercase tracking-wide-caps text-copper">Notes</p>
             <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              value={plainNotes}
+              onChange={(e) => setPlainNotes(e.target.value)}
               rows={3}
               placeholder="Roofer's notes — owner name, last contact, hail damage observed…"
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-copper focus:outline-none resize-none"
@@ -177,7 +239,12 @@ export function MarkerEditor({
               <button
                 type="button"
                 onClick={() => {
-                  onSave(marker.id, { status, notes: notes.trim() || undefined, assignee_user_id: assignee });
+                  const combined = serializeInspection(plainNotes.trim(), inspection);
+                  onSave(marker.id, {
+                    status,
+                    notes: combined || undefined,
+                    assignee_user_id: assignee,
+                  });
                   onClose();
                 }}
                 className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-teal-900"
@@ -189,5 +256,101 @@ export function MarkerEditor({
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+
+function InspectionPanel({
+  inspection,
+  setInspection,
+}: {
+  inspection: Inspection | null;
+  setInspection: (next: Inspection | null) => void;
+}) {
+  const i = inspection ?? {};
+  const update = (patch: Partial<Inspection>) => setInspection({ ...i, ...patch });
+
+  const toggleDamage = (d: string) => {
+    const cur = new Set(i.damage ?? []);
+    if (cur.has(d)) cur.delete(d);
+    else cur.add(d);
+    update({ damage: Array.from(cur) });
+  };
+
+  return (
+    <div className="rounded-lg border border-copper/30 bg-copper/5 p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="font-mono-num text-[10px] uppercase tracking-wide-caps text-copper-700">
+          Roof inspection
+        </p>
+        {inspection && (
+          <button
+            type="button"
+            onClick={() => setInspection(null)}
+            className="text-[10px] font-mono uppercase tracking-wide-caps text-foreground/55 hover:text-destructive"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
+      <div>
+        <p className="text-[10px] font-mono uppercase tracking-wide-caps text-foreground/55 mb-1.5">Roof type</p>
+        <div className="flex flex-wrap gap-1.5">
+          {ROOF_TYPES.map((rt) => (
+            <button
+              type="button"
+              key={rt}
+              onClick={() => update({ roof_type: rt })}
+              className={
+                "rounded-full px-3 py-1 text-xs transition-colors " +
+                (i.roof_type === rt
+                  ? "bg-primary text-primary-foreground"
+                  : "border border-border bg-card text-foreground/70 hover:border-copper/50")
+              }
+            >
+              {rt}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <p className="text-[10px] font-mono uppercase tracking-wide-caps text-foreground/55 mb-1.5">Age estimate (years)</p>
+        <input
+          type="number"
+          min={0}
+          max={50}
+          value={i.age_years ?? ""}
+          onChange={(e) => update({ age_years: e.target.value ? Number(e.target.value) : null })}
+          className="w-32 rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-copper focus:outline-none"
+          placeholder="—"
+        />
+      </div>
+
+      <div>
+        <p className="text-[10px] font-mono uppercase tracking-wide-caps text-foreground/55 mb-1.5">Damage observed</p>
+        <div className="flex flex-wrap gap-1.5">
+          {DAMAGE_OPTIONS.map((d) => {
+            const active = (i.damage ?? []).includes(d);
+            return (
+              <button
+                type="button"
+                key={d}
+                onClick={() => toggleDamage(d)}
+                className={
+                  "rounded-full px-3 py-1 text-xs transition-colors " +
+                  (active
+                    ? "bg-destructive/15 text-destructive ring-1 ring-destructive/40"
+                    : "border border-border bg-card text-foreground/70 hover:border-destructive/30")
+                }
+              >
+                {active ? "✓ " : ""}{d}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 }

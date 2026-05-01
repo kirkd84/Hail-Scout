@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useMarkers } from "@/hooks/useMarkers";
 import { useMe } from "@/hooks/useMe";
-import { useTeam } from "@/hooks/useTeam";
+import { useTeam, type TeamMember } from "@/hooks/useTeam";
 import { MARKER_STATUSES, statusInfo } from "@/lib/markers";
 import { EmptyState } from "@/components/app/empty-state";
 import { IconFlag, IconPin } from "@/components/icons";
@@ -67,12 +67,22 @@ export default function MarkersPage() {
               {markers.length} marker{markers.length === 1 ? "" : "s"} dropped. Stored locally on this device.
             </p>
           </div>
-          <Link
-            href="/app/map"
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-teal-900"
-          >
-            Drop a pin <span aria-hidden>→</span>
-          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => downloadCsv(filteredMarkers, members)}
+              disabled={filteredMarkers.length === 0}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-copper/50 disabled:opacity-60"
+            >
+              Export CSV
+            </button>
+            <Link
+              href="/app/map"
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-teal-900"
+            >
+              Drop a pin <span aria-hidden>→</span>
+            </Link>
+          </div>
         </div>
 
         <div className="rule-atlas" />
@@ -219,4 +229,52 @@ function FilterChip({
       {children}
     </button>
   );
+}
+
+
+function csvCell(s: string | number | null | undefined): string {
+  if (s === null || s === undefined) return "";
+  const str = String(s);
+  if (str.includes(",") || str.includes("\"") || str.includes("\n")) {
+    return `"${str.replace(/"/g, "\"\"")}"`;
+  }
+  return str;
+}
+
+function downloadCsv(markers: import("@/lib/markers").Marker[], members: TeamMember[]) {
+  if (markers.length === 0) return;
+  const emailById = new Map<string, string>();
+  for (const m of members) emailById.set(m.id, m.email);
+  const headers = [
+    "id",
+    "lat",
+    "lng",
+    "status",
+    "notes",
+    "assignee_email",
+    "created_at",
+    "updated_at",
+  ];
+  const rows = markers.map((m) => [
+    csvCell(m.id),
+    csvCell(m.lat),
+    csvCell(m.lng),
+    csvCell(m.status),
+    csvCell(m.notes ?? ""),
+    csvCell(m.assignee_user_id ? emailById.get(m.assignee_user_id) ?? m.assignee_user_id : ""),
+    csvCell(m.created_at),
+    csvCell(m.updated_at),
+  ].join(","));
+  const csv = [headers.join(","), ...rows].join("\n");
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `HailScout-Markers-${stamp}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }

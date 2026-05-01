@@ -4,6 +4,7 @@ import { ContourBg } from "@/components/brand/contour-bg";
 import { AtlasMapPreview } from "@/components/brand/atlas-map-preview";
 import { RoiCalculator } from "@/components/marketing/roi-calculator";
 import { LiveCountBadge } from "@/components/marketing/live-count-badge";
+import { TestimonialCarousel } from "@/components/marketing/testimonial-carousel";
 
 /**
  * HailScout marketing landing.
@@ -22,7 +23,7 @@ export default function HomePage() {
       <HowItWorks />
       <ProductSections />
       <RoiCalculator />
-      <Testimonial />
+      <TestimonialCarousel />
       <FinalCta />
       <SiteFooter />
     </main>
@@ -250,26 +251,7 @@ function ProductRow({
   );
 }
 
-/* ──────────────────────────────────────────────────────────
-   Testimonial — single editorial pull-quote
-   ────────────────────────────────────────────────────────── */
-function Testimonial() {
-  return (
-    <section className="bg-background">
-      <div className="container py-24 md:py-32">
-        <figure className="mx-auto max-w-3xl text-center">
-          <blockquote className="font-display text-balance text-3xl font-medium leading-snug tracking-tight-display text-foreground md:text-4xl">
-            &ldquo;HailScout is the difference between us showing up first and us
-            showing up at all. Our team rolls before the storm passes.&rdquo;
-          </blockquote>
-          <figcaption className="mt-8 text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">Marcus Holloway</span> — Owner, Holloway Roofing · Wichita, KS
-          </figcaption>
-        </figure>
-      </div>
-    </section>
-  );
-}
+/* Testimonial moved to marketing/testimonial-carousel.tsx */
 
 /* ──────────────────────────────────────────────────────────
    Final CTA — full-bleed copper accent

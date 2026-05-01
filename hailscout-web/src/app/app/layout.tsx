@@ -6,6 +6,7 @@ import { Topbar } from "@/components/app/topbar";
 import { CommandPalette } from "@/components/app/command-palette";
 import { ToastHost } from "@/components/app/toast-host";
 import { AlertWatcher } from "@/components/app/alert-watcher";
+import { ShortcutsModal } from "@/components/app/shortcuts-modal";
 
 /**
  * Authenticated app shell. Wires the global Cmd-K command palette.
@@ -28,6 +29,7 @@ export default function AppLayout({
         </div>
         <CommandPalette open={paletteOpen} setOpen={setPaletteOpen} />
         <AlertWatcher />
+        <ShortcutsModal />
       </div>
     </ToastHost>
   );
