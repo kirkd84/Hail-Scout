@@ -5,6 +5,7 @@ import { AtlasMapPreview } from "@/components/brand/atlas-map-preview";
 import { RoiCalculator } from "@/components/marketing/roi-calculator";
 import { LiveCountBadge } from "@/components/marketing/live-count-badge";
 import { TestimonialCarousel } from "@/components/marketing/testimonial-carousel";
+import { LandingFaq } from "@/components/marketing/landing-faq";
 
 /**
  * HailScout marketing landing.
@@ -24,6 +25,7 @@ export default function HomePage() {
       <ProductSections />
       <RoiCalculator />
       <TestimonialCarousel />
+      <LandingFaq />
       <FinalCta />
       <SiteFooter />
     </main>
@@ -40,6 +42,7 @@ function SiteHeader() {
         <Wordmark size="md" pulse />
         <nav className="hidden items-center gap-8 md:flex">
           <Link href="/#how" className="text-sm text-muted-foreground transition-colors hover:text-foreground">How it works</Link>
+          <Link href="/#faq" className="text-sm text-muted-foreground transition-colors hover:text-foreground">FAQ</Link>
           <Link href="/live" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Live storms</Link>
           <Link href="/claim" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Claim lookup</Link>
           <Link href="/pricing" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Pricing</Link>
