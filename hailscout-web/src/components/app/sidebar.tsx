@@ -28,6 +28,7 @@ const APP_NAV: NavItem[] = [
   { label: "Addresses",   href: "/app/addresses", icon: IconAddresses },
   { label: "Alerts",      href: "/app/alerts",    icon: IconBolt },
   { label: "Markers",     href: "/app/markers",   icon: IconFlag },
+  { label: "Activity",    href: "/app/activity",  icon: IconBolt },
   { label: "Reports",     href: "/app/reports",   icon: IconReport },
   { label: "Photo AI",    href: "/app/photo-ai",  icon: IconBolt },
   { label: "Team",        href: "/app/team",     icon: IconUsers },
