@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/app/empty-state";
 import { useState } from "react";
 import { IconAddresses, IconChevronRight } from "@/components/icons";
 import { BulkImportAddresses } from "@/components/app/bulk-import-addresses";
+import { PortfolioReportButton } from "@/components/reports/portfolio-report-button";
 import { cn } from "@/lib/utils";
 
 export default function AddressesPage() {
@@ -71,7 +72,8 @@ export default function AddressesPage() {
               {total} address{total === 1 ? "" : "es"} on your watchlist. Stored locally on this device.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <PortfolioReportButton addresses={addresses} />
             <button
               type="button"
               onClick={() => setBulkOpen(true)}
