@@ -14,6 +14,7 @@ import {
   IconSettings,
   IconUsers,
   IconBolt,
+  IconCalendar,
 } from "@/components/icons";
 
 interface NavItem {
@@ -31,6 +32,7 @@ const APP_NAV: NavItem[] = [
   { label: "Territories", href: "/app/territories", icon: IconCompass },
   { label: "Crew",        href: "/app/crew",     icon: IconUsers },
   { label: "Contacts",    href: "/app/customers", icon: IconUsers },
+  { label: "Follow-ups",  href: "/app/calendar",  icon: IconCalendar },
   { label: "Activity",    href: "/app/activity",  icon: IconBolt },
   { label: "Reports",     href: "/app/reports",   icon: IconReport },
   { label: "Photo AI",    href: "/app/photo-ai",  icon: IconBolt },

@@ -13,6 +13,7 @@ import { STORM_FIXTURES } from "@/lib/storm-fixtures";
 import { MARKER_STATUSES, statusInfo } from "@/lib/markers";
 import { ContourBg } from "@/components/brand/contour-bg";
 import { OnboardingWizard } from "@/components/app/onboarding-wizard";
+import { FollowUpsWidget } from "@/components/app/follow-ups-widget";
 import {
   IconBolt,
   IconAddresses,
@@ -247,6 +248,11 @@ export default function DashboardPage() {
               </ul>
             )}
           </Card>
+        </section>
+
+        {/* Follow-ups due — CRM widget */}
+        <section>
+          <FollowUpsWidget />
         </section>
 
         {/* Marker pipeline strip */}
