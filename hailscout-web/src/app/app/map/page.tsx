@@ -32,12 +32,15 @@ import { SaveAddressButton } from "@/components/app/save-address-button";
 import { WelcomeTour } from "@/components/app/welcome-tour";
 import { StormActivityFeed } from "@/components/map/storm-activity-feed";
 import { SweepTool } from "@/components/map/sweep-tool";
+import { TerritoriesLayer } from "@/components/map/territories-layer";
+import { useTerritories } from "@/hooks/useTerritories";
 import { useSearchParams } from "next/navigation";
 import { searchAddress } from "@/lib/geocode";
 import { useMarkers } from "@/hooks/useMarkers";
 
 export default function MapPage() {
   const isMobile = useIsMobile();
+  const { territories } = useTerritories();
   const [map, setMap] = useState<MapLibreMap | null>(null);
   const [basemap, setBasemap] = useState<BasemapId>("atlas");
   const [date, setDate] = useState<DateFilter>("all");
@@ -125,6 +128,7 @@ export default function MapPage() {
         onMapReady={setMap}
         onMarkerDrop={handleMapClick}
       />
+      <TerritoriesLayer map={map} territories={territories} />
       <StormFixturesLayer
         map={map}
         startTimeMin={dateFilterToCutoff(date)}

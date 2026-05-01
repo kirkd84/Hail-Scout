@@ -3,6 +3,8 @@
 import { useEffect, useState, useRef } from "react";
 import type { Map as MapLibreMap, MapMouseEvent, GeoJSONSource } from "maplibre-gl";
 import { useMarkers } from "@/hooks/useMarkers";
+import { useTerritories } from "@/hooks/useTerritories";
+import { useTeam } from "@/hooks/useTeam";
 import { cn } from "@/lib/utils";
 import { IconClose } from "@/components/icons";
 
@@ -32,6 +34,11 @@ export function SweepTool({ map }: Props) {
   const ptsRef = useRef<[number, number][]>([]);
   ptsRef.current = pts;
   const { add } = useMarkers();
+  const { create: createTerritory } = useTerritories();
+  const { members } = useTeam();
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [saveName, setSaveName] = useState("");
+  const [saveAssignee, setSaveAssignee] = useState<string>("");
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
 
   // Set up the source/layers on mount
@@ -157,6 +164,9 @@ export function SweepTool({ map }: Props) {
     setMode("off");
     setPts([]);
     setProgress(null);
+    setSaveOpen(false);
+    setSaveName("");
+    setSaveAssignee("");
   };
 
   const start = () => {
@@ -255,10 +265,10 @@ export function SweepTool({ map }: Props) {
             </>
           )}
 
-          {mode === "ready" && (
+          {mode === "ready" && !saveOpen && (
             <>
               <p className="text-xs text-foreground/85 leading-relaxed">
-                Polygon ready. Sweep drops one marker at every parcel inside (capped at 50).
+                Polygon ready. Sweep drops up to 50 markers, or save the polygon as a named territory.
               </p>
               <button
                 type="button"
@@ -267,6 +277,61 @@ export function SweepTool({ map }: Props) {
               >
                 Drop markers
               </button>
+              <button
+                type="button"
+                onClick={() => setSaveOpen(true)}
+                className="w-full rounded-md border border-copper bg-copper/5 px-3 py-2 text-xs font-medium text-copper-700 hover:bg-copper/10"
+              >
+                Save as territory
+              </button>
+            </>
+          )}
+          {mode === "ready" && saveOpen && (
+            <>
+              <p className="text-[10px] font-mono uppercase tracking-wide-caps text-copper">
+                Save territory
+              </p>
+              <input
+                type="text"
+                value={saveName}
+                onChange={(e) => setSaveName(e.target.value)}
+                placeholder="North Dallas — Crew A"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-copper focus:outline-none"
+              />
+              <select
+                value={saveAssignee}
+                onChange={(e) => setSaveAssignee(e.target.value)}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-copper focus:outline-none"
+              >
+                <option value="">Unassigned</option>
+                {members.map((m) => (
+                  <option key={m.id} value={m.id}>{m.email.split("@")[0]} ({m.role})</option>
+                ))}
+              </select>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSaveOpen(false)}
+                  className="flex-1 rounded-md border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-muted"
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  disabled={!saveName.trim()}
+                  onClick={async () => {
+                    await createTerritory({
+                      name: saveName.trim(),
+                      polygon: pts,
+                      assignee_user_id: saveAssignee || undefined,
+                    });
+                    cancel();
+                  }}
+                  className="flex-1 rounded-md bg-copper px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-copper-700 disabled:opacity-60"
+                >
+                  Save zone
+                </button>
+              </div>
             </>
           )}
 

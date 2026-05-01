@@ -13,6 +13,7 @@ from hailscout_api.core import setup_logging
 from hailscout_api.db import init_db
 from hailscout_api.routes import (
     audit,
+    territories,
     integrations,
     team,
     webhooks,
@@ -87,6 +88,7 @@ def create_app() -> FastAPI:
     v1.include_router(audit.router, tags=["super-admin"])
     v1.include_router(team.router, tags=["team"])
     v1.include_router(integrations.router, tags=["integrations"])
+    v1.include_router(territories.router, tags=["territories"])
     # Webhooks — externally-called endpoints, signature-verified, no auth dep.
     v1.include_router(webhooks.router, tags=["webhooks"])
 
