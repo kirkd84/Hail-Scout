@@ -5,7 +5,8 @@ import { useSavedAddresses } from "@/hooks/useSavedAddresses";
 import { hailColor } from "@/lib/hail";
 import { EmptyState } from "@/components/app/empty-state";
 import { useState } from "react";
-import { IconAddresses, IconChevronRight } from "@/components/icons";
+import { IconAddresses, IconChevronRight, IconUsers } from "@/components/icons";
+import { ContactsPanel } from "@/components/app/contacts-panel";
 import { BulkImportAddresses } from "@/components/app/bulk-import-addresses";
 import { PortfolioReportButton } from "@/components/reports/portfolio-report-button";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,7 @@ import { cn } from "@/lib/utils";
 export default function AddressesPage() {
   const { addresses, remove } = useSavedAddresses();
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   if (addresses.length === 0) {
     return (
@@ -116,13 +118,20 @@ export default function AddressesPage() {
                   year: "numeric",
                 })
               : "—";
+            const isExpanded = expandedId === a.id;
             return (
-              <Link
+              <div
                 key={a.id}
-                href={`/app/map?address=${encodeURIComponent(a.address)}`}
                 className={cn(
-                  "grid grid-cols-[3fr_1fr_140px_60px] items-center hover:bg-secondary/30 transition-colors",
                   i < sorted.length - 1 ? "border-b border-border/60" : "",
+                )}
+              >
+              <button
+                type="button"
+                onClick={() => setExpandedId(isExpanded ? null : a.id)}
+                className={cn(
+                  "w-full text-left grid grid-cols-[3fr_1fr_140px_60px] items-center hover:bg-secondary/30 transition-colors",
+                  isExpanded && "bg-secondary/30",
                 )}
               >
                 <div className="px-5 py-4">
@@ -165,15 +174,44 @@ export default function AddressesPage() {
                     type="button"
                     onClick={(e) => {
                       e.preventDefault();
+                      e.stopPropagation();
                       remove(a.id);
                     }}
                     className="text-[11px] font-mono uppercase tracking-wide-caps text-foreground/40 hover:text-destructive"
                   >
                     Remove
                   </button>
-                  <IconChevronRight className="h-4 w-4 text-foreground/30" />
+                  <IconChevronRight
+                    className={cn(
+                      "h-4 w-4 text-foreground/30 transition-transform",
+                      isExpanded && "rotate-90",
+                    )}
+                  />
                 </div>
-              </Link>
+              </button>
+              {isExpanded && (
+                <div className="border-t border-border bg-secondary/10 p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="font-mono text-[10px] uppercase tracking-wide-caps text-copper inline-flex items-center gap-1.5">
+                      <IconUsers className="h-3.5 w-3.5" />
+                      Contacts at this address
+                    </p>
+                    <Link
+                      href={`/app/map?address=${encodeURIComponent(a.address)}`}
+                      className="text-[11px] font-mono uppercase tracking-wide-caps text-copper hover:text-copper-700"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Open on map →
+                    </Link>
+                  </div>
+                  <ContactsPanel
+                    addressId={Number(a.id)}
+                    contextLabel={a.label || a.address}
+                    embedded
+                  />
+                </div>
+              )}
+              </div>
             );
           })}
         </div>
