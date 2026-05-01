@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useTeam } from "@/hooks/useTeam";
+import { MarkerNotesThread } from "@/components/app/marker-notes-thread";
 
 interface MarkerEditorProps {
   marker: Marker | null;
@@ -215,6 +216,9 @@ export function MarkerEditor({
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-copper focus:outline-none resize-none"
             />
           </div>
+
+          {/* Thread */}
+          <MarkerNotesThread markerId={marker.id} />
 
           {/* Actions */}
           <div className="flex items-center justify-between pt-2">

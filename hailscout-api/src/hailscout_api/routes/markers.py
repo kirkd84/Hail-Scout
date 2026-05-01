@@ -14,10 +14,11 @@ from hailscout_api.auth.clerk import ClerkVerifier
 from hailscout_api.auth.middleware import AuthContext, extract_auth_context
 from hailscout_api.config import get_settings
 from hailscout_api.core import AuthenticationError, get_logger
-from hailscout_api.db.models.canvass import Marker
+from hailscout_api.db.models.canvass import Marker, MarkerNote
 from hailscout_api.db.models.org import User
 from hailscout_api.db.session import get_db_session
 from hailscout_api.services.audit import write_event
+from hailscout_api.schemas.marker_note import MarkerNoteCreate, MarkerNoteResponse
 from hailscout_api.schemas.marker import (
     MarkerBulkCreate,
     MarkerCreate,
@@ -257,3 +258,99 @@ async def delete_marker(
     await session.delete(marker)
     await session.commit()
     return Response(status_code=204)
+
+
+
+# ────────────────────────────────────────────────────────────────────
+# Marker notes (Phase 12.2)
+# ────────────────────────────────────────────────────────────────────
+
+
+@router.get("/markers/{marker_id}/notes", response_model=list[MarkerNoteResponse])
+async def list_marker_notes(
+    request: Request,
+    marker_id: str,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[MarkerNoteResponse]:
+    user = await _resolve_user(request, session)
+
+    # Verify the marker is in the org
+    marker = (
+        await session.execute(
+            select(Marker).where(
+                and_(Marker.id == marker_id, Marker.org_id == user.org_id),
+            )
+        )
+    ).scalars().first()
+    if marker is None:
+        raise HTTPException(status_code=404, detail="Marker not found")
+
+    rows = (
+        await session.execute(
+            select(MarkerNote)
+            .where(MarkerNote.marker_id == marker_id)
+            .order_by(MarkerNote.created_at.asc()),
+        )
+    ).scalars().all()
+
+    # Resolve user emails in one batch
+    user_ids = list({r.user_id for r in rows})
+    email_map: dict[str, str] = {}
+    if user_ids:
+        users = (
+            await session.execute(
+                select(User).where(User.id.in_(user_ids)),
+            )
+        ).scalars().all()
+        email_map = {u.id: u.email for u in users}
+
+    return [
+        MarkerNoteResponse(
+            id=r.id,
+            marker_id=r.marker_id,
+            user_id=r.user_id,
+            user_email=email_map.get(r.user_id),
+            body=r.body,
+            created_at=r.created_at,
+        )
+        for r in rows
+    ]
+
+
+@router.post("/markers/{marker_id}/notes", response_model=MarkerNoteResponse, status_code=201)
+async def create_marker_note(
+    request: Request,
+    marker_id: str,
+    body: MarkerNoteCreate,
+    session: AsyncSession = Depends(get_db_session),
+) -> MarkerNoteResponse:
+    user = await _resolve_user(request, session)
+
+    marker = (
+        await session.execute(
+            select(Marker).where(
+                and_(Marker.id == marker_id, Marker.org_id == user.org_id),
+            )
+        )
+    ).scalars().first()
+    if marker is None:
+        raise HTTPException(status_code=404, detail="Marker not found")
+
+    note = MarkerNote(
+        marker_id=marker_id,
+        org_id=user.org_id,
+        user_id=user.id,
+        body=body.body,
+    )
+    session.add(note)
+    await session.commit()
+    await session.refresh(note)
+
+    return MarkerNoteResponse(
+        id=note.id,
+        marker_id=note.marker_id,
+        user_id=note.user_id,
+        user_email=user.email,
+        body=note.body,
+        created_at=note.created_at,
+    )

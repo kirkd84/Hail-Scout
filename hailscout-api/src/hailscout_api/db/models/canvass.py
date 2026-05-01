@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Optional
 
 from geoalchemy2 import Geometry
-from sqlalchemy import ForeignKey, String, Text, Float, DateTime
+from sqlalchemy import ForeignKey, String, Text, Float, DateTime, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 
 from hailscout_api.db.base import Base, created_at_column, updated_at_column
@@ -155,4 +155,24 @@ class SavedReport(Base):
     )
     title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = created_at_column()
+
+
+
+class MarkerNote(Base):
+    """Append-only note on a marker. Conversation thread."""
+
+    __tablename__ = "marker_notes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    marker_id: Mapped[str] = mapped_column(
+        ForeignKey("markers.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    org_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id"), nullable=False
+    )
+    body: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = created_at_column()
