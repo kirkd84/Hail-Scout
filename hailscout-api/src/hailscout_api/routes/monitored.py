@@ -6,6 +6,7 @@ import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.responses import StreamingResponse
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,6 +28,8 @@ from hailscout_api.data.storm_fixtures import all_fixtures, storm_at
 from hailscout_api.db.models.org import Organization
 from hailscout_api.services.slack import format_alert_message, send_slack_alert
 from datetime import datetime, timezone
+import asyncio
+import json
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -36,15 +39,24 @@ async def _resolve_user(request: Request, session: AsyncSession) -> User:
     settings = get_settings()
     verifier = ClerkVerifier(settings.clerk_jwks_endpoint, settings.clerk_secret_key)
 
+    # Prefer Authorization header; fall back to ?token= query param so
+    # EventSource (which can't set headers) can authenticate too.
     auth_header = request.headers.get("Authorization")
-    if not auth_header:
+    token: str | None = None
+    if auth_header:
+        try:
+            scheme, t = auth_header.split(" ", 1)
+            if scheme.lower() != "bearer":
+                raise AuthenticationError("Only Bearer tokens supported")
+            token = t
+        except ValueError as exc:
+            raise AuthenticationError("Invalid Authorization header format") from exc
+    else:
+        qp = request.query_params.get("token")
+        if qp:
+            token = qp
+    if not token:
         raise AuthenticationError("Missing Authorization header")
-    try:
-        scheme, token = auth_header.split(" ", 1)
-    except ValueError as exc:
-        raise AuthenticationError("Invalid Authorization header format") from exc
-    if scheme.lower() != "bearer":
-        raise AuthenticationError("Only Bearer tokens supported")
 
     claims = await verifier.verify_token(token)
     clerk_user_id = claims.get("sub")
@@ -379,6 +391,129 @@ async def list_alerts(
             unread += 1
 
     return StormAlertList(alerts=out, unread_count=unread, new_in_this_fetch=new_count)
+
+
+@router.get("/alerts/stream")
+async def stream_alerts(
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+) -> StreamingResponse:
+    """Server-Sent Events stream of new alerts for the signed-in user's org.
+
+    Re-runs the lazy generator every 8 seconds; whenever new alerts are
+    persisted it emits an SSE "alert" event with the JSON payload.
+    Periodic ":heartbeat" comment lines keep proxies / load balancers
+    from idling the connection.
+
+    Clients (web + mobile) attach via EventSource. Falls back gracefully
+    to the existing /v1/alerts polling if SSE is blocked.
+    """
+    user = await _resolve_user(request, session)
+    org_id = user.org_id
+
+    async def gen():
+        # Initial hello so clients know the connection is open
+        yield ": hailscout-stream connected\n\n"
+
+        # Track the latest StormAlert.id we've seen for this stream
+        last_seen_id: int = 0
+
+        while True:
+            if await request.is_disconnected():
+                break
+
+            # Re-resolve org-scoped query every iteration so we don't hold a
+            # stale session row across the loop. We use the same logic as
+            # the regular /v1/alerts endpoint but only emit the diff.
+            try:
+                addresses = (
+                    await session.execute(
+                        select(MonitoredAddress).where(MonitoredAddress.org_id == org_id),
+                    )
+                ).scalars().all()
+
+                fixtures = all_fixtures()
+                for addr in addresses:
+                    if addr.lat is None or addr.lng is None:
+                        continue
+                    threshold = addr.alert_threshold_in or 0.75
+                    for storm in fixtures:
+                        if storm.peak_size_in < threshold:
+                            continue
+                        if not storm_at(addr.lat, addr.lng, storm):
+                            continue
+                        exists = (
+                            await session.execute(
+                                select(StormAlert).where(
+                                    and_(
+                                        StormAlert.org_id == org_id,
+                                        StormAlert.monitored_address_id == addr.id,
+                                        StormAlert.storm_id == storm.id,
+                                    ),
+                                ),
+                            )
+                        ).scalars().first()
+                        if exists is None:
+                            alert = StormAlert(
+                                org_id=org_id,
+                                monitored_address_id=addr.id,
+                                storm_id=storm.id,
+                                storm_city=storm.city,
+                                peak_size_in=storm.peak_size_in,
+                                storm_started_at=storm.start_time,
+                            )
+                            session.add(alert)
+                            await session.commit()
+                            await session.refresh(alert)
+
+                # Now emit any rows whose id > last_seen_id
+                fresh = (
+                    await session.execute(
+                        select(StormAlert).where(
+                            and_(
+                                StormAlert.org_id == org_id,
+                                StormAlert.id > last_seen_id,
+                                StormAlert.dismissed_at.is_(None),
+                            ),
+                        ).order_by(StormAlert.id.asc()),
+                    )
+                ).scalars().all()
+
+                for r in fresh:
+                    last_seen_id = max(last_seen_id, r.id)
+                    addr = next((a for a in addresses if a.id == r.monitored_address_id), None)
+                    payload = {
+                        "id": r.id,
+                        "monitored_address_id": r.monitored_address_id,
+                        "storm_id": r.storm_id,
+                        "storm_city": r.storm_city,
+                        "peak_size_in": r.peak_size_in,
+                        "storm_started_at": r.storm_started_at.isoformat() if r.storm_started_at else None,
+                        "address": addr.address if addr else None,
+                        "address_label": addr.label if addr else None,
+                        "created_at": r.created_at.isoformat() if r.created_at else None,
+                    }
+                    yield f"event: alert\ndata: {json.dumps(payload)}\n\n"
+
+                # Heartbeat
+                yield ": heartbeat\n\n"
+            except Exception as exc:  # pragma: no cover
+                log = get_logger(__name__)
+                log.warning("alerts.stream.iter_error: %s", exc)
+                yield f": error {str(exc)[:80]}\n\n"
+
+            await asyncio.sleep(8)
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
 
 
 @router.post("/alerts/{alert_id}/read", response_model=StormAlertResponse)

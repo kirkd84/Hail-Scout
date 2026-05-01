@@ -13,7 +13,7 @@ import { useToast } from "./toast-host";
  * show a flood of toasts every time the app loads.
  */
 export function AlertWatcher() {
-  const { alerts, newInThisFetch } = useAlerts();
+  const { alerts, newInThisFetch, consumeNewCount } = useAlerts();
   const toast = useToast();
   const firstRunRef = useRef(true);
 
@@ -47,6 +47,7 @@ export function AlertWatcher() {
         }
       }
     });
+    consumeNewCount();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [newInThisFetch]);
 
