@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useMarkers } from "@/hooks/useMarkers";
 import { useMe } from "@/hooks/useMe";
 import { useTeam, type TeamMember } from "@/hooks/useTeam";
+import { BulkImportMarkers } from "@/components/app/bulk-import-markers";
 import { MARKER_STATUSES, statusInfo } from "@/lib/markers";
 import { EmptyState } from "@/components/app/empty-state";
 import { IconFlag, IconPin } from "@/components/icons";
@@ -15,6 +16,7 @@ export default function MarkersPage() {
   const { me } = useMe();
   const { members } = useTeam();
   const [assigneeFilter, setAssigneeFilter] = useState<string>(""); // "" = all, "me" = mine, otherwise user_id
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   const myId = me?.user?.id;
   const filteredMarkers = assigneeFilter === ""
@@ -67,7 +69,14 @@ export default function MarkersPage() {
               {markers.length} marker{markers.length === 1 ? "" : "s"} dropped. Stored locally on this device.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setBulkOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-copper/50"
+            >
+              Bulk import
+            </button>
             <button
               type="button"
               onClick={() => downloadCsv(filteredMarkers, members)}
