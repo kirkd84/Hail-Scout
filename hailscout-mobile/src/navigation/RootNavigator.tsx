@@ -1,72 +1,35 @@
 import React from "react";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useAuth } from "@clerk/clerk-expo";
-import { ActivityIndicator, View } from "react-native";
+import { createStackNavigator } from "@react-navigation/stack";
+import { View, ActivityIndicator, useColorScheme } from "react-native";
+import { theme } from "@/lib/tokens";
 import { SignInScreen } from "@/auth/SignInScreen";
 import { SignUpScreen } from "@/auth/SignUpScreen";
 import { MainTabs } from "./MainTabs";
-import { RootStackParamList } from "./types";
+import type { AuthStackParamList } from "./types";
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
+const AuthStack = createStackNavigator<AuthStackParamList>();
+
+function AuthFlow() {
+  return (
+    <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+      <AuthStack.Screen name="SignIn" component={SignInScreen} />
+      <AuthStack.Screen name="SignUp" component={SignUpScreen} />
+    </AuthStack.Navigator>
+  );
+}
 
 export function RootNavigator() {
-  const { isSignedIn, isLoaded } = useAuth();
+  const { isLoaded, isSignedIn } = useAuth();
+  const t = theme(useColorScheme());
 
   if (!isLoaded) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#0066cc" />
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: t.bg }}>
+        <ActivityIndicator color={t.accent} />
       </View>
     );
   }
 
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {isSignedIn ? (
-        <Stack.Screen name="MainTabs" component={MainTabs} />
-      ) : (
-        <Stack.Group
-          screenOptions={{
-            animationEnabled: false,
-          }}
-        >
-          <Stack.Screen
-            name="Auth"
-            component={AuthNavigator}
-            options={{
-              headerShown: false,
-            }}
-          />
-        </Stack.Group>
-      )}
-    </Stack.Navigator>
-  );
-}
-
-function AuthNavigator() {
-  const Stack = createNativeStackNavigator();
-
-  return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-        cardStyle: { backgroundColor: "#fff" },
-      }}
-    >
-      <Stack.Screen
-        name="SignIn"
-        component={SignInScreen}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="SignUp"
-        component={SignUpScreen}
-        options={{
-          headerShown: false,
-        }}
-      />
-    </Stack.Navigator>
-  );
+  return isSignedIn ? <MainTabs /> : <AuthFlow />;
 }

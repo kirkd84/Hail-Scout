@@ -1,5 +1,4 @@
-import { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
-import { StackScreenProps } from "@react-navigation/stack";
+import type { NavigatorScreenParams } from "@react-navigation/native";
 
 export type AuthStackParamList = {
   SignIn: undefined;
@@ -7,24 +6,14 @@ export type AuthStackParamList = {
 };
 
 export type MainTabsParamList = {
-  Map: undefined;
+  Home:      undefined;
+  Atlas:     undefined;
+  Alerts:    undefined;
   Addresses: undefined;
-  Settings: undefined;
+  Settings:  undefined;
 };
 
 export type RootStackParamList = {
-  Auth: undefined;
-  MainTabs: undefined;
+  Auth: NavigatorScreenParams<AuthStackParamList>;
+  Main: NavigatorScreenParams<MainTabsParamList>;
 };
-
-export type AuthStackScreenProps<T extends keyof AuthStackParamList> =
-  StackScreenProps<AuthStackParamList, T>;
-
-export type MainTabsScreenProps<T extends keyof MainTabsParamList> =
-  BottomTabScreenProps<MainTabsParamList, T>;
-
-declare global {
-  namespace ReactNavigation {
-    interface RootParamList extends RootStackParamList {}
-  }
-}

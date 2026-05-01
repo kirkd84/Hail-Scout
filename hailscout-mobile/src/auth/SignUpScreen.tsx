@@ -3,237 +3,161 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
-  ActivityIndicator,
-  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  useColorScheme,
 } from "react-native";
 import { useSignUp } from "@clerk/clerk-expo";
+import { useNavigation } from "@react-navigation/native";
+import { theme, SPACING, RADIUS } from "@/lib/tokens";
+import { Wordmark } from "@/components/Wordmark";
 
-export function SignUpScreen(): React.ReactElement {
-  const { isLoaded, signUp, setActive } = useSignUp();
-  const [emailAddress, setEmailAddress] = useState("");
+export function SignUpScreen() {
+  const t = theme(useColorScheme());
+  const { signUp, setActive, isLoaded } = useSignUp();
+  const nav = useNavigation<any>();
+
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [passwordConfirm, setPasswordConfirm] = useState("");
-  const [verificationCode, setVerificationCode] = useState("");
-  const [pendingVerification, setPendingVerification] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [code, setCode] = useState("");
+  const [stage, setStage] = useState<"form" | "verify">("form");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const onSignUpPress = async () => {
-    if (!isLoaded) {
-      return;
-    }
-
-    if (!emailAddress || !password || !passwordConfirm) {
-      Alert.alert("Error", "Please fill in all fields");
-      return;
-    }
-
-    if (password !== passwordConfirm) {
-      Alert.alert("Error", "Passwords do not match");
-      return;
-    }
-
-    setIsLoading(true);
+  const start = async () => {
+    if (!isLoaded) return;
+    setBusy(true);
+    setError(null);
     try {
-      await signUp.create({
-        emailAddress,
-        password,
-      });
-
-      // Send the user an email with the verification code
+      await signUp.create({ emailAddress: email, password });
       await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
-      setPendingVerification(true);
-    } catch (err: any) {
-      console.error("Sign up error:", err);
-      Alert.alert(
-        "Error",
-        err.errors?.[0]?.message || "Failed to create account. Please try again."
-      );
+      setStage("verify");
+    } catch (e: any) {
+      setError(e?.errors?.[0]?.message ?? "Sign-up failed.");
     } finally {
-      setIsLoading(false);
+      setBusy(false);
     }
   };
 
-  const onPressVerify = async () => {
-    if (!isLoaded) {
-      return;
-    }
-
-    if (!verificationCode) {
-      Alert.alert("Error", "Please enter the verification code");
-      return;
-    }
-
-    setIsLoading(true);
+  const verify = async () => {
+    if (!isLoaded) return;
+    setBusy(true);
+    setError(null);
     try {
-      const completeSignUp = await signUp.attemptEmailAddressVerification({
-        code: verificationCode,
-      });
-
-      if (completeSignUp.status === "complete") {
-        await setActive({ session: completeSignUp.createdSessionId });
+      const attempt = await signUp.attemptEmailAddressVerification({ code });
+      if (attempt.status === "complete") {
+        await setActive({ session: attempt.createdSessionId });
       } else {
-        console.log("Sign up status:", completeSignUp.status);
-        Alert.alert("Error", "Verification failed. Please try again.");
+        setError("Verification incomplete.");
       }
-    } catch (err: any) {
-      console.error("Verification error:", err);
-      Alert.alert(
-        "Error",
-        err.errors?.[0]?.message || "Verification failed. Please try again."
-      );
+    } catch (e: any) {
+      setError(e?.errors?.[0]?.message ?? "Verification failed.");
     } finally {
-      setIsLoading(false);
+      setBusy(false);
     }
   };
-
-  if (pendingVerification) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.content}>
-          <Text style={styles.title}>Verify Email</Text>
-          <Text style={styles.subtitle}>
-            We've sent a verification code to {emailAddress}
-          </Text>
-
-          <View style={styles.form}>
-            <TextInput
-              value={verificationCode}
-              placeholder="Verification Code"
-              placeholderTextColor="#999"
-              onChangeText={setVerificationCode}
-              style={styles.input}
-              editable={!isLoading}
-            />
-
-            <TouchableOpacity
-              style={[styles.button, isLoading && styles.buttonDisabled]}
-              onPress={onPressVerify}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Verify</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    );
-  }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Create Account</Text>
-        <Text style={styles.subtitle}>Join HailScout today</Text>
-
-        <View style={styles.form}>
-          <TextInput
-            autoCapitalize="none"
-            value={emailAddress}
-            placeholder="Email"
-            placeholderTextColor="#999"
-            onChangeText={setEmailAddress}
-            style={styles.input}
-            editable={!isLoading}
-            keyboardType="email-address"
-          />
-          <TextInput
-            value={password}
-            placeholder="Password"
-            placeholderTextColor="#999"
-            secureTextEntry={true}
-            onChangeText={setPassword}
-            style={styles.input}
-            editable={!isLoading}
-          />
-          <TextInput
-            value={passwordConfirm}
-            placeholder="Confirm Password"
-            placeholderTextColor="#999"
-            secureTextEntry={true}
-            onChangeText={setPasswordConfirm}
-            style={styles.input}
-            editable={!isLoading}
-          />
-
-          <TouchableOpacity
-            style={[styles.button, isLoading && styles.buttonDisabled]}
-            onPress={onSignUpPress}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Sign Up</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.footerText}>
-          By signing up, you agree to our Terms of Service and Privacy Policy.
+    <KeyboardAvoidingView
+      style={[styles.root, { backgroundColor: t.bg }]}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <View style={styles.center}>
+        <Wordmark size={28} />
+        <Text style={[styles.eyebrow, { color: t.accent }]}>
+          {stage === "form" ? "JOIN HAILSCOUT" : "VERIFY EMAIL"}
         </Text>
+        <Text style={[styles.title, { color: t.fg }]}>
+          {stage === "form" ? "Get the atlas" : "Check your inbox"}
+        </Text>
+        <Text style={[styles.sub, { color: t.fgMuted }]}>
+          {stage === "form"
+            ? "Create an account. 14-day trial, no card required."
+            : `We sent a code to ${email}.`}
+        </Text>
+
+        <View style={{ width: "100%", marginTop: SPACING.xl, gap: SPACING.md }}>
+          {stage === "form" ? (
+            <>
+              <TextInput
+                placeholder="Work email"
+                placeholderTextColor={t.fgMuted}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                value={email}
+                onChangeText={setEmail}
+                style={[styles.input, { color: t.fg, backgroundColor: t.bgLift, borderColor: t.border }]}
+              />
+              <TextInput
+                placeholder="Password"
+                placeholderTextColor={t.fgMuted}
+                secureTextEntry
+                value={password}
+                onChangeText={setPassword}
+                style={[styles.input, { color: t.fg, backgroundColor: t.bgLift, borderColor: t.border }]}
+              />
+              {error && <Text style={[styles.error, { color: t.destructive }]}>{error}</Text>}
+              <Pressable
+                disabled={busy}
+                onPress={start}
+                style={({ pressed }) => [
+                  styles.cta,
+                  { backgroundColor: t.primary, opacity: busy || pressed ? 0.7 : 1 },
+                ]}
+              >
+                <Text style={[styles.ctaText, { color: t.primaryFg }]}>
+                  {busy ? "Creating…" : "Create account"}
+                </Text>
+              </Pressable>
+              <Pressable onPress={() => nav.navigate("SignIn")}>
+                <Text style={[styles.altLink, { color: t.fgMuted }]}>
+                  Already a user?{" "}
+                  <Text style={{ color: t.accent, fontWeight: "500" }}>Sign in →</Text>
+                </Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <TextInput
+                placeholder="6-digit code"
+                placeholderTextColor={t.fgMuted}
+                keyboardType="number-pad"
+                value={code}
+                onChangeText={setCode}
+                style={[styles.input, { color: t.fg, backgroundColor: t.bgLift, borderColor: t.border, fontFamily: "Courier", fontSize: 20, letterSpacing: 4, textAlign: "center" }]}
+              />
+              {error && <Text style={[styles.error, { color: t.destructive }]}>{error}</Text>}
+              <Pressable
+                disabled={busy}
+                onPress={verify}
+                style={({ pressed }) => [
+                  styles.cta,
+                  { backgroundColor: t.primary, opacity: busy || pressed ? 0.7 : 1 },
+                ]}
+              >
+                <Text style={[styles.ctaText, { color: t.primaryFg }]}>
+                  {busy ? "Verifying…" : "Verify"}
+                </Text>
+              </Pressable>
+            </>
+          )}
+        </View>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-    justifyContent: "center",
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "700",
-    color: "#1a1a1a",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 40,
-  },
-  form: {
-    gap: 16,
-    marginBottom: 24,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: "#1a1a1a",
-  },
-  button: {
-    backgroundColor: "#0066cc",
-    borderRadius: 8,
-    padding: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  footerText: {
-    fontSize: 13,
-    color: "#999",
-    textAlign: "center",
-  },
+  root: { flex: 1 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", padding: SPACING.xl, gap: SPACING.sm },
+  eyebrow: { fontSize: 10, fontFamily: "Courier", letterSpacing: 1.4, marginTop: 24 },
+  title: { fontFamily: "serif", fontSize: 32, fontWeight: "500", letterSpacing: -0.5, textAlign: "center" },
+  sub: { fontSize: 14, textAlign: "center", lineHeight: 20, maxWidth: 280 },
+  input: { borderWidth: 1, borderRadius: RADIUS.md, padding: SPACING.md, fontSize: 15 },
+  cta: { borderRadius: RADIUS.md, padding: SPACING.md, alignItems: "center", marginTop: SPACING.sm },
+  ctaText: { fontSize: 15, fontWeight: "600", letterSpacing: -0.2 },
+  altLink: { textAlign: "center", fontSize: 13, marginTop: SPACING.md },
+  error: { fontSize: 13, textAlign: "center" },
 });
