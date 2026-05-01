@@ -4,6 +4,7 @@ import { StatTicker } from "@/components/marketing/stat-ticker";
 import { ContourBg } from "@/components/brand/contour-bg";
 import { AtlasMapPreview } from "@/components/brand/atlas-map-preview";
 import { RoiCalculator } from "@/components/marketing/roi-calculator";
+import { HailOutlook } from "@/components/marketing/hail-outlook";
 import { LiveCountBadge } from "@/components/marketing/live-count-badge";
 import { TestimonialCarousel } from "@/components/marketing/testimonial-carousel";
 import { LandingFaq } from "@/components/marketing/landing-faq";
@@ -26,6 +27,7 @@ export default function HomePage() {
       <HowItWorks />
       <ProductSections />
       <RoiCalculator />
+      <HailOutlook />
       <TestimonialCarousel />
       <LandingFaq />
       <FinalCta />
