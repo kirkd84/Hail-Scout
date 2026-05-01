@@ -95,13 +95,21 @@ export function LandingFaq() {
           })}
         </ul>
 
-        <p className="mt-8 text-center text-sm text-muted-foreground">
-          Still have questions?{" "}
-          <a href="mailto:hello@hailscout.com" className="text-copper hover:text-copper-700">
-            hello@hailscout.com
-          </a>
-          {" "}— we&apos;re a small team, expect a real reply.
-        </p>
+        <div className="mt-8 text-center space-y-2">
+          <p className="text-sm text-muted-foreground">
+            Still have questions?{" "}
+            <a href="mailto:hello@hailscout.com" className="text-copper hover:text-copper-700">
+              hello@hailscout.com
+            </a>
+            {" "}— we&apos;re a small team, expect a real reply.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Or read{" "}
+            <a href="/case-studies" className="text-copper hover:text-copper-700">
+              how Ridgeline Roofing tripled their close rate →
+            </a>
+          </p>
+        </div>
       </div>
     </section>
   );
