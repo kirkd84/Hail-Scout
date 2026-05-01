@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Wordmark } from "@/components/brand/wordmark";
+import { StatTicker } from "@/components/marketing/stat-ticker";
 import { ContourBg } from "@/components/brand/contour-bg";
 import { AtlasMapPreview } from "@/components/brand/atlas-map-preview";
 import { RoiCalculator } from "@/components/marketing/roi-calculator";
@@ -19,6 +20,7 @@ export default function HomePage() {
   return (
     <main className="bg-background text-foreground">
       <SiteHeader />
+      <StatTicker />
       <Hero />
       <Numbers />
       <HowItWorks />

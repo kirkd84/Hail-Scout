@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Wordmark } from "@/components/brand/wordmark";
+import { StatTicker } from "@/components/marketing/stat-ticker";
 import { ContourBg } from "@/components/brand/contour-bg";
 import { STORM_FIXTURES, type StormFixture } from "@/lib/storm-fixtures";
 import { hailColor } from "@/lib/hail";
@@ -36,6 +37,7 @@ export default function LiveStormsPage() {
   return (
     <main className="bg-background text-foreground">
       <SiteHeader />
+      <StatTicker />
       <Hero count={live.length} totalRecent={recent.length} />
       {live.length > 0 && <Section title="Tracking right now" tone="copper" storms={live} />}
       <Section title="Recent storms · past 30 days" tone="muted" storms={recent} />

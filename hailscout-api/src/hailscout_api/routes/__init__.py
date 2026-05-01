@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from hailscout_api.routes import (
     audit,
+    public,
     territories,
     integrations,
     team,
@@ -34,6 +35,7 @@ __all__ = [
     "ai",
     "admin",
     "audit",
+    "public",
     "territories",
     "integrations",
     "team",

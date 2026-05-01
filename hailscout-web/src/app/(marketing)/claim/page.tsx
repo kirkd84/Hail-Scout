@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Wordmark } from "@/components/brand/wordmark";
+import { StatTicker } from "@/components/marketing/stat-ticker";
 import { ContourBg } from "@/components/brand/contour-bg";
 import { searchAddress } from "@/lib/geocode";
 import { fixturesAtPoint, STORM_FIXTURES, type StormFixture } from "@/lib/storm-fixtures";
@@ -52,6 +53,7 @@ export default function ClaimLookupPage() {
   return (
     <main className="bg-background text-foreground">
       <SiteHeader />
+      <StatTicker />
 
       {/* Hero + search */}
       <section className="relative overflow-hidden bg-topo">

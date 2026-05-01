@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { Wordmark } from "@/components/brand/wordmark";
+import { StatTicker } from "@/components/marketing/stat-ticker";
 import { ContourBg } from "@/components/brand/contour-bg";
 
 export default function PricingPage() {
   return (
     <main className="bg-background text-foreground">
       <SiteHeader />
+      <StatTicker />
       <Hero />
       <PricingGrid />
       <Faq />
