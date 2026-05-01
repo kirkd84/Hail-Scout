@@ -31,6 +31,7 @@ import { StormDetailSheet } from "@/components/app/storm-detail-sheet";
 import { SaveAddressButton } from "@/components/app/save-address-button";
 import { WelcomeTour } from "@/components/app/welcome-tour";
 import { StormActivityFeed } from "@/components/map/storm-activity-feed";
+import { SweepTool } from "@/components/map/sweep-tool";
 import { useSearchParams } from "next/navigation";
 import { searchAddress } from "@/lib/geocode";
 import { useMarkers } from "@/hooks/useMarkers";
@@ -148,6 +149,7 @@ export default function MapPage() {
       />
 
       <StormActivityFeed map={map} />
+      <SweepTool map={map} />
 
       <div className="pointer-events-none absolute inset-x-0 bottom-20 z-20 flex justify-center px-4">
         <TimeScrubber cursorMs={scrubberMs} onCursorChange={setScrubberMs} />
