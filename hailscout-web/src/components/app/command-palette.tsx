@@ -126,6 +126,7 @@ export function CommandPalette({ open, setOpen }: PaletteContextProps) {
               <Item icon={<IconFlag className="h-4 w-4" />}       onSelect={() => go("/app/markers")}>Canvassing markers</Item>
               <Item icon={<IconBolt className="h-4 w-4" />}      onSelect={() => go("/app/activity")}>Activity feed</Item>
               <Item icon={<IconCompass className="h-4 w-4" />}    onSelect={() => go("/app/territories")}>Territory zones</Item>
+              <Item icon={<IconUsers className="h-4 w-4" />}      onSelect={() => go("/app/crew")}>Crew dashboard</Item>
               <Item icon={<IconReport className="h-4 w-4" />}     onSelect={() => go("/app/reports")}>Hail Impact Reports</Item>
               <Item icon={<IconUsers className="h-4 w-4" />}      onSelect={() => go("/app/team")}>Team management</Item>
               <Item icon={<IconBolt className="h-4 w-4 text-copper" />} onSelect={() => go("/app/photo-ai")}>Photo damage triage</Item>
