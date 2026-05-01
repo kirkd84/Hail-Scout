@@ -27,6 +27,7 @@ from hailscout_api.db.models.canvass import StormAlert
 from hailscout_api.data.storm_fixtures import all_fixtures, storm_at
 from hailscout_api.db.models.org import Organization
 from hailscout_api.services.slack import format_alert_message, send_slack_alert
+from hailscout_api.services.audit import write_event
 from datetime import datetime, timezone
 import asyncio
 import json
@@ -329,6 +330,14 @@ async def list_alerts(
 
     if new_count:
         await session.commit()
+        await write_event(
+            session,
+            action="alerts.generated",
+            org_id=user.org_id,
+            user_id=user.id,
+            subject_type="alert",
+            metadata={"count": new_count},
+        )
 
     # 3b. Fan out new alerts to Slack (best-effort, non-blocking)
     if new_count:

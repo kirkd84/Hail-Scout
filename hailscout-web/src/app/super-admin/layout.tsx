@@ -5,9 +5,10 @@ import { Wordmark } from "@/components/brand/wordmark";
 import { IconUsers, IconReport } from "@/components/icons";
 
 const SUPER_ADMIN_NAV = [
-  { href: "/super-admin/orgs",  label: "Organizations", icon: IconUsers },
-  { href: "/super-admin/users", label: "Super-admins",  icon: IconUsers },
+  { href: "/super-admin/orgs",  label: "Organizations",  icon: IconUsers },
+  { href: "/super-admin/users", label: "Super-admins",   icon: IconUsers },
   { href: "/super-admin/usage", label: "Usage & billing", icon: IconReport },
+  { href: "/super-admin/audit", label: "Audit log",      icon: IconReport },
 ] as const;
 
 export default async function SuperAdminLayout({

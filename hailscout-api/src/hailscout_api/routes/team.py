@@ -20,6 +20,7 @@ from hailscout_api.config import get_settings
 from hailscout_api.core import AuthenticationError, AuthorizationError, get_logger
 from hailscout_api.db.models.org import User
 from hailscout_api.db.session import get_db_session
+from hailscout_api.services.audit import write_event
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -135,9 +136,19 @@ async def update_team_role(
         if len(owners) <= 1:
             raise HTTPException(status_code=409, detail="Cannot demote the last owner")
 
+    prev_role = target.role
     target.role = body.role
     await session.commit()
     await session.refresh(target)
+    await write_event(
+        session,
+        action="team.role_changed",
+        org_id=me.org_id,
+        user_id=me.id,
+        subject_type="user",
+        subject_id=target.id,
+        metadata={"from": prev_role, "to": target.role},
+    )
     return target
 
 
@@ -177,6 +188,15 @@ async def remove_team_member(
 
     await session.delete(target)
     await session.commit()
+    await write_event(
+        session,
+        action="team.member_removed",
+        org_id=me.org_id,
+        user_id=me.id,
+        subject_type="user",
+        subject_id=target.id,
+        metadata={"email": target.email, "role": target.role},
+    )
     return Response(status_code=204)
 
 

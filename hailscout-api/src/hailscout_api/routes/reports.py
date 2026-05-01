@@ -14,6 +14,7 @@ from hailscout_api.core import AuthenticationError, get_logger
 from hailscout_api.db.models.canvass import SavedReport
 from hailscout_api.db.models.org import Organization, User
 from hailscout_api.db.session import get_db_session
+from hailscout_api.services.audit import write_event
 from hailscout_api.schemas.saved_report import (
     OrgBranding,
     OrgBrandingResponse,
@@ -99,6 +100,15 @@ async def create_report(
     session.add(rpt)
     await session.commit()
     await session.refresh(rpt)
+    await write_event(
+        session,
+        action="report.saved",
+        org_id=user.org_id,
+        user_id=user.id,
+        subject_type="report",
+        subject_id=rpt.id,
+        metadata={"address": rpt.address, "peak_size_in": rpt.peak_size_in},
+    )
     return rpt
 
 
@@ -176,6 +186,14 @@ async def update_branding(
 
     await session.commit()
     await session.refresh(org)
+    await write_event(
+        session,
+        action="branding.updated",
+        org_id=org.id,
+        user_id=user.id,
+        subject_type="org",
+        subject_id=org.id,
+    )
     return OrgBrandingResponse(
         org_id=org.id,
         company_name=org.brand_company_name,

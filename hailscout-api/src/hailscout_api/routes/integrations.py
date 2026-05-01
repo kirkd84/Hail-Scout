@@ -15,6 +15,7 @@ from hailscout_api.core import AuthenticationError, AuthorizationError, get_logg
 from hailscout_api.db.models.org import Organization, User
 from hailscout_api.db.session import get_db_session
 from hailscout_api.services.slack import send_test_message
+from hailscout_api.services.audit import write_event
 
 log = get_logger(__name__)
 router = APIRouter()
@@ -121,6 +122,15 @@ async def update_slack(
 
     await session.commit()
     await session.refresh(org)
+    await write_event(
+        session,
+        action="integration.slack.updated",
+        org_id=org.id,
+        user_id=user.id,
+        subject_type="org",
+        subject_id=org.id,
+        metadata={"enabled": bool(org.slack_enabled)},
+    )
     return SlackConfigResponse(
         org_id=org.id,
         webhook_url=None,

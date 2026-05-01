@@ -17,6 +17,7 @@ from hailscout_api.core import AuthenticationError, get_logger
 from hailscout_api.db.models.canvass import Marker
 from hailscout_api.db.models.org import User
 from hailscout_api.db.session import get_db_session
+from hailscout_api.services.audit import write_event
 from hailscout_api.schemas.marker import (
     MarkerBulkCreate,
     MarkerCreate,
@@ -125,6 +126,15 @@ async def create_marker(
     session.add(marker)
     await session.commit()
     await session.refresh(marker)
+    await write_event(
+        session,
+        action="marker.created",
+        org_id=user.org_id,
+        user_id=user.id,
+        subject_type="marker",
+        subject_id=marker.id,
+        metadata={"status": marker.status},
+    )
     return marker
 
 
