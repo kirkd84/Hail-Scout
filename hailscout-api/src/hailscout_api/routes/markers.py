@@ -117,6 +117,7 @@ async def create_marker(
         org_id=user.org_id,
         storm_id=body.storm_id,
         parcel_id=body.parcel_id,
+        assignee_user_id=body.assignee_user_id,
         client_id=body.client_id,
         lat=body.lat,
         lng=body.lng,
@@ -181,6 +182,7 @@ async def bulk_create_markers(
             org_id=user.org_id,
             storm_id=m.storm_id,
             parcel_id=m.parcel_id,
+            assignee_user_id=m.assignee_user_id,
             client_id=m.client_id,
             lat=m.lat,
             lng=m.lng,
@@ -225,6 +227,9 @@ async def update_marker(
         marker.status = body.status
     if body.notes is not None:
         marker.notes = body.notes
+    if body.assignee_user_id is not None:
+        # Empty string == clear assignment
+        marker.assignee_user_id = body.assignee_user_id or None
 
     await session.commit()
     await session.refresh(marker)

@@ -10,12 +10,13 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { useTeam } from "@/hooks/useTeam";
 
 interface MarkerEditorProps {
   marker: Marker | null;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (id: string, patch: { status: MarkerStatus; notes?: string }) => void;
+  onSave: (id: string, patch: { status: MarkerStatus; notes?: string; assignee_user_id?: string | null }) => void;
   onDelete: (id: string) => void;
 }
 
@@ -27,6 +28,8 @@ export function MarkerEditor({
   onDelete,
 }: MarkerEditorProps) {
   const isMobile = useIsMobile();
+  const { members } = useTeam();
+  const [assignee, setAssignee] = useState<string | null>(marker?.assignee_user_id ?? null);
   const [status, setStatus] = useState<MarkerStatus>(marker?.status ?? "lead");
   const [notes, setNotes] = useState(marker?.notes ?? "");
 
@@ -34,6 +37,7 @@ export function MarkerEditor({
     if (marker) {
       setStatus(marker.status);
       setNotes(marker.notes ?? "");
+      setAssignee(marker.assignee_user_id ?? null);
     }
   }, [marker]);
 
@@ -119,6 +123,25 @@ export function MarkerEditor({
             </div>
           </div>
 
+          {/* Assignee */}
+          {members.length > 0 && (
+            <div>
+              <p className="mb-2 text-[10px] font-mono uppercase tracking-wide-caps text-copper">Assigned to</p>
+              <select
+                value={assignee ?? ""}
+                onChange={(e) => setAssignee(e.target.value || null)}
+                className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm focus:border-copper focus:outline-none"
+              >
+                <option value="">— Unassigned —</option>
+                {members.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.email.split("@")[0]} ({m.role})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Notes */}
           <div>
             <p className="mb-2 text-[10px] font-mono uppercase tracking-wide-caps text-copper">Notes</p>
@@ -154,7 +177,7 @@ export function MarkerEditor({
               <button
                 type="button"
                 onClick={() => {
-                  onSave(marker.id, { status, notes: notes.trim() || undefined });
+                  onSave(marker.id, { status, notes: notes.trim() || undefined, assignee_user_id: assignee });
                   onClose();
                 }}
                 className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-teal-900"

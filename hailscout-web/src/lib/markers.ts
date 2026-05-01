@@ -24,6 +24,7 @@ export interface Marker {
   lat: number;
   status: MarkerStatus;
   notes?: string;
+  assignee_user_id?: string | null;
   /** ISO timestamp. */
   created_at: string;
   /** ISO timestamp. */
@@ -84,7 +85,7 @@ export const markersStore = {
     writeAll(all);
     return m;
   },
-  update(id: string, patch: Partial<Pick<Marker, "status" | "notes">>): Marker | null {
+  update(id: string, patch: Partial<Pick<Marker, "status" | "notes" | "assignee_user_id">>): Marker | null {
     const all = readAll();
     const idx = all.findIndex((m) => m.id === id);
     if (idx === -1) return null;

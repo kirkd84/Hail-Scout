@@ -16,6 +16,7 @@ interface MarkerApi {
   status: string;
   notes: string | null;
   client_id: string | null;
+  assignee_user_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -27,6 +28,7 @@ function adaptMarker(api: MarkerApi): Marker {
     lng: api.lng ?? 0,
     status: api.status as MarkerStatus,
     notes: api.notes ?? undefined,
+    assignee_user_id: api.assignee_user_id,
     created_at: api.created_at,
     updated_at: api.updated_at,
   };
@@ -138,7 +140,7 @@ export function useMarkers() {
   );
 
   const update = useCallback(
-    async (id: string, patch: Partial<Pick<Marker, "status" | "notes">>) => {
+    async (id: string, patch: Partial<Pick<Marker, "status" | "notes" | "assignee_user_id">>) => {
       if (auth) {
         const t = await getToken();
         await apiClient.patch(`/v1/markers/${id}`, patch, t || undefined);

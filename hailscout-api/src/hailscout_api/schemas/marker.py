@@ -19,6 +19,7 @@ class MarkerCreate(BaseModel):
     notes: Optional[str] = None
     storm_id: Optional[str] = None
     parcel_id: Optional[str] = None
+    assignee_user_id: Optional[str] = None
     client_id: Optional[str] = Field(
         default=None,
         description="Optional client-supplied id for idempotent upsert (used by localStorage->API migration).",
@@ -26,10 +27,11 @@ class MarkerCreate(BaseModel):
 
 
 class MarkerUpdate(BaseModel):
-    """Update marker status / notes."""
+    """Update marker status / notes / assignee."""
 
     status: Optional[str] = None
     notes: Optional[str] = None
+    assignee_user_id: Optional[str] = None
 
 
 class MarkerResponse(BaseModel):
@@ -44,6 +46,7 @@ class MarkerResponse(BaseModel):
     notes: Optional[str] = None
     storm_id: Optional[str] = None
     parcel_id: Optional[str] = None
+    assignee_user_id: Optional[str] = None
     client_id: Optional[str] = None
     created_at: datetime
     updated_at: datetime

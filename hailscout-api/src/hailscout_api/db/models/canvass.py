@@ -88,6 +88,9 @@ class Marker(Base):
     )  # lead, knocked, no_answer, appt, contract, not_interested
     notes: Mapped[Optional[str]] = mapped_column(Text)
     photos: Mapped[Optional[str]] = mapped_column(Text)  # JSON-serialized list of S3 keys
+    assignee_user_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("users.id"), nullable=True, index=True
+    )
 
     created_at: Mapped[datetime] = created_at_column()
     updated_at: Mapped[datetime] = updated_at_column()

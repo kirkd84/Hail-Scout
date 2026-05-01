@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useMarkers } from "@/hooks/useMarkers";
+import { useMe } from "@/hooks/useMe";
+import { useTeam } from "@/hooks/useTeam";
 import { MARKER_STATUSES, statusInfo } from "@/lib/markers";
 import { EmptyState } from "@/components/app/empty-state";
 import { IconFlag, IconPin } from "@/components/icons";
@@ -9,6 +12,18 @@ import { cn } from "@/lib/utils";
 
 export default function MarkersPage() {
   const { markers, remove, clear } = useMarkers();
+  const { me } = useMe();
+  const { members } = useTeam();
+  const [assigneeFilter, setAssigneeFilter] = useState<string>(""); // "" = all, "me" = mine, otherwise user_id
+
+  const myId = me?.user?.id;
+  const filteredMarkers = assigneeFilter === ""
+    ? markers
+    : assigneeFilter === "me"
+    ? markers.filter((m) => m.assignee_user_id === myId)
+    : assigneeFilter === "unassigned"
+    ? markers.filter((m) => !m.assignee_user_id)
+    : markers.filter((m) => m.assignee_user_id === assigneeFilter);
 
   if (markers.length === 0) {
     return (
@@ -26,14 +41,14 @@ export default function MarkersPage() {
     );
   }
 
-  // Group by status for the breakdown stats
+  // Group by status for the breakdown stats — uses ALL markers (not filtered)
   const byStatus = MARKER_STATUSES.map((s) => ({
     ...s,
     count: markers.filter((m) => m.status === s.id).length,
   }));
 
-  // Sort by most recent
-  const sorted = [...markers].sort(
+  // Sorted + filtered list to render
+  const sorted = [...filteredMarkers].sort(
     (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
   );
 
@@ -79,6 +94,35 @@ export default function MarkersPage() {
           ))}
         </div>
 
+        {/* Filter chips */}
+        {(myId || members.length > 1) && (
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="font-mono-num text-[10px] uppercase tracking-wide-caps text-foreground/55 mr-2">
+              Show:
+            </p>
+            <FilterChip active={assigneeFilter === ""} onClick={() => setAssigneeFilter("")}>
+              All ({markers.length})
+            </FilterChip>
+            <FilterChip active={assigneeFilter === "me"} onClick={() => setAssigneeFilter("me")}>
+              Assigned to me ({markers.filter((m) => m.assignee_user_id === myId).length})
+            </FilterChip>
+            {members.filter((mm) => mm.id !== myId).map((mm) => {
+              const count = markers.filter((m) => m.assignee_user_id === mm.id).length;
+              if (count === 0) return null;
+              return (
+                <FilterChip key={mm.id} active={assigneeFilter === mm.id} onClick={() => setAssigneeFilter(mm.id)}>
+                  {mm.email.split("@")[0]} ({count})
+                </FilterChip>
+              );
+            })}
+            {markers.some((m) => !m.assignee_user_id) && (
+              <FilterChip active={assigneeFilter === "unassigned"} onClick={() => setAssigneeFilter("unassigned")}>
+                Unassigned ({markers.filter((m) => !m.assignee_user_id).length})
+              </FilterChip>
+            )}
+          </div>
+        )}
+
         {/* Marker list */}
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="grid grid-cols-[40px_2fr_1fr_2fr_120px_60px] border-b border-border bg-secondary/40 text-[11px] font-mono uppercase tracking-wide-caps text-foreground/65">
@@ -110,6 +154,11 @@ export default function MarkersPage() {
                 </div>
                 <div className="px-4 py-3 text-sm text-foreground/85 truncate">
                   {m.notes || <span className="text-muted-foreground italic">—</span>}
+                  {m.assignee_user_id && (
+                    <span className="ml-2 inline-flex items-center rounded-full bg-copper/10 px-2 py-0.5 text-[10px] font-mono uppercase tracking-wide-caps text-copper-700">
+                      → {members.find((mm) => mm.id === m.assignee_user_id)?.email.split("@")[0] ?? "user"}
+                    </span>
+                  )}
                 </div>
                 <div className="px-4 py-3 text-xs text-muted-foreground">
                   {new Date(m.updated_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
@@ -145,5 +194,29 @@ export default function MarkersPage() {
         )}
       </div>
     </div>
+  );
+}
+
+
+function FilterChip({
+  active, onClick, children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={
+        "rounded-full px-3 py-1 text-xs font-mono uppercase tracking-wide-caps transition-colors " +
+        (active
+          ? "bg-primary text-primary-foreground"
+          : "border border-border bg-card text-foreground/65 hover:border-copper/40")
+      }
+    >
+      {children}
+    </button>
   );
 }
