@@ -23,6 +23,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/app/reports":   "Reports",
   "/app/alerts":    "Alerts",
   "/app/team":      "Team",
+  "/app/compare":   "Compare storms",
   "/app/photo-ai":  "Photo damage triage",
   "/app/settings":  "Settings",
   "/super-admin/orgs":  "Tenant management",
