@@ -9,7 +9,7 @@ import { type Metadata } from "next";
 import { CASE_STUDIES } from "@/lib/case-studies";
 
 export const metadata: Metadata = {
-  title: "Customer stories | HailScout",
+  title: "Customer stories",
   description:
     "How roofing contractors are using HailScout to close more jobs after the storm.",
 };

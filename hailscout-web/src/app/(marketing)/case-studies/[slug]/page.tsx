@@ -21,7 +21,7 @@ export async function generateMetadata({
   const cs = getCaseStudy(slug);
   if (!cs) return {};
   return {
-    title: `${cs.headline} | HailScout`,
+    title: cs.headline,
     description: cs.deck,
   };
 }
