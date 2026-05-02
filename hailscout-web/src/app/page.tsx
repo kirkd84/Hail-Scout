@@ -49,6 +49,7 @@ function SiteHeader() {
           <Link href="/#faq" className="text-sm text-muted-foreground transition-colors hover:text-foreground">FAQ</Link>
           <Link href="/live" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Live storms</Link>
           <Link href="/claim" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Claim lookup</Link>
+          <Link href="/case-studies" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Customers</Link>
           <Link href="/pricing" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Pricing</Link>
           <Link href="/compare" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Compare</Link>
         </nav>
@@ -304,6 +305,7 @@ function SiteFooter() {
           <nav className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
             <Link href="/live" className="hover:text-foreground">Live storms</Link>
             <Link href="/claim" className="hover:text-foreground">Claim lookup</Link>
+            <Link href="/case-studies" className="hover:text-foreground">Customers</Link>
             <Link href="/pricing" className="hover:text-foreground">Pricing</Link>
             <Link href="/compare" className="hover:text-foreground">Compare</Link>
             <Link href="/sign-in" className="hover:text-foreground">Sign in</Link>

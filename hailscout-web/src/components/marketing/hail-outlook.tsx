@@ -41,14 +41,14 @@ const DAY_LABELS = ["Today", "Fri", "Sat", "Sun", "Mon", "Tue", "Wed"];
 
 export function HailOutlook() {
   return (
-    <section className="bg-cream border-y border-border" id="outlook">
+    <section className="bg-background border-y border-border" id="outlook">
       <div className="container max-w-6xl py-20">
         <div className="grid gap-12 md:grid-cols-[1fr_auto] md:items-end">
           <div>
             <p className="font-mono-num text-[11px] uppercase tracking-wide-caps text-copper">
               7-day outlook
             </p>
-            <h2 className="mt-3 font-display text-4xl md:text-5xl font-medium tracking-tight-display text-teal-900">
+            <h2 className="mt-3 font-display text-4xl md:text-5xl font-medium tracking-tight-display text-foreground">
               What's coming next.
             </h2>
             <p className="mt-3 max-w-xl text-foreground/70 text-lg">
@@ -65,7 +65,7 @@ export function HailOutlook() {
 
         {/* Grid */}
         <div className="mt-10 overflow-x-auto">
-          <div className="min-w-[640px] rounded-xl border border-border bg-background overflow-hidden">
+          <div className="min-w-[640px] rounded-xl border border-border bg-card overflow-hidden">
             {/* Header row */}
             <div className="grid grid-cols-[180px_repeat(7,1fr)] border-b border-border bg-secondary/40">
               <div className="px-5 py-3 font-mono text-[10px] uppercase tracking-wide-caps text-foreground/55">
