@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Wordmark } from "@/components/brand/wordmark";
+import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 import { StatTicker } from "@/components/marketing/stat-ticker";
 import { ContourBg } from "@/components/brand/contour-bg";
 import { searchAddress } from "@/lib/geocode";
@@ -269,28 +269,6 @@ function StormResultCard({ storm }: { storm: StormFixture }) {
   );
 }
 
-function SiteHeader() {
-  return (
-    <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between">
-        <Wordmark size="md" pulse />
-        <nav className="hidden items-center gap-8 md:flex">
-          <Link href="/#how" className="text-sm text-muted-foreground hover:text-foreground transition-colors">How it works</Link>
-          <Link href="/live" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Live storms</Link>
-          <Link href="/claim" className="text-sm text-foreground">Claim lookup</Link>
-          <Link href="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Pricing</Link>
-        </nav>
-        <div className="flex items-center gap-2">
-          <Link href="/sign-in" className="hidden rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground sm:inline-flex">Sign in</Link>
-          <Link href="/sign-up" className="inline-flex items-center gap-1 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-teal-900">
-            Start free trial <span aria-hidden>→</span>
-          </Link>
-        </div>
-      </div>
-    </header>
-  );
-}
-
 function FinalCta() {
   return (
     <section className="border-t border-border bg-primary text-primary-foreground">
@@ -314,20 +292,3 @@ function FinalCta() {
   );
 }
 
-function SiteFooter() {
-  return (
-    <footer className="border-t border-border bg-card">
-      <div className="container py-12">
-        <div className="flex flex-col items-start justify-between gap-8 md:flex-row md:items-center">
-          <Wordmark size="sm" />
-          <nav className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-            <Link href="/live" className="hover:text-foreground">Live storms</Link>
-            <Link href="/claim" className="hover:text-foreground">Claim lookup</Link>
-            <Link href="/pricing" className="hover:text-foreground">Pricing</Link>
-            <Link href="/sign-in" className="hover:text-foreground">Sign in</Link>
-          </nav>
-        </div>
-      </div>
-    </footer>
-  );
-}

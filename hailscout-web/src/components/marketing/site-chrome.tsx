@@ -12,37 +12,14 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
         <Wordmark size="md" pulse />
-        <nav className="hidden items-center gap-8 md:flex">
-          <Link
-            href="/#how"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            How it works
-          </Link>
-          <Link
-            href="/live"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Live storms
-          </Link>
-          <Link
-            href="/pricing"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Pricing
-          </Link>
-          <Link
-            href="/case-studies"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Customers
-          </Link>
-          <Link
-            href="/compare"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Compare
-          </Link>
+                <nav className="hidden items-center gap-6 md:flex">
+          <Link href="/#how"          className="text-sm text-muted-foreground hover:text-foreground transition-colors">How it works</Link>
+          <Link href="/#faq"          className="text-sm text-muted-foreground hover:text-foreground transition-colors">FAQ</Link>
+          <Link href="/live"          className="text-sm text-muted-foreground hover:text-foreground transition-colors">Live storms</Link>
+          <Link href="/claim"         className="text-sm text-muted-foreground hover:text-foreground transition-colors">Claim lookup</Link>
+          <Link href="/case-studies"  className="text-sm text-muted-foreground hover:text-foreground transition-colors">Customers</Link>
+          <Link href="/pricing"       className="text-sm text-muted-foreground hover:text-foreground transition-colors">Pricing</Link>
+          <Link href="/compare"       className="text-sm text-muted-foreground hover:text-foreground transition-colors">Compare</Link>
         </nav>
         <div className="flex items-center gap-2">
           <Link
