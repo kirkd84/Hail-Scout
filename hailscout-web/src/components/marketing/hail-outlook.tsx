@@ -18,11 +18,11 @@ const REGIONS = [
 
 // Risk levels: 0=quiet, 1=watch, 2=marginal, 3=slight, 4=enhanced, 5=moderate
 const RISK = [
-  { label: "Quiet",     bg: "bg-foreground/5",    text: "text-foreground/55", border: "border-border" },
-  { label: "Watch",     bg: "bg-teal-700/10",     text: "text-teal-900",      border: "border-teal-700/30" },
-  { label: "Marginal",  bg: "bg-forest/10",       text: "text-forest",        border: "border-forest/30" },
-  { label: "Slight",    bg: "bg-copper/10",       text: "text-copper",        border: "border-copper/30" },
-  { label: "Enhanced",  bg: "bg-copper/25",       text: "text-copper",        border: "border-copper/50" },
+  { label: "Quiet",     bg: "bg-secondary/60",    text: "text-foreground/70", border: "border-border" },
+  { label: "Watch",     bg: "bg-teal-700/20",     text: "text-foreground",    border: "border-teal-700/40" },
+  { label: "Marginal",  bg: "bg-forest/15",       text: "text-forest",        border: "border-forest/40" },
+  { label: "Slight",    bg: "bg-copper/15",       text: "text-copper",        border: "border-copper/40" },
+  { label: "Enhanced",  bg: "bg-copper/30",       text: "text-copper",        border: "border-copper/60" },
   { label: "Moderate",  bg: "bg-copper",          text: "text-white",         border: "border-copper" },
 ];
 
