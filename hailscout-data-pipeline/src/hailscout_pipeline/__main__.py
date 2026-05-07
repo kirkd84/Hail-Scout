@@ -71,15 +71,22 @@ def ingest_grib_file(grib_path: str, ts: datetime) -> dict:
 def cmd_live(_: argparse.Namespace) -> int:
     client = MRMSClient(bucket_name=settings.noaa_mrms_bucket)
     grib_path, key, ts = client.fetch_latest()
-    summary = ingest_grib_file(grib_path, ts)
+    try:
+        summary = ingest_grib_file(grib_path, ts)
+    finally:
+        Path(grib_path).unlink(missing_ok=True)
     log.info("live_done", key=key, **summary)
-    Path(grib_path).unlink(missing_ok=True)
     return 0
 
 
 def cmd_once(args: argparse.Namespace) -> int:
-    ts = datetime.now(timezone.utc) if not args.timestamp else \
-        datetime.fromisoformat(args.timestamp)
+    if args.timestamp:
+        ts = datetime.fromisoformat(args.timestamp)
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+    else:
+        ts = datetime.now(timezone.utc)
+    # cmd_once is for debugging on a user-supplied path — never auto-unlink.
     summary = ingest_grib_file(args.path, ts)
     log.info("once_done", path=args.path, **summary)
     return 0
@@ -97,10 +104,10 @@ def cmd_backfill(args: argparse.Namespace) -> int:
     n_ok, n_fail, n_empty = 0, 0, 0
 
     while cur <= until:
+        grib = None
         try:
             grib, url, ts = iowa.download(cur)
             summary = ingest_grib_file(grib, ts)
-            Path(grib).unlink(missing_ok=True)
             if summary["swath_count"] == 0:
                 n_empty += 1
             else:
@@ -109,6 +116,9 @@ def cmd_backfill(args: argparse.Namespace) -> int:
         except Exception as e:
             n_fail += 1
             log.warning("backfill_step_failed", ts=cur.isoformat(), error=str(e))
+        finally:
+            if grib:
+                Path(grib).unlink(missing_ok=True)
         cur += cadence
 
     log.info("backfill_done", ok=n_ok, empty=n_empty, fail=n_fail,
