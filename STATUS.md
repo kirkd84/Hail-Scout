@@ -298,19 +298,40 @@ list. Highlights:
 - CLI: `live`, `once`, `backfill --since --until --cadence`, `loop`.
 - Dockerfile (slim + GDAL + ecCodes + PROJ + GEOS) + `railway.json`.
 
-**16.4 First end-to-end run** *(in progress — needs a machine that can
-reach `noaa-mrms-pds` and the Railway Postgres)*. See HANDOFF.md.
+**16.4 First end-to-end run** *(still needs a host with Docker + the
+Railway Postgres URL)*. Three blockers cleared in the 2026-05-07 session:
+
+- `a0ed131` — `Storm.start_time/end_time` and `NexradFrame.timestamp`
+  ORM columns lacked `DateTime(timezone=True)`, so the new `/v1/storms`
+  route was 500-ing on every request with an asyncpg "naive vs aware
+  datetime" error. Live API now returns `{"storms":[],...}` cleanly.
+- `a0ed131` — `IowaArchiveClient` URL was 404-ing for every backfill
+  step. Iowa's directory is `mrms/ncep/MESH_Max_1440min/` (no
+  `_00.50` suffix); only the file inside has it. NOAA's S3 layout has
+  the suffix at both levels. Verified against fresh + 1-yr-old dates.
+- `95bfb59` — pipeline tempfile leaks (gunzipped GRIB + downloaded
+  `.grib2.gz` on the failure path) — would have leaked ~860 MB/day on
+  the 5-min loop. Both call sites now wrap ingest in `try/finally`.
 
 **16.5 API real PostGIS** `ff357e6` — `routes/storms.py` no longer
 returns placeholder `[0.0, 0.0]`. Uses `ST_AsGeoJSON` for centroid +
 bbox. New `/v1/storms/at-point?lat=&lng=` for "what hit this address?"
 Real `/v1/storms/{id}` detail endpoint with all swaths.
 
-**16.6 — 16.9 (pending):**
-- 16.6 — 12-month backfill from Iowa State MtArchive (~2-4 hrs runtime).
+**16.6 — 16.9 (status):**
+- 16.6 — 12-month backfill (~2-4 hrs runtime). Iowa client URL fix was
+  prerequisite. Ready when Docker + DATABASE_URL are in hand.
 - 16.7 — Schedule live ingestion as a Railway worker (5-min loop).
-- 16.8 — Switch web from `STORM_FIXTURES` to live API.
-- 16.9 — Switch mobile from fixtures to live API.
+  Code is deploy-ready (`railway.json` + Dockerfile). Needs Railway
+  dashboard hand to spin up the service.
+- 16.8 *(in progress)* `0d0df20` — added `useStorms`,
+  `useStormDetail`, `useStormsAtPoint` hooks under
+  `hailscout-web/src/hooks/useStorms.ts`. Additive only — no
+  consumers migrated yet (do that once the pipeline is producing
+  data so the hooks have something to render). Also fixed a stale
+  `(storm, swath)` tuple unpack in the legacy `/v1/hail-at-address`
+  route that would have crashed on first MRMS write.
+- 16.9 — Switch mobile from fixtures to live API. Pending.
 
 ---
 

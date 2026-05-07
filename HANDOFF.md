@@ -1,4 +1,4 @@
-# HailScout — Claude Code Handoff (2026-05-03)
+# HailScout — Claude Code Handoff (updated 2026-05-07)
 
 You're picking up an in-flight build of HailScout, a multi-tenant SaaS hail
 intelligence platform for roofing contractors. Most of the app is shipped
@@ -93,23 +93,50 @@ while the deployed API uses `String(255)` — they wouldn't share a table.
 
 ## What's left (in priority order)
 
-### Phase 16.4 — First end-to-end pipeline run (in progress, blocked locally)
+### Phase 16.4 — First end-to-end pipeline run (still blocked on local Docker)
 
 **Goal:** download one MESH GRIB2 file, parse it, write swaths to a real DB,
 verify the polygons by spot-checking the GeoJSON output.
 
-**Why it's blocked here:** my dev sandbox has a proxy that can't reach
-`s3://noaa-mrms-pds`. You should not have that problem on a real machine.
+**What landed in the 2026-05-07 session (push to `main`):**
+- `0d0df20` — Phase 16.8 hooks (`useStorms`, `useStormDetail`, `useStormsAtPoint`)
+  added, additive only. Plus a fix to `/v1/hail-at-address` that was about to
+  crash on first MRMS write (it was unpacking `(storm, swath)` tuples after
+  Phase 16.5 changed `query_hail_at_point` to return rolled-up dicts).
+- `95bfb59` — pipeline temp-file leaks closed. `_maybe_gunzip` now reports
+  whether it created a file so the caller can `unlink` it; `cmd_live` and
+  `cmd_backfill` wrap ingest in `try/finally` so the downloaded
+  `.grib2.gz` is removed even if cfgrib or the DB throws. Without this the
+  Railway worker would have leaked ~860 MB/day at 5-min cadence.
+- `a0ed131` — two production-blocking bugs:
+  - `Storm.start_time/end_time` and `NexradFrame.timestamp` lacked
+    `DateTime(timezone=True)`, so the new `/v1/storms` route was
+    500-ing with an asyncpg "naive vs aware datetime" error on every
+    request. (Live API is now happy — `/v1/storms?...` returns
+    `{"storms":[],"cursor":null,"total":0}` instead of 500.)
+  - `IowaArchiveClient` was building 404 URLs. Iowa's directory is
+    `mrms/ncep/MESH_Max_1440min/` (no `_00.50` suffix); the file
+    inside still has the `_00.50` prefix. NOAA's S3 is the one that
+    has the suffix at both levels. Verified manually against
+    2024-06-15, 2026-05-06, and the 1-year-old date the backfill
+    starts at.
 
-**Steps:**
+**Still blocked here (the smoke run itself):** the dev sandbox has no
+local Docker and no Railway auth. The Phase 16.4 / 16.7 deploy is your
+hand. The good news: code is now in a state where the moment the
+container boots, alembic 012 lands, the loop starts, and `/v1/storms`
+returns real rows.
+
+**Steps (you, on your own machine or via Railway dashboard):**
 1. `cd hailscout-data-pipeline`
 2. Build the Docker image: `docker build -t hailscout-pipeline .`
 3. Set `DATABASE_URL` env var pointing at the Railway Postgres. Get it from
    `railway variables -s hailscout-api` or copy from the Railway dashboard.
-4. **First run alembic migration 012** against that DB (the pipeline's
-   upsert needs the unique constraint). From `hailscout-api`:
-   `DATABASE_URL=... alembic upgrade head`. You should see `012_hail_swath_uniq`
-   apply.
+4. The API container already runs `alembic upgrade head` on every boot,
+   and it redeployed cleanly after `a0ed131`. Migration `012_hail_swath_uniq`
+   should already be applied. If you want to confirm:
+   `DATABASE_URL=... alembic -c hailscout-api/alembic.ini current`
+   from a checkout.
 5. One-shot smoke test:
    `docker run --rm -e DATABASE_URL=$DATABASE_URL hailscout-pipeline \
       python -m hailscout_pipeline live`
@@ -126,7 +153,8 @@ verify the polygons by spot-checking the GeoJSON output.
 
 **Common issues you'll hit:**
 - **cfgrib first-time use** opens an index cache file (`*.idx`). Make sure
-  the temp dir is writable.
+  the temp dir is writable. (We set `indexpath=""` so it's in-memory only,
+  but it still has to be able to scratch.)
 - **Anonymous S3 access** — the `MRMSClient` already configures
   `botocore.UNSIGNED`. If you see `NoCredentialsError`, something's been
   reverted.
@@ -167,22 +195,41 @@ FROM storms;` — expect ~365 storm rows, oldest ~12 months ago.
 
 ### Phase 16.8 — Switch web from fixtures to live API
 
-Files to read first:
-- `hailscout-web/src/lib/storm-fixtures.ts` — the data being replaced.
-- `hailscout-web/src/hooks/useStormsAtAddress.ts` — single-address lookup.
-- `hailscout-web/src/lib/api.ts` — the auth-aware fetch client.
-- `hailscout-web/src/app/app/map/` — the app map page.
-- `hailscout-web/src/app/(marketing)/live/page.tsx` — the public storm gallery.
-- `hailscout-web/src/app/app/page.tsx` — dashboard "today on the atlas".
-- `hailscout-web/src/app/(marketing)/claim/page.tsx` — public claim lookup.
+**Status:** hooks landed in `0d0df20`, no consumers migrated yet.
 
-Strategy: introduce `useStorms({ bbox, from, to })` and `useStormDetail(id)`
-hooks that call `/v1/storms` and `/v1/storms/{id}`. Replace fixture imports
-in each consumer one at a time. Keep `STORM_FIXTURES` as a fallback for
-the offline-dev case (e.g. when `process.env.NEXT_PUBLIC_USE_FIXTURES === '1'`).
+`hailscout-web/src/hooks/useStorms.ts` exposes:
+- `useStorms({ bbox, from, to, limit?, fallbackToFixtures? })` → /v1/storms
+- `useStormDetail(id)` → /v1/storms/{id} with full swath GeoJSON
+- `useStormsAtPoint({ lat, lng, fallbackToFixtures? })` → /v1/storms/at-point
 
-For "what hit this address?", switch `useStormsAtAddress` to call
-`/v1/storms/at-point?lat=&lng=`.
+All three:
+- Are unauthenticated (the API exposes them publicly).
+- Short-circuit to fixtures when `NEXT_PUBLIC_USE_FIXTURES === "1"`.
+- Accept `fallbackToFixtures: true` for graceful degradation when the
+  API replies with an empty list — useful in the post-deploy / pre-pipeline
+  window so the demo isn't blank.
+- An `adaptApiStorm()` helper flattens the API's GeoJSON `centroid`/`bbox`
+  into the existing UI `Storm` shape so consumers don't need to refactor
+  rendering code immediately.
+
+**Migration order (suggested) — do these AFTER the pipeline is producing data:**
+1. `app/(marketing)/live/page.tsx` — public storm gallery. Use `useStorms`
+   over a CONUS bbox + last 90 days.
+2. `app/(marketing)/claim/page.tsx` and `hooks/useStormsAtAddress.ts` —
+   point at `useStormsAtPoint`. Today the address-search hook still calls
+   the legacy `/v1/hail-at-address` (which we just patched to not crash);
+   switch it to `/v1/storms/at-point` for consistency.
+3. `app/app/map/page.tsx` — biggest one. Map currently renders fixtures
+   directly; needs to consume swath GeoJSON from `useStormDetail`. The
+   per-storm "bands" become the per-category swath polygons returned by
+   the API — same conceptual shape, but the API geometries will be much
+   more granular than fixtures, so expect rendering tweaks.
+4. `app/app/page.tsx` — dashboard "today on the atlas".
+5. `app/(marketing)/storm/[id]/page.tsx` — public storm detail.
+
+Don't try to do all five in one pass. Each migration should: (a) swap the
+fixture import for the hook, (b) test the page in dev with the env flag
+both ways, (c) ship.
 
 Test after: load `/app/map`, the hail polygons should match the geometry
 the pipeline produced. Sanity-check by toggling MapLibre's layer panel
