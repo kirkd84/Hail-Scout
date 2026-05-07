@@ -1,6 +1,7 @@
 import { SignUp } from "@clerk/nextjs";
 import { ContourBg } from "@/components/brand/contour-bg";
 import { Wordmark } from "@/components/brand/wordmark";
+import { clerkAppearance } from "@/lib/clerk-appearance";
 
 export default function SignUpPage() {
   return (
@@ -13,18 +14,7 @@ export default function SignUpPage() {
         <p className="mb-6 text-center text-sm text-muted-foreground max-w-sm">
           Welcome to HailScout. The field guide your crew opens every morning.
         </p>
-        <SignUp
-          appearance={{
-            elements: {
-              rootBox: "w-full max-w-md",
-              card: "bg-card border border-border shadow-atlas-lg rounded-xl",
-              headerTitle: "font-display tracking-tight-display",
-              formButtonPrimary:
-                "bg-primary hover:bg-teal-900 text-primary-foreground rounded-md normal-case",
-              footerActionLink: "text-copper hover:text-copper-700",
-            },
-          }}
-        />
+        <SignUp appearance={clerkAppearance} />
       </div>
     </div>
   );

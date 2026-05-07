@@ -1,6 +1,7 @@
 import { SignIn } from "@clerk/nextjs";
 import { ContourBg } from "@/components/brand/contour-bg";
 import { Wordmark } from "@/components/brand/wordmark";
+import { clerkAppearance } from "@/lib/clerk-appearance";
 
 export default function SignInPage() {
   return (
@@ -10,18 +11,7 @@ export default function SignInPage() {
         <div className="mb-8">
           <Wordmark size="lg" pulse />
         </div>
-        <SignIn
-          appearance={{
-            elements: {
-              rootBox: "w-full max-w-md",
-              card: "bg-card border border-border shadow-atlas-lg rounded-xl",
-              headerTitle: "font-display tracking-tight-display",
-              formButtonPrimary:
-                "bg-primary hover:bg-teal-900 text-primary-foreground rounded-md normal-case",
-              footerActionLink: "text-copper hover:text-copper-700",
-            },
-          }}
-        />
+        <SignIn appearance={clerkAppearance} />
         <p className="mt-8 text-xs text-muted-foreground">
           Storm intelligence · 2026
         </p>
