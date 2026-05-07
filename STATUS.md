@@ -1,8 +1,8 @@
-# HailScout — Session Handoff (2026-04-30, post Phases 9–14)
+# HailScout — Session Handoff (2026-05-03, post Phases 9–16)
 
-Latest commit: `6af1466`. Conference-ready build, top-to-bottom — now
-includes CRM-lite, follow-up calendar, tabbed settings, customer case
-study page, and 7-day hail outlook widget.
+Latest commit: `ff357e6`. Conference-ready build top-to-bottom, plus a
+post-conference push toward real data — pipeline rewrite, real PostGIS
+storm queries, and the next session ships live MRMS to production.
 
 ---
 
@@ -254,6 +254,63 @@ testimonials. Reinforces "we see what's coming" positioning.
 - https://hail-scout.vercel.app/app/map — atlas
 - https://hail-scout.vercel.app/app/settings?tab=integrations — Slack
 - https://github.com/kirkd84/Hail-Scout — repo (for the dev crowd)
+
+---
+
+## Phase 15 — Production polish
+
+**15.1 Health checks** — `/v1/health` returns `{status:"ok",db:"ok"}`,
+`/v1/public/stats` flowing real org/storm counts. Stat ticker on landing
+shows live Postgres data.
+
+**15.2 OG share images** `fcb4a99` — `opengraph-image.tsx` for
+`/case-studies` index and `/case-studies/[slug]` (templated with
+headline + region + first stat). Atlas-page motif card art.
+
+**15.3 Marketing chrome consolidation** `c7a10f9` — replaced 6 inline
+`SiteHeader`/`SiteFooter` copies with a shared
+`@/components/marketing/site-chrome` component. Every marketing page
+now shows the same nav: How it works · FAQ · Live storms · Claim lookup ·
+Customers · Pricing · Compare. Net −293 lines.
+
+**Other 15.x polish:** Title doubling fix (case-studies metadata vs
+layout `title.template`), HailOutlook section dark-mode legibility
+(`bg-cream` → theme-aware tokens, Quiet/Watch opacity bumps), nav
+"Customers" link added everywhere.
+
+---
+
+## Phase 16 — Real MRMS data
+
+**16.1 Audit (done).** Pipeline scaffold had real S3/orchestration/upsert
+structure but GRIB-parsing and polygonization were stubbed; pipeline DB
+models used `UUID` while API uses `String(255)`. Fixed.
+
+**16.2 + 16.3 Pipeline rewrite** `9829f3a` — see HANDOFF.md for the full
+list. Highlights:
+- Aligned pipeline DB models to deployed API schema.
+- Migration `012_hail_swath_uniq` for the ON CONFLICT upsert.
+- Real cfgrib GRIB→MeshGrid parsing (mm→inches, lat/lng normalization).
+- Real per-category mask + `rasterio.features.shapes` polygonization.
+- Real `unary_union` centroid + bbox; one Storm per (date, source).
+- `MRMSClient` uses anonymous S3 (botocore.UNSIGNED) for `noaa-mrms-pds`.
+- New `IowaArchiveClient` for 12-month historical backfill.
+- CLI: `live`, `once`, `backfill --since --until --cadence`, `loop`.
+- Dockerfile (slim + GDAL + ecCodes + PROJ + GEOS) + `railway.json`.
+
+**16.4 First end-to-end run** *(in progress — needs a machine that can
+reach `noaa-mrms-pds` and the Railway Postgres)*. See HANDOFF.md.
+
+**16.5 API real PostGIS** `ff357e6` — `routes/storms.py` no longer
+returns placeholder `[0.0, 0.0]`. Uses `ST_AsGeoJSON` for centroid +
+bbox. New `/v1/storms/at-point?lat=&lng=` for "what hit this address?"
+Real `/v1/storms/{id}` detail endpoint with all swaths.
+
+**16.6 — 16.9 (pending):**
+- 16.6 — 12-month backfill from Iowa State MtArchive (~2-4 hrs runtime).
+- 16.7 — Schedule live ingestion as a Railway worker (5-min loop).
+- 16.8 — Switch web from `STORM_FIXTURES` to live API.
+- 16.9 — Switch mobile from fixtures to live API.
 
 ---
 
