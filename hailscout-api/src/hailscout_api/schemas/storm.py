@@ -3,60 +3,83 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field
 
 
 class GeoPoint(BaseModel):
-    """GeoJSON Point."""
-
     type: str = "Point"
-    coordinates: list[float] = Field(..., min_items=2, max_items=2)
+    coordinates: list[float] = Field(..., min_length=2, max_length=2)
 
 
 class GeoPolygon(BaseModel):
-    """GeoJSON Polygon."""
-
     type: str = "Polygon"
     coordinates: list[list[list[float]]]
 
 
-class StormResponse(BaseModel):
-    """Storm event details."""
+class GeoMultiPolygon(BaseModel):
+    type: str = "MultiPolygon"
+    coordinates: list[list[list[list[float]]]]
 
+
+class StormResponse(BaseModel):
     id: str
     start_time: datetime
     end_time: datetime
     max_hail_size_in: float
-    centroid: GeoPoint
-    bbox: GeoPolygon
+    centroid: GeoPoint | None = None
+    bbox: GeoPolygon | None = None
     source: str = "MESH"
 
     model_config = {"from_attributes": True}
 
 
 class StormsListResponse(BaseModel):
-    """List of storms with pagination."""
-
     storms: list[StormResponse]
-    cursor: str | None = Field(default=None, description="Pagination token")
-    total: int = Field(..., description="Total matching storms")
+    cursor: str | None = None
+    total: int
+
+
+class HailSwathResponse(BaseModel):
+    id: str
+    hail_size_category: str
+    geometry: GeoMultiPolygon | None = None
+    updated_at: datetime
 
 
 class StormDetailResponse(BaseModel):
-    """Storm with swaths (M2 stub)."""
-
     id: str
     start_time: datetime
     end_time: datetime
     max_hail_size_in: float
-    centroid: GeoPoint
-    swaths: list[dict] = Field(default_factory=list, description="Hail swaths by size")
+    source: str = "MESH"
+    centroid: GeoPoint | None = None
+    bbox: GeoPolygon | None = None
+    swaths: list[HailSwathResponse] = Field(default_factory=list)
 
+
+class HailAtPointResponse(BaseModel):
+    id: str
+    start_time: datetime
+    end_time: datetime
+    max_hail_size_in: float
+    source: str = "MESH"
+    category_at_point: str = Field(
+        ..., description="Largest hail-size category whose polygon contains the point"
+    )
+
+
+class HailAtPointListResponse(BaseModel):
+    lat: float
+    lng: float
+    hits: list[HailAtPointResponse]
+    total: int
+
+
+# ---- Hail Replay (M4 stub, kept for shape continuity) ----
 
 class NexradFrameResponse(BaseModel):
-    """NEXRAD frame metadata (M4 stub)."""
-
     id: str
     timestamp: datetime
     radar_site: str
@@ -64,7 +87,5 @@ class NexradFrameResponse(BaseModel):
 
 
 class StormReplayResponse(BaseModel):
-    """Hail Replay frame list (M4 stub)."""
-
     storm_id: str
     frames: list[NexradFrameResponse] = Field(default_factory=list)
