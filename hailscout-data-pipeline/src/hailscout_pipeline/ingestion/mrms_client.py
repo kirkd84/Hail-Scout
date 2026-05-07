@@ -118,8 +118,13 @@ class IowaArchiveClient:
 
     URL pattern:
         https://mtarchive.geol.iastate.edu/{YYYY}/{MM}/{DD}/mrms/ncep/
-            MESH_Max_1440min_00.50/
+            MESH_Max_1440min/
             MESH_Max_1440min_00.50_{YYYYMMDD}-{HHMMSS}.grib2.gz
+
+    Files appear at 30-minute cadence (00:00, 00:30, 01:00, ..., 23:30).
+    Note that the *directory* is `MESH_Max_1440min` while the *filename*
+    inside includes the `_00.50` resolution suffix — different from
+    NOAA's S3 layout which has `_00.50` at both levels.
 
     This is the standard public archive going back ~10+ years, used when
     the live `noaa-mrms-pds` bucket no longer has the file.
@@ -127,15 +132,20 @@ class IowaArchiveClient:
 
     BASE = "https://mtarchive.geol.iastate.edu"
 
-    def __init__(self, product: str = "MESH_Max_1440min_00.50") -> None:
-        self.product = product
+    def __init__(
+        self,
+        archive_subdir: str = "MESH_Max_1440min",
+        file_prefix: str = "MESH_Max_1440min_00.50",
+    ) -> None:
+        self.archive_subdir = archive_subdir
+        self.file_prefix = file_prefix
 
     def url_for(self, ts: datetime) -> str:
         ymd = ts.strftime("%Y%m%d")
         hms = ts.strftime("%H%M%S")
         y, m, d = ts.strftime("%Y"), ts.strftime("%m"), ts.strftime("%d")
-        return (f"{self.BASE}/{y}/{m}/{d}/mrms/ncep/{self.product}/"
-                f"{self.product}_{ymd}-{hms}.grib2.gz")
+        return (f"{self.BASE}/{y}/{m}/{d}/mrms/ncep/{self.archive_subdir}/"
+                f"{self.file_prefix}_{ymd}-{hms}.grib2.gz")
 
     def download(self, ts: datetime) -> tuple[str, str, datetime]:
         """Download a specific timestamp's MESH file. Returns (path, url, ts)."""

@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from geoalchemy2 import Geometry
-from sqlalchemy import Float, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from hailscout_api.db.base import Base, created_at_column, id_column, updated_at_column
@@ -17,8 +17,12 @@ class Storm(Base):
     __tablename__ = "storms"
 
     id: Mapped[str] = mapped_column(String(255), primary_key=True)
-    start_time: Mapped[datetime] = mapped_column(nullable=False, index=True)
-    end_time: Mapped[datetime] = mapped_column(nullable=False)
+    start_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    end_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     max_hail_size_in: Mapped[float] = mapped_column(Float, nullable=False)
     centroid_geom: Mapped[str] = mapped_column(
         Geometry("POINT", srid=4326), nullable=False
@@ -64,7 +68,9 @@ class NexradFrame(Base):
     storm_id: Mapped[str] = mapped_column(
         ForeignKey("storms.id"), nullable=False, index=True
     )
-    timestamp: Mapped[datetime] = mapped_column(nullable=False)
+    timestamp: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     radar_site: Mapped[str] = mapped_column(String(10), nullable=False)
     tile_url_pattern: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = created_at_column()
