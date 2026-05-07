@@ -90,21 +90,23 @@ async def hail_at_address(
         logger.error("Hail query failed", error=str(e), lat=query_lat, lng=query_lng)
         raise HTTPException(status_code=500, detail="Query failed")
 
-    # Convert results to response format
+    # query_hail_at_point now returns rolled-up dicts (one per storm,
+    # keeping the largest containing category). Map each dict to the
+    # legacy HailImpactRecord shape so /v1/hail-at-address consumers don't
+    # need to migrate yet.
     hail_history = []
-    for storm, swath in results:
-        # Extract hail size from category (e.g., "1.5" -> 1.5)
+    for hit in results:
+        category = hit["category_at_point"]
         try:
-            hail_size = float(swath.hail_size_category.rstrip("+"))
+            hail_size = float(category.rstrip("+"))
         except ValueError:
             hail_size = 0.0
-
         hail_history.append(
             {
-                "storm_id": storm.id,
-                "date": storm.start_time.isoformat(),
+                "storm_id": hit["id"],
+                "date": hit["start_time"].isoformat(),
                 "max_hail_size_in": hail_size,
-                "category": f'{swath.hail_size_category}"',
+                "category": f'{category}"',
                 "distance_miles": 0.0,  # TODO: calculate actual distance
                 "impact_probability": 0.95,  # TODO: compute from swath containment
             }
