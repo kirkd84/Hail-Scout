@@ -1,58 +1,25 @@
-"""
-Configuration management using Pydantic Settings.
-
-Loads environment variables and provides type-safe access to config.
-"""
-
+"""Pipeline configuration via env vars."""
 from __future__ import annotations
-
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Application settings from environment variables."""
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
-    # Database
-    db_user: str = "hailscout"
-    db_password: str
-    db_host: str = "localhost"
-    db_port: int = 5432
-    db_name: str = "hailscout_dev"
+    # Database — set via DATABASE_URL on Railway
+    database_url: str = "postgresql+psycopg2://hailscout:hailscout@localhost:5432/hailscout_dev"
     db_echo: bool = False
 
-    # AWS
-    aws_region: str = "us-east-1"
-    aws_account_id: str = "123456789012"
-
-    # S3 Buckets
+    # NOAA MRMS (anonymous public bucket — no creds needed)
     noaa_mrms_bucket: str = "noaa-mrms-pds"
-    hailscout_raw_bucket: str = "hailscout-raw"
+    mrms_product: str = "MESH_Max_1440min_00.50"
 
     # Logging
     log_level: str = "INFO"
 
-    # Runtime
-    environment: str = "development"
 
-    class Config:
-        """Pydantic config."""
-
-        env_file = ".env"
-        case_sensitive = False
-
-    @property
-    def database_url(self) -> str:
-        """Construct SQLAlchemy database URL."""
-        return (
-            f"postgresql+psycopg2://{self.db_user}:{self.db_password}"
-            f"@{self.db_host}:{self.db_port}/{self.db_name}"
-        )
-
-    @property
-    def is_production(self) -> bool:
-        """Check if running in production."""
-        return self.environment == "production"
-
-
-# Global settings instance
 settings = Settings()

@@ -1,96 +1,151 @@
-"""
-MRMS client for fetching latest MESH GRIB2 from S3.
+"""Live MRMS client — fetches from the public NOAA MRMS S3 bucket.
 
-NOAA MRMS updates every 2 minutes. This client lists the bucket
-and downloads the most recent MESH_Max_1440min_00.50 file.
-"""
+The bucket `noaa-mrms-pds` is anonymous-access; we configure boto3
+with botocore.UNSIGNED so no AWS creds are needed.
 
+Live products keep ~24-72h history. For older data, use IowaArchiveClient.
+
+Bucket layout (CONUS):
+    s3://noaa-mrms-pds/CONUS/MESH_Max_1440min_00.50/{YYYYMMDD}/
+        MRMS_MESH_Max_1440min_00.50_{YYYYMMDD}-{HHMMSS}.grib2.gz
+"""
 from __future__ import annotations
-
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from tempfile import gettempdir
 
 import boto3
+import botocore
 import structlog
+from botocore.client import Config
 
 log = structlog.get_logger()
 
 
+# Filename: MRMS_MESH_Max_1440min_00.50_YYYYMMDD-HHMMSS.grib2[.gz]
+MESH_PATTERN = re.compile(
+    r"^MRMS_MESH_Max_1440min_00\.50_(?P<date>\d{8})-(?P<time>\d{6})"
+    r"\.grib2(?:\.gz)?$"
+)
+
+
 class MRMSClient:
-    """Client for NOAA MRMS MESH data."""
+    """Anonymous client for the public NOAA MRMS S3 bucket."""
 
-    # Pattern for MESH filename: MESH_Max_1440min_00.50_{YYYYMMDD}-{HHMMSS}.grib2
-    MESH_PATTERN = re.compile(
-        r"^MESH_Max_1440min_00\.50_(?P<date>\d{8})-(?P<time>\d{6})\.grib2$"
-    )
-
-    def __init__(self, bucket_name: str) -> None:
-        """
-        Initialize MRMS client.
-
-        Args:
-            bucket_name: S3 bucket name (usually 'noaa-mrms-pds')
-        """
+    def __init__(self, bucket_name: str = "noaa-mrms-pds",
+                 product: str = "MESH_Max_1440min_00.50") -> None:
         self.bucket_name = bucket_name
-        self.s3_client = boto3.client("s3")
-
-    def fetch_latest_mesh(self) -> tuple[str, str, datetime]:
-        """
-        Fetch latest MESH GRIB2 file from NOAA MRMS bucket.
-
-        Returns:
-            Tuple of (local_path, s3_key, timestamp_utc)
-
-        Raises:
-            RuntimeError: If no MESH files found or download fails
-        """
-        # List objects matching MESH pattern
-        log.info("mrms_listing", bucket=self.bucket_name)
-        response = self.s3_client.list_objects_v2(
-            Bucket=self.bucket_name,
-            Prefix="MESH_Max_1440min_00.50_",
+        self.product = product
+        # Anonymous access — no creds needed for public bucket
+        self.s3 = boto3.client(
+            "s3",
+            config=Config(signature_version=botocore.UNSIGNED),
         )
 
-        if "Contents" not in response:
-            raise RuntimeError("No MESH files found in NOAA MRMS bucket")
+    def _list_prefix(self, prefix: str) -> list[str]:
+        """Return all object keys under a prefix (paginated)."""
+        keys: list[str] = []
+        paginator = self.s3.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=self.bucket_name, Prefix=prefix):
+            for obj in page.get("Contents", []):
+                keys.append(obj["Key"])
+        return keys
 
-        # Parse timestamps and find latest
+    def _prefix_for_date(self, dt: datetime) -> str:
+        return f"CONUS/{self.product}/{dt.strftime('%Y%m%d')}/"
+
+    def list_keys_for_date(self, dt: datetime) -> list[str]:
+        """List MESH files for a single UTC date."""
+        return self._list_prefix(self._prefix_for_date(dt))
+
+    def fetch_latest(self) -> tuple[str, str, datetime]:
+        """Download the newest available MESH file (today or yesterday).
+
+        Returns: (local_path, s3_key, timestamp_utc)
+        """
+        now = datetime.now(timezone.utc)
+        keys: list[str] = []
+        for dt in [now, now - timedelta(days=1)]:
+            keys.extend(self.list_keys_for_date(dt))
+
+        if not keys:
+            raise RuntimeError(
+                f"No MESH files found in s3://{self.bucket_name} for "
+                f"{now.date()} or {(now - timedelta(days=1)).date()}"
+            )
+
         latest_key = None
         latest_dt = None
-
-        for obj in response["Contents"]:
-            key = obj["Key"]
-            match = self.MESH_PATTERN.match(key)
-            if not match:
+        for key in keys:
+            name = key.rsplit("/", 1)[-1]
+            m = MESH_PATTERN.match(name)
+            if not m:
                 continue
-
-            date_str = match.group("date")
-            time_str = match.group("time")
-
             try:
-                dt = datetime.strptime(f"{date_str}{time_str}", "%Y%m%d%H%M%S").replace(
-                    tzinfo=timezone.utc
-                )
-                if latest_dt is None or dt > latest_dt:
-                    latest_dt = dt
-                    latest_key = key
-            except ValueError as e:
-                log.warning("mrms_parse_error", key=key, error=str(e))
+                dt = datetime.strptime(
+                    f"{m['date']}{m['time']}", "%Y%m%d%H%M%S"
+                ).replace(tzinfo=timezone.utc)
+            except ValueError:
                 continue
+            if latest_dt is None or dt > latest_dt:
+                latest_dt = dt
+                latest_key = key
 
-        if latest_key is None or latest_dt is None:
-            raise RuntimeError("No valid MESH timestamps parsed")
+        if latest_key is None:
+            raise RuntimeError("No MESH timestamps parsed")
 
-        log.info("mrms_latest_found", key=latest_key, timestamp=latest_dt.isoformat())
+        return self.download_key(latest_key, latest_dt)
 
-        # Download to temp directory
-        local_path = Path(gettempdir()) / latest_key
-        log.info("mrms_downloading", key=latest_key, local_path=str(local_path))
+    def download_key(self, key: str, ts: datetime) -> tuple[str, str, datetime]:
+        """Download a specific S3 key to a temp file."""
+        name = key.rsplit("/", 1)[-1]
+        local = Path(gettempdir()) / name
+        log.info("mrms_download", key=key, local=str(local))
+        self.s3.download_file(self.bucket_name, key, str(local))
+        log.info("mrms_downloaded", key=key, size=local.stat().st_size)
+        return str(local), key, ts
 
-        self.s3_client.download_file(self.bucket_name, latest_key, str(local_path))
 
-        log.info("mrms_downloaded", key=latest_key, size_bytes=local_path.stat().st_size)
+# ---- Iowa State MtArchive (older history) ----
 
-        return str(local_path), latest_key, latest_dt
+import urllib.request
+from urllib.error import HTTPError, URLError
+
+
+class IowaArchiveClient:
+    """Pulls historical MRMS MESH from Iowa State's MtArchive (HTTPS).
+
+    URL pattern:
+        https://mtarchive.geol.iastate.edu/{YYYY}/{MM}/{DD}/mrms/ncep/
+            MESH_Max_1440min_00.50/
+            MESH_Max_1440min_00.50_{YYYYMMDD}-{HHMMSS}.grib2.gz
+
+    This is the standard public archive going back ~10+ years, used when
+    the live `noaa-mrms-pds` bucket no longer has the file.
+    """
+
+    BASE = "https://mtarchive.geol.iastate.edu"
+
+    def __init__(self, product: str = "MESH_Max_1440min_00.50") -> None:
+        self.product = product
+
+    def url_for(self, ts: datetime) -> str:
+        ymd = ts.strftime("%Y%m%d")
+        hms = ts.strftime("%H%M%S")
+        y, m, d = ts.strftime("%Y"), ts.strftime("%m"), ts.strftime("%d")
+        return (f"{self.BASE}/{y}/{m}/{d}/mrms/ncep/{self.product}/"
+                f"{self.product}_{ymd}-{hms}.grib2.gz")
+
+    def download(self, ts: datetime) -> tuple[str, str, datetime]:
+        """Download a specific timestamp's MESH file. Returns (path, url, ts)."""
+        url = self.url_for(ts)
+        name = url.rsplit("/", 1)[-1]
+        local = Path(gettempdir()) / name
+        log.info("iowa_download", url=url, local=str(local))
+        try:
+            urllib.request.urlretrieve(url, str(local))
+        except (HTTPError, URLError) as e:
+            raise RuntimeError(f"Iowa archive fetch failed: {url} ({e})") from e
+        log.info("iowa_downloaded", url=url, size=local.stat().st_size)
+        return str(local), url, ts

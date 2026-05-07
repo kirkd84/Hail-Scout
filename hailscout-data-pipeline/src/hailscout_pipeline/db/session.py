@@ -1,34 +1,29 @@
-"""
-SQLAlchemy engine and session factory.
-
-Provides centralized database connection management.
-"""
-
+"""SQLAlchemy engine + session factory."""
 from __future__ import annotations
-
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from hailscout_pipeline.config import settings
 
-# Create engine
+# Railway provides DATABASE_URL like postgresql://user:pass@host:5432/db
+# but psycopg2 wants postgresql+psycopg2://...
+db_url = settings.database_url
+if db_url.startswith("postgresql://"):
+    db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+elif db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql+psycopg2://", 1)
+
 engine = create_engine(
-    settings.database_url,
+    db_url,
     echo=settings.db_echo,
-    pool_size=10,
-    max_overflow=20,
-    pool_pre_ping=True,  # Verify connections before use
+    pool_size=5,
+    max_overflow=10,
+    pool_pre_ping=True,
 )
 
-# Session factory
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine,
-    expire_on_commit=False,
-)
+SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False,
+                            expire_on_commit=False)
 
 
 def get_session() -> Session:
-    """Get a new database session (context manager style)."""
     return SessionLocal()
