@@ -6,8 +6,9 @@ import type { Map as MapLibreMap } from "maplibre-gl";
 import type { HailAtAddressResponse, Storm } from "@/lib/api-types";
 import { HailMap } from "@/components/map/HailMap";
 import { BasemapToggle, type BasemapId } from "@/components/map/basemap-toggle";
-import { StormFixturesLayer } from "@/components/map/storm-fixtures-layer";
+import { StormsLayer } from "@/components/map/storms-layer";
 import { TimeScrubber } from "@/components/map/time-scrubber";
+import { useStorms } from "@/hooks/useStorms";
 import {
   MapFilters,
   dateFilterToCutoff,
@@ -52,6 +53,18 @@ export default function MapPage() {
 
   const [selectedStorm, setSelectedStorm] = useState<Storm | null>(null);
   const [showStormDetail, setShowStormDetail] = useState(false);
+
+  // Live storms from /v1/storms — CONUS bbox, last 12 months. The
+  // useStorms hook handles fixture fallback when NEXT_PUBLIC_USE_FIXTURES
+  // is on; here we let it fall back automatically if the API is empty
+  // so dev / preview environments aren't blank.
+  const { storms } = useStorms({
+    bbox: [-125, 24, -66, 50],
+    from: "2025-05-08",
+    to: "2026-12-31",
+    limit: 200,
+    fallbackToFixtures: true,
+  });
 
   // Canvassing markers
   const { markers, add, update, remove } = useMarkers();
@@ -129,8 +142,9 @@ export default function MapPage() {
         onMarkerDrop={handleMapClick}
       />
       <TerritoriesLayer map={map} territories={territories} />
-      <StormFixturesLayer
+      <StormsLayer
         map={map}
+        storms={storms}
         startTimeMin={dateFilterToCutoff(date)}
         minSizeIn={sizeFilterToMin(size)}
         startTimeMax={scrubberMs}
