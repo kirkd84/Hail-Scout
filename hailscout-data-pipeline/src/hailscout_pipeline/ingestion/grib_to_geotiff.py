@@ -18,6 +18,14 @@ import xarray as xr
 log = structlog.get_logger()
 
 
+# MRMS MESH known-issue: pixels above this threshold are almost always
+# radar artifacts (range-folding, three-body scatter, precip contamination).
+# Authenticated U.S. hail record is 8.0" (Vivian, SD 2010); MESH > 6"
+# is overwhelmingly false positive. HailTrace / IHM both quality-control
+# at similar thresholds. Pixels above this floor are zeroed in parse.
+MAX_PLAUSIBLE_INCHES = 6.0
+
+
 @dataclass
 class MeshGrid:
     """Parsed MESH grid in physical units (inches)."""
@@ -75,6 +83,15 @@ def parse_mesh_grib(grib_path: str, timestamp: datetime) -> MeshGrid:
         # mm → inches; sentinel negatives → 0
         arr = np.asarray(var.values, dtype=np.float32) / 25.4
         arr = np.where(arr < 0, 0.0, arr)
+        # MRMS noise floor — pixels above MAX_PLAUSIBLE_INCHES are radar
+        # artifacts, not hail. Zero them so they don't pollute the storm
+        # max or generate spurious 3.0+ swaths.
+        n_outliers = int((arr > MAX_PLAUSIBLE_INCHES).sum())
+        if n_outliers:
+            log.info("grib_outliers_zeroed",
+                     count=n_outliers, threshold_in=MAX_PLAUSIBLE_INCHES,
+                     peak_in=float(arr.max()))
+        arr = np.where(arr > MAX_PLAUSIBLE_INCHES, 0.0, arr)
 
         lats = np.asarray(ds["latitude"].values)
         lons = np.asarray(ds["longitude"].values)

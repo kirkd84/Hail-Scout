@@ -21,9 +21,20 @@ from hailscout_pipeline.ingestion.grib_to_geotiff import MeshGrid
 
 log = structlog.get_logger()
 
-# Skip swaths smaller than this many pixels (~1 km² each at ~1 km grid)
-# 4 px ≈ 4 sq km — filters out single-cell noise.
-MIN_PIXELS_PER_SWATH = 4
+# Tiered detection sensitivity. MRMS pixels are ~1 km², so the
+# pixel-count filter is effectively a minimum-area filter.
+#
+# Light hail (< 1.5") gets a 4-pixel floor — at the noise tier (0.75-1.0")
+# isolated pixels are often range-folding artifacts; at the small-hail
+# tiers (1.0-1.25") single hits frequently come from radar resolution
+# limitations rather than true storm cores.
+#
+# Damaging hail (≥ 1.5") gets NO floor — by the time MRMS picks up a
+# 1.5"+ pixel anywhere, that's a real storm and we want it in the
+# data set. Insurance-grade products (HailTrace, IHM, CoreLogic) all
+# treat damaging hail with maximum sensitivity.
+MIN_PIXELS_LIGHT_HAIL = 4
+DAMAGING_HAIL_INCHES = 1.5
 
 
 @dataclass
@@ -56,7 +67,10 @@ def extract_swaths_from_grid(grid: MeshGrid) -> list[HailSwath]:
             mask = (arr >= cat.min_inches) & (arr < cat.max_inches)
 
         pixel_count = int(mask.sum())
-        if pixel_count < MIN_PIXELS_PER_SWATH:
+        if pixel_count == 0:
+            continue
+        if cat.min_inches < DAMAGING_HAIL_INCHES \
+                and pixel_count < MIN_PIXELS_LIGHT_HAIL:
             continue
 
         # rasterio.features.shapes wants uint8 mask

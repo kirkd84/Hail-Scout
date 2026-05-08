@@ -96,14 +96,32 @@ def cmd_backfill(args: argparse.Namespace) -> int:
     since = datetime.fromisoformat(args.since).replace(tzinfo=timezone.utc)
     until = datetime.fromisoformat(args.until).replace(tzinfo=timezone.utc)
     cadence = _parse_cadence(args.cadence)
+    total_steps = max(1, int((until - since) / cadence) + 1)
     log.info("backfill_start", since=since.isoformat(), until=until.isoformat(),
-             cadence_seconds=cadence.total_seconds())
+             cadence_seconds=cadence.total_seconds(),
+             expected_steps=total_steps)
+
+    if args.reset:
+        # Clean slate — required when re-running with different filters /
+        # value-cap logic. Without this the upsert "widens" max_hail_size_in
+        # so old noisy max values (e.g. 10.5") would survive.
+        from sqlalchemy import text
+        log.warning("backfill_reset_begin",
+                    note="DELETING all rows from hail_swaths + storms")
+        with SessionLocal() as session:
+            session.execute(text("DELETE FROM hail_swaths"))
+            session.execute(text("DELETE FROM storms"))
+            session.commit()
+        log.info("backfill_reset_done")
 
     iowa = IowaArchiveClient()
     cur = since
     n_ok, n_fail, n_empty = 0, 0, 0
+    step_idx = 0
+    started = time.monotonic()
 
     while cur <= until:
+        step_idx += 1
         grib = None
         try:
             grib, url, ts = iowa.download(cur)
@@ -112,17 +130,34 @@ def cmd_backfill(args: argparse.Namespace) -> int:
                 n_empty += 1
             else:
                 n_ok += 1
-            log.info("backfill_step", ts=ts.isoformat(), **summary)
+            log.info("backfill_step", step=step_idx, of=total_steps,
+                     ts=ts.isoformat(), **summary)
         except Exception as e:
             n_fail += 1
-            log.warning("backfill_step_failed", ts=cur.isoformat(), error=str(e))
+            log.warning("backfill_step_failed", step=step_idx, of=total_steps,
+                        ts=cur.isoformat(), error=str(e))
         finally:
             if grib:
                 Path(grib).unlink(missing_ok=True)
+
+        # Heartbeat every 50 steps so progress is visible in logs even if
+        # nothing interesting happens for a stretch (winter, ocean-only
+        # MESH grids, etc.).
+        if step_idx % 50 == 0:
+            elapsed = time.monotonic() - started
+            rate = step_idx / elapsed if elapsed > 0 else 0
+            remaining = (total_steps - step_idx) / rate if rate > 0 else None
+            log.info("backfill_heartbeat",
+                     step=step_idx, of=total_steps,
+                     ok=n_ok, empty=n_empty, fail=n_fail,
+                     elapsed_seconds=int(elapsed),
+                     eta_seconds=int(remaining) if remaining else None)
+
         cur += cadence
 
     log.info("backfill_done", ok=n_ok, empty=n_empty, fail=n_fail,
-             total=n_ok + n_empty + n_fail)
+             total=n_ok + n_empty + n_fail,
+             elapsed_seconds=int(time.monotonic() - started))
     return 0
 
 
@@ -176,8 +211,11 @@ def main() -> int:
     sp_back = sub.add_parser("backfill", help="Walk a date range from Iowa State archive")
     sp_back.add_argument("--since", required=True, help="ISO date, e.g. 2025-05-04")
     sp_back.add_argument("--until", required=True, help="ISO date, e.g. 2026-05-03")
-    sp_back.add_argument("--cadence", default="6h",
-                         help="Step between samples, e.g. '6h', '1d'")
+    sp_back.add_argument("--cadence", default="30m",
+                         help="Step between samples, e.g. '30m', '1h', '6h'")
+    sp_back.add_argument("--reset", action="store_true",
+                         help="Truncate storms + hail_swaths before starting "
+                              "(use when re-running with new filters)")
     sp_back.set_defaults(func=cmd_backfill)
 
     sp_loop = sub.add_parser("loop", help="Run `live` forever on an interval")
