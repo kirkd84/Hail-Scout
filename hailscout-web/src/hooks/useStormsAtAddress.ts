@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@clerk/nextjs";
+import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { apiClient } from "@/lib/api";
 import type { HailAtAddressResponse } from "@/lib/api-types";
@@ -28,7 +29,6 @@ async function geocode(address: string): Promise<{ lat: number; lng: number; pre
       // fall through to fixture fallback
     }
   }
-  // Fixture city fallback — match against city names in the address text
   const lower = address.toLowerCase();
   for (const f of STORM_FIXTURES) {
     const cityKey = f.city.split(",")[0].toLowerCase();
@@ -40,57 +40,138 @@ async function geocode(address: string): Promise<{ lat: number; lng: number; pre
 }
 
 /**
- * Storm-at-address hook.
+ * /v1/storms/at-point response shape (live API).
+ */
+interface ApiHailAtPointHit {
+  id: string;
+  start_time: string;
+  end_time: string;
+  max_hail_size_in: number;
+  source: string;
+  category_at_point: string;
+}
+interface ApiHailAtPointListResponse {
+  lat: number;
+  lng: number;
+  hits: ApiHailAtPointHit[];
+  total: number;
+}
+
+/**
+ * Adapt the at-point hit shape to the legacy Storm shape so the existing
+ * UI (address-search.tsx, map page) doesn't need to change at the seam.
+ * Centroid + bbox aren't returned by /v1/storms/at-point — we use the
+ * query point itself as a placeholder; consumers that need precise
+ * geometry should call useStormDetail(id) instead.
+ */
+function hitToStormShape(hit: ApiHailAtPointHit, lat: number, lng: number) {
+  return {
+    id: hit.id,
+    start_time: hit.start_time,
+    end_time: hit.end_time,
+    max_hail_size_in: hit.max_hail_size_in,
+    centroid_lat: lat,
+    centroid_lng: lng,
+    bbox: { min_lat: lat - 0.01, min_lng: lng - 0.01, max_lat: lat + 0.01, max_lng: lng + 0.01 },
+    source: hit.source,
+  };
+}
+
+/**
+ * Storm-at-address hook (Phase 16.8 migration).
  *
- * Strategy:
- *  1. Try the API (`/v1/hail-at-address?address=...`) — production path
- *  2. On 401/404/network error, fall back to client-side geocode +
- *     fixture polygon hit-test so the demo still works pre-data-pipeline
+ * Old behavior: called /v1/hail-at-address (legacy, response-shape
+ * mismatched with the web's local type — silently broken once data
+ * landed).
+ *
+ * New behavior:
+ *   1. Geocode address → lat/lng (MapTiler or fixture fallback)
+ *   2. Call /v1/storms/at-point?lat=&lng= (the live endpoint)
+ *   3. If the API returns no hits, fall back to fixture polygon
+ *      hit-test so the demo still works without crashing
+ *
+ * Returns the legacy `HailAtAddressResponse` shape so existing
+ * consumers (address-search, map page) keep working.
  */
 export function useStormsAtAddress(
   address?: string,
   options?: { lat?: number; lng?: number },
 ) {
   const { getToken } = useAuth();
+  const [resolved, setResolved] = useState<{ lat: number; lng: number; pretty: string } | null>(null);
+  const [resolveError, setResolveError] = useState<Error | null>(null);
 
-  const queryParams = new URLSearchParams();
-  if (address) queryParams.append("address", address);
-  if (options?.lat !== undefined && options?.lng !== undefined) {
-    queryParams.append("lat", options.lat.toString());
-    queryParams.append("lng", options.lng.toString());
-  }
+  // Resolve the (lat,lng) for either an address or explicit coords.
+  useEffect(() => {
+    let cancelled = false;
+    setResolveError(null);
+    if (options?.lat !== undefined && options?.lng !== undefined) {
+      setResolved({ lat: options.lat, lng: options.lng, pretty: address ?? `${options.lat}, ${options.lng}` });
+      return;
+    }
+    if (!address) {
+      setResolved(null);
+      return;
+    }
+    void (async () => {
+      const g = await geocode(address);
+      if (cancelled) return;
+      if (!g) {
+        setResolved(null);
+        setResolveError(new Error(`Could not geocode "${address}"`));
+        return;
+      }
+      setResolved(g);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [address, options?.lat, options?.lng]);
 
-  const endpoint = queryParams.toString()
-    ? `/v1/hail-at-address?${queryParams}`
+  // Hit the live at-point endpoint once we have a resolved lat/lng.
+  const qs = resolved
+    ? new URLSearchParams({ lat: String(resolved.lat), lng: String(resolved.lng) })
     : null;
-
-  const { data, error, isLoading, mutate } = useSWR<HailAtAddressResponse>(
-    endpoint,
+  const swrKey = qs ? `/v1/storms/at-point?${qs}` : null;
+  const { data, error, isLoading, mutate } = useSWR<ApiHailAtPointListResponse>(
+    swrKey,
     async (url: string) => {
       const token = await getToken();
-      try {
-        return await apiClient.get<HailAtAddressResponse>(url, token || undefined);
-      } catch (apiErr) {
-        // Fixture fallback — lets the demo work pre-data-pipeline.
-        if (!address) throw apiErr;
-        const geo = await geocode(address);
-        if (!geo) throw apiErr;
-        const hits = fixturesAtPoint(geo.lng, geo.lat);
-        return {
-          lat: geo.lat,
-          lng: geo.lng,
-          address: geo.pretty,
-          storms: hits,
-          events: [],
-        };
-      }
+      return apiClient.get<ApiHailAtPointListResponse>(url, token || undefined);
     },
-    {
-      revalidateOnFocus: false,
-      dedupingInterval: 60000,
-      shouldRetryOnError: false,
-    },
+    { revalidateOnFocus: false, dedupingInterval: 60_000, shouldRetryOnError: false },
   );
 
-  return { data, isLoading, error, mutate };
+  // Compose the legacy HailAtAddressResponse shape from (resolved, data).
+  let response: HailAtAddressResponse | undefined = undefined;
+  if (resolved) {
+    const apiHits = data?.hits ?? [];
+    if (apiHits.length > 0) {
+      response = {
+        lat: resolved.lat,
+        lng: resolved.lng,
+        address: resolved.pretty,
+        storms: apiHits.map((h) => hitToStormShape(h, resolved.lat, resolved.lng)),
+        events: [],
+      };
+    } else if (!isLoading) {
+      // No live hits → fall back to fixture polygon hit-test so the
+      // demo isn't blank during the pre-data window.
+      const fixtureHits = fixturesAtPoint(resolved.lng, resolved.lat);
+      response = {
+        lat: resolved.lat,
+        lng: resolved.lng,
+        address: resolved.pretty,
+        storms: fixtureHits,
+        events: [],
+      };
+    }
+  }
+
+  return {
+    data: response,
+    isLoading: isLoading || (!!address && resolved === null && !resolveError),
+    error: error || resolveError,
+    mutate,
+  };
 }

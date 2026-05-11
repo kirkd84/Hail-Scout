@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { useUser } from "@clerk/clerk-expo";
 import { theme, SPACING, RADIUS } from "@/lib/tokens";
-import { STORMS } from "@/lib/storm-fixtures";
+import { useStorms } from "@/hooks/useStorms";
 import { Card } from "@/components/Card";
 import { AppHeader } from "@/components/AppHeader";
 import { StormRow } from "@/components/StormRow";
@@ -19,6 +19,7 @@ export function HomeScreen() {
   const { user } = useUser();
   const [, setTick] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const { storms, refresh } = useStorms({ daysBack: 30 });
 
   // Re-render every minute so timestamps stay fresh
   useEffect(() => {
@@ -26,20 +27,19 @@ export function HomeScreen() {
     return () => clearInterval(id);
   }, []);
 
-  const live = useMemo(() => STORMS.filter((s) => s.is_live), []);
+  const live = useMemo(() => storms.filter((s) => s.is_live), [storms]);
   const recent = useMemo(
     () =>
-      [...STORMS]
+      [...storms]
         .filter((s) => !s.is_live)
         .sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime())
         .slice(0, 6),
-    [],
+    [storms],
   );
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await new Promise((r) => setTimeout(r, 600));
-    setTick((n) => n + 1);
+    await refresh();
     setRefreshing(false);
   };
 
@@ -69,8 +69,13 @@ export function HomeScreen() {
         {/* KPI strip */}
         <View style={styles.kpiRow}>
           <Kpi label="Live now" value={String(live.length)} accent />
-          <Kpi label="Past 7 days" value={String(STORMS.length - live.length)} />
-          <Kpi label="Peak this run" value={`${Math.max(...STORMS.map((s) => s.peak_size_in)).toFixed(1)}″`} />
+          <Kpi label="Past 30 days" value={String(storms.length - live.length)} />
+          <Kpi
+            label="Peak this run"
+            value={storms.length > 0
+              ? `${Math.max(...storms.map((s) => s.peak_size_in)).toFixed(1)}″`
+              : "—"}
+          />
         </View>
 
         {/* Live storms */}
