@@ -5,7 +5,7 @@
     "dockerfilePath": "Dockerfile"
   },
   "deploy": {
-    "startCommand": "python -m hailscout_pipeline backfill --since 2025-05-08 --until 2026-05-08 --cadence 1h --reset",
+    "startCommand": "python -m hailscout_pipeline backfill --since 2026-05-08 --until 2026-05-11 --cadence 1h",
     "restartPolicyType": "NEVER"
   }
 }
