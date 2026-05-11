@@ -54,7 +54,8 @@ export default function MapPage() {
   const [selectedStorm, setSelectedStorm] = useState<Storm | null>(null);
   const [showStormDetail, setShowStormDetail] = useState(false);
 
-  // Live storms from /v1/storms — CONUS bbox, last 12 months. The
+  // Live storms from /v1/storms — CONUS bbox, last 12 months, WITH
+  // simplified hail-swath polygons for low-zoom rendering. The
   // useStorms hook handles fixture fallback when NEXT_PUBLIC_USE_FIXTURES
   // is on; here we let it fall back automatically if the API is empty
   // so dev / preview environments aren't blank.
@@ -63,6 +64,8 @@ export default function MapPage() {
     from: "2025-05-08",
     to: "2026-12-31",
     limit: 200,
+    includeSwaths: true,
+    swathSimplify: 0.05,
     fallbackToFixtures: true,
   });
 

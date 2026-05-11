@@ -13,6 +13,7 @@ from geoalchemy2.functions import (
     ST_MakeEnvelope,
     ST_MakePoint,
     ST_SetSRID,
+    ST_Simplify,
 )
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,11 +35,20 @@ async def query_storms_in_bbox(
     from_date: datetime,
     to_date: datetime,
     limit: int = 50,
+    include_swaths: bool = False,
+    swath_simplify_tolerance: float = 0.05,
 ) -> list[dict[str, Any]]:
     """Storms whose bbox intersects the query envelope, in date range.
 
     Returns a list of dicts ready for the Pydantic response — fields
     include `centroid` and `bbox` already serialized to GeoJSON.
+
+    When include_swaths=True, each storm dict also contains a `swaths`
+    list with each swath's category + GeoJSON MultiPolygon. Geometries
+    are passed through ST_Simplify at the supplied tolerance (degrees)
+    so the payload stays sane for CONUS-wide map renders. Tolerance
+    0.05 ≈ 5km — fine for zoom 4-6 (state-level), coarse for closer
+    inspection. Pass 0 for no simplification.
     """
     envelope = ST_SetSRID(
         ST_MakeEnvelope(min_lon, min_lat, max_lon, max_lat), 4326
@@ -65,6 +75,7 @@ async def query_storms_in_bbox(
     )
     rows = (await session.execute(stmt)).all()
     out: list[dict[str, Any]] = []
+    storm_ids: list[str] = []
     for r in rows:
         out.append({
             "id": r.id,
@@ -75,8 +86,44 @@ async def query_storms_in_bbox(
             "centroid": json.loads(r.centroid_json) if r.centroid_json else None,
             "bbox": json.loads(r.bbox_json) if r.bbox_json else None,
         })
+        storm_ids.append(r.id)
+
+    if include_swaths and storm_ids:
+        # Single batched query for every swath belonging to the matched
+        # storms — N+1 would be brutal across 200 storms.
+        geom_expr = (
+            ST_AsGeoJSON(
+                ST_Simplify(HailSwath.geom_multipolygon, swath_simplify_tolerance)
+            )
+            if swath_simplify_tolerance > 0
+            else ST_AsGeoJSON(HailSwath.geom_multipolygon)
+        )
+        swath_stmt = (
+            select(
+                HailSwath.id,
+                HailSwath.storm_id,
+                HailSwath.hail_size_category,
+                geom_expr.label("geom_json"),
+                HailSwath.updated_at,
+            )
+            .where(HailSwath.storm_id.in_(storm_ids))
+            .order_by(HailSwath.hail_size_category)
+        )
+        swath_rows = (await session.execute(swath_stmt)).all()
+        by_storm: dict[str, list[dict[str, Any]]] = {sid: [] for sid in storm_ids}
+        for s in swath_rows:
+            by_storm.setdefault(s.storm_id, []).append({
+                "id": s.id,
+                "hail_size_category": s.hail_size_category,
+                "geometry": json.loads(s.geom_json) if s.geom_json else None,
+                "updated_at": s.updated_at,
+            })
+        for storm in out:
+            storm["swaths"] = by_storm.get(storm["id"], [])
+
     logger.info("Queried storms in bbox", count=len(out),
-                bbox=(min_lon, min_lat, max_lon, max_lat))
+                bbox=(min_lon, min_lat, max_lon, max_lat),
+                include_swaths=include_swaths)
     return out
 
 

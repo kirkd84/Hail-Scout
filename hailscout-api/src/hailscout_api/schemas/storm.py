@@ -31,6 +31,7 @@ class StormResponse(BaseModel):
     centroid: GeoPoint | None = None
     bbox: GeoPolygon | None = None
     source: str = "MESH"
+    swaths: list["HailSwathResponse"] | None = None  # only when include=swaths
 
     model_config = {"from_attributes": True}
 
@@ -89,3 +90,9 @@ class NexradFrameResponse(BaseModel):
 class StormReplayResponse(BaseModel):
     storm_id: str
     frames: list[NexradFrameResponse] = Field(default_factory=list)
+
+
+# Resolve the forward reference on StormResponse.swaths so Pydantic v2
+# can validate the field. `from __future__ import annotations` makes
+# every annotation a string, so we need an explicit rebuild here.
+StormResponse.model_rebuild()

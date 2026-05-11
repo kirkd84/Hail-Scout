@@ -45,6 +45,18 @@ async def list_storms(
     to_date: str = Query(..., alias="to",
                          description="ISO 8601 end", example="2026-05-01"),
     limit: int = Query(50, ge=1, le=200),
+    include: str | None = Query(
+        None,
+        description="Comma-separated extras. 'swaths' to include the "
+                    "simplified hail-swath GeoJSON for each storm.",
+    ),
+    simplify: float = Query(
+        0.05,
+        ge=0.0, le=1.0,
+        description="ST_Simplify tolerance in degrees for `include=swaths`. "
+                    "0 = no simplification. 0.05 ≈ 5km — good for "
+                    "CONUS / state zoom.",
+    ),
     session: AsyncSession = Depends(get_db_session),
 ) -> StormsListResponse:
     """Storms whose bounding box intersects the query envelope."""
@@ -59,8 +71,11 @@ async def list_storms(
     from_dt = _parse_iso_dt(from_date, "from")
     to_dt = _parse_iso_dt(to_date, "to")
 
+    includes = {part.strip() for part in (include or "").split(",") if part.strip()}
     storms = await query_storms_in_bbox(
-        session, min_lon, min_lat, max_lon, max_lat, from_dt, to_dt, limit
+        session, min_lon, min_lat, max_lon, max_lat, from_dt, to_dt, limit,
+        include_swaths="swaths" in includes,
+        swath_simplify_tolerance=simplify,
     )
     return StormsListResponse(storms=storms, cursor=None, total=len(storms))
 

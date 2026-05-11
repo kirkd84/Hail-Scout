@@ -49,6 +49,8 @@ interface ApiStorm {
   source: string;
   centroid: ApiGeoPoint | null;
   bbox: ApiGeoPolygon | null;
+  /** Only populated when the request includes `include=swaths`. */
+  swaths?: ApiHailSwath[];
 }
 
 interface ApiStormsListResponse {
@@ -129,18 +131,47 @@ export interface UseStormsArgs {
   limit?: number;
   /** Substitute filtered fixtures when the API replies with an empty list. */
   fallbackToFixtures?: boolean;
+  /** When true, the response also includes each storm's hail swath polygons
+   *  (simplified server-side via ST_Simplify). Used for polygon rendering on
+   *  the map at low / medium zoom. Adds ~10-50KB per storm to the payload. */
+  includeSwaths?: boolean;
+  /** ST_Simplify tolerance in degrees when includeSwaths is true. Defaults
+   *  to 0.05 (~5km) — good for state-level zoom. Use 0 for full precision. */
+  swathSimplify?: number;
+}
+
+/** Storm with optional swath payload (when fetched with includeSwaths). */
+export interface StormWithSwaths extends Storm {
+  swaths?: Array<{
+    id: string;
+    hail_size_category: string;
+    geometry: { type: "MultiPolygon"; coordinates: number[][][][] } | null;
+  }>;
 }
 
 export function useStorms(args: UseStormsArgs) {
-  const { bbox, from, to, limit = 50, fallbackToFixtures = false } = args;
+  const {
+    bbox,
+    from,
+    to,
+    limit = 50,
+    fallbackToFixtures = false,
+    includeSwaths = false,
+    swathSimplify = 0.05,
+  } = args;
   const fixtureMode = isFixtureMode();
 
-  const qs = new URLSearchParams({
+  const qsParams: Record<string, string> = {
     bbox: bbox.join(","),
     from,
     to,
     limit: String(limit),
-  });
+  };
+  if (includeSwaths) {
+    qsParams.include = "swaths";
+    qsParams.simplify = String(swathSimplify);
+  }
+  const qs = new URLSearchParams(qsParams);
   const swrKey = fixtureMode ? null : `/v1/storms?${qs}`;
   const { data, error, isLoading, mutate } = useSWR<ApiStormsListResponse>(
     swrKey,
@@ -150,7 +181,7 @@ export function useStorms(args: UseStormsArgs) {
 
   if (fixtureMode) {
     return {
-      storms: filterFixturesByBbox(bbox),
+      storms: filterFixturesByBbox(bbox) as StormWithSwaths[],
       isLoading: false,
       error: null,
       refresh: mutate,
@@ -158,11 +189,20 @@ export function useStorms(args: UseStormsArgs) {
     };
   }
 
-  const apiStorms: Storm[] = data?.storms?.map(adaptApiStorm) ?? [];
+  const apiStorms: StormWithSwaths[] = (data?.storms ?? []).map((s) => ({
+    ...adaptApiStorm(s),
+    swaths: s.swaths?.map((sw) => ({
+      id: sw.id,
+      hail_size_category: sw.hail_size_category,
+      geometry: sw.geometry,
+    })),
+  }));
   const usingFallback = fallbackToFixtures && !isLoading && apiStorms.length === 0;
 
   return {
-    storms: usingFallback ? filterFixturesByBbox(bbox) : apiStorms,
+    storms: usingFallback
+      ? (filterFixturesByBbox(bbox) as StormWithSwaths[])
+      : apiStorms,
     isLoading,
     error,
     refresh: mutate,
