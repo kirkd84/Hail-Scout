@@ -9,6 +9,7 @@ import { BasemapToggle, type BasemapId } from "@/components/map/basemap-toggle";
 import { StormsLayer } from "@/components/map/storms-layer";
 import { TimeScrubber } from "@/components/map/time-scrubber";
 import { useStorms } from "@/hooks/useStorms";
+import { StormPicker } from "@/components/app/storm-picker";
 import {
   MapFilters,
   dateFilterToCutoff,
@@ -54,27 +55,25 @@ export default function MapPage() {
   const [selectedStorm, setSelectedStorm] = useState<Storm | null>(null);
   const [showStormDetail, setShowStormDetail] = useState(false);
 
-  // Live storms — default to the **last 7 days** so the initial
-  // CONUS-wide view doesn't overlap 365 days' worth of swath polygons
-  // (which becomes visual mush and hammers the wire with ~500KB).
-  // The date filter UI (last 24h / 7d / 30d) can still widen this; we
-  // only set the API window, not the rendered window. Future:
-  // expand bbox / dates dynamically on zoom-in.
-  const sevenDaysAgo = useMemo(() => {
+  // Live storms — pull last 30 days so the map always has something to
+  // show even if the backfill is still walking forward. The date-filter
+  // chip ("last 24h / 7d / 30d") narrows what's visually rendered; this
+  // is the upstream window. ~150 cell rows worst case at 1h cadence.
+  const thirtyDaysAgo = useMemo(() => {
     const d = new Date();
-    d.setUTCDate(d.getUTCDate() - 7);
+    d.setUTCDate(d.getUTCDate() - 30);
     return d.toISOString().slice(0, 10);
   }, []);
-  const today = useMemo(() => {
+  const tomorrow = useMemo(() => {
     const d = new Date();
     d.setUTCDate(d.getUTCDate() + 1); // include today's UTC date
     return d.toISOString().slice(0, 10);
   }, []);
   const { storms } = useStorms({
     bbox: [-125, 24, -66, 50],
-    from: sevenDaysAgo,
-    to: today,
-    limit: 50,
+    from: thirtyDaysAgo,
+    to: tomorrow,
+    limit: 200,
     includeSwaths: true,
     swathSimplify: 0.05,
     fallbackToFixtures: true,
@@ -170,6 +169,7 @@ export default function MapPage() {
       />
 
       <AddressSearch onResultsChange={handleAddressSearch} />
+      <StormPicker map={map} storms={storms} />
 
       <MapFilters date={date} size={size} onDateChange={setDate} onSizeChange={setSize} />
       <SwathLegend />
