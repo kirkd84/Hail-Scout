@@ -55,24 +55,58 @@ export default function MapPage() {
   const [selectedStorm, setSelectedStorm] = useState<Storm | null>(null);
   const [showStormDetail, setShowStormDetail] = useState(false);
 
-  // Live storms — pull last 30 days so the map always has something to
-  // show even if the backfill is still walking forward. The date-filter
-  // chip ("last 24h / 7d / 30d") narrows what's visually rendered; this
-  // is the upstream window. ~150 cell rows worst case at 1h cadence.
-  const thirtyDaysAgo = useMemo(() => {
+  // ── Viewport-driven storm fetch ──────────────────────────────────
+  // Track the map's current bounds + zoom level. When the user zooms
+  // into Colorado (or anywhere), useStorms re-fetches scoped to that
+  // bbox with a zoom-appropriate date window:
+  //   zoom < 5 (CONUS):           last 30 days   — fresh-events view
+  //   zoom 5-7 (state/region):    last 1 year    — seasonal sweep
+  //   zoom > 7 (city/county):     last 5 years   — full claim window
+  const [viewportBbox, setViewportBbox] = useState<[number, number, number, number]>(
+    [-125, 24, -66, 50],
+  );
+  const [viewportZoom, setViewportZoom] = useState(4);
+
+  useEffect(() => {
+    if (!map) return;
+    const onMoveEnd = () => {
+      const b = map.getBounds();
+      // Round to 0.1° (~11km) so small pans don't churn the API cache.
+      const r = (n: number) => Math.round(n * 10) / 10;
+      setViewportBbox([
+        r(b.getWest()), r(b.getSouth()), r(b.getEast()), r(b.getNorth()),
+      ]);
+      setViewportZoom(Math.round(map.getZoom() * 10) / 10);
+    };
+    onMoveEnd(); // initial
+    map.on("moveend", onMoveEnd);
+    return () => {
+      map.off("moveend", onMoveEnd);
+    };
+  }, [map]);
+
+  const fromDate = useMemo(() => {
     const d = new Date();
-    d.setUTCDate(d.getUTCDate() - 30);
+    if (viewportZoom > 7) {
+      d.setUTCFullYear(d.getUTCFullYear() - 5);
+    } else if (viewportZoom > 5) {
+      d.setUTCFullYear(d.getUTCFullYear() - 1);
+    } else {
+      d.setUTCDate(d.getUTCDate() - 30);
+    }
+    return d.toISOString().slice(0, 10);
+  }, [viewportZoom]);
+
+  const toDate = useMemo(() => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + 1); // include today
     return d.toISOString().slice(0, 10);
   }, []);
-  const tomorrow = useMemo(() => {
-    const d = new Date();
-    d.setUTCDate(d.getUTCDate() + 1); // include today's UTC date
-    return d.toISOString().slice(0, 10);
-  }, []);
+
   const { storms } = useStorms({
-    bbox: [-125, 24, -66, 50],
-    from: thirtyDaysAgo,
-    to: tomorrow,
+    bbox: viewportBbox,
+    from: fromDate,
+    to: toDate,
     limit: 200,
     includeSwaths: true,
     swathSimplify: 0.02,
@@ -169,7 +203,17 @@ export default function MapPage() {
       />
 
       <AddressSearch onResultsChange={handleAddressSearch} />
-      <StormPicker map={map} storms={storms} />
+      <StormPicker
+        map={map}
+        storms={storms}
+        scopeLabel={
+          viewportZoom > 7
+            ? "this area · 5 yr"
+            : viewportZoom > 5
+            ? "this region · 1 yr"
+            : "Recent · 30 d"
+        }
+      />
 
       <MapFilters date={date} size={size} onDateChange={setDate} onSizeChange={setSize} />
       <SwathLegend />

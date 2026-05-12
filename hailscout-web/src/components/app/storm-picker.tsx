@@ -27,9 +27,12 @@ interface Props {
   storms: Storm[];
   /** Max rows to render. Default 10 so the card stays tight. */
   limit?: number;
+  /** Optional eyebrow label — e.g. "this region · 5 yr". Falls back
+   *  to "Recent storms" when omitted. */
+  scopeLabel?: string;
 }
 
-export function StormPicker({ map, storms, limit = 10 }: Props) {
+export function StormPicker({ map, storms, limit = 10, scopeLabel }: Props) {
   const [open, setOpen] = useState(true);
 
   const top = useMemo(() => {
@@ -51,7 +54,7 @@ export function StormPicker({ map, storms, limit = 10 }: Props) {
       >
         <span className="flex items-baseline gap-2">
           <span className="font-mono-num text-[10px] uppercase tracking-wide-caps text-copper">
-            Recent storms
+            {scopeLabel ?? "Recent storms"}
           </span>
           <span className="font-mono-num text-[10px] text-muted-foreground">
             {top.length}

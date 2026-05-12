@@ -18,7 +18,7 @@
  *   - `startTimeMin` / `startTimeMax` window the time range
  */
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import type { StormWithSwaths } from "@/hooks/useStorms";
 
@@ -116,6 +116,12 @@ export function StormsLayer({
       return true;
     });
   }, [storms, minSizeIn, startTimeMin, startTimeMax]);
+
+  // `styleEpoch` bumps every time the basemap style is swapped (atlas →
+  // satellite → streets etc.). The setData effect depends on it so swath
+  // data gets re-pushed onto freshly-recreated sources — otherwise the
+  // layer was rendering empty after a basemap toggle.
+  const [styleEpoch, setStyleEpoch] = useState(0);
 
   // ── Layer setup (once per map / per style swap) ──────────────────
   useEffect(() => {
@@ -335,9 +341,15 @@ export function StormsLayer({
       map.once("style.load", addLayers);
     }
 
-    // Re-add on basemap-style swap (sources are wiped on setStyle)
+    // Re-add on basemap-style swap (sources are wiped on setStyle).
+    // Bump styleEpoch so the data effect re-fires and re-populates the
+    // freshly-recreated sources — without this, switching to satellite
+    // / streets / hybrid wiped the swaths.
     const onStyle = () => {
-      if (!map.getSource(SOURCE_BANDS)) addLayers();
+      if (!map.getSource(SOURCE_BANDS)) {
+        addLayers();
+        setStyleEpoch((e) => e + 1);
+      }
     };
     map.on("styledata", onStyle);
 
@@ -347,6 +359,7 @@ export function StormsLayer({
   }, [map]);
 
   // ── Data effect: push filtered storms into both sources ─────────
+  // styleEpoch is in the deps so a basemap swap triggers a re-push.
   useEffect(() => {
     if (!map) return;
     const bsrc = map.getSource(SOURCE_BANDS);
@@ -356,7 +369,7 @@ export function StormsLayer({
     (csrc as any).setData(buildCentroidFC(filtered));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (bsrc as any).setData(buildBandsFC(filtered));
-  }, [map, filtered]);
+  }, [map, filtered, styleEpoch]);
 
   // ── Band-size filter (applied via setFilter on the layers) ───────
   useEffect(() => {
