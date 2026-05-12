@@ -16,6 +16,7 @@ from geoalchemy2.functions import (
     ST_SetSRID,
     ST_SimplifyPreserveTopology,
 )
+from sqlalchemy import func
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -95,20 +96,21 @@ async def query_storms_in_bbox(
         # ST_SimplifyPreserveTopology guarantees a non-empty result even
         # when small per-cell polygons would otherwise collapse under
         # plain ST_Simplify. Wrap with ST_Multi so the output stays a
-        # MultiPolygon — simplification can downgrade a single-piece
-        # MultiPolygon to a plain Polygon, which then fails the
-        # GeoMultiPolygon Pydantic schema on the way out.
-        geom_expr = (
-            ST_AsGeoJSON(
-                ST_Multi(
-                    ST_SimplifyPreserveTopology(
-                        HailSwath.geom_multipolygon, swath_simplify_tolerance
-                    )
-                )
+        # MultiPolygon (simplification can downgrade a single-piece
+        # MultiPolygon to a plain Polygon, which fails Pydantic).
+        # ST_ChaikinSmoothing(2) iteratively rounds the 1km grid corners
+        # into smooth blob shapes — the difference between "pixelated
+        # MS-Paint blob" and "HailTrace polygon". 2 iterations is a
+        # sweet spot: visually smooth, vertex count roughly 4x simplified
+        # input (still well within payload budget at 0.02° tolerance).
+        if swath_simplify_tolerance > 0:
+            simplified = ST_SimplifyPreserveTopology(
+                HailSwath.geom_multipolygon, swath_simplify_tolerance
             )
-            if swath_simplify_tolerance > 0
-            else ST_AsGeoJSON(HailSwath.geom_multipolygon)
-        )
+            smoothed = func.ST_ChaikinSmoothing(simplified, 2)
+            geom_expr = ST_AsGeoJSON(ST_Multi(smoothed))
+        else:
+            geom_expr = ST_AsGeoJSON(HailSwath.geom_multipolygon)
         swath_stmt = (
             select(
                 HailSwath.id,

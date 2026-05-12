@@ -24,6 +24,7 @@ import type { StormWithSwaths } from "@/hooks/useStorms";
 
 const SOURCE_BANDS = "hs-live-bands";
 const SOURCE_CENTROIDS = "hs-live-centroids";
+const LAYER_GLOW = "hs-live-glow";       // soft halo under fills
 const LAYER_FILL = "hs-live-fill";
 const LAYER_LINE = "hs-live-line";
 const LAYER_CENTROID = "hs-live-centroid";
@@ -130,11 +131,52 @@ export function StormsLayer({
       });
 
       // Polish notes:
-      //  - Fill opacity climbs more aggressively with size (small bands
-      //    fade; severe-hail cores read loud) — same idea as HailTrace.
-      //  - Stroke is hair-thin and color-matched to the fill so the
-      //    polygon shape reads as a single shape, not a fortified outline.
-      //  - Fills paint above the basemap (default), strokes paint on top.
+      //  - GLOW layer: an oversized blurred stroke painted UNDER the
+      //    fill gives each swath a soft halo, the HailTrace signature.
+      //    Implemented as a line with heavy line-blur — cheaper than
+      //    a shadow extrusion and renders well on both basemaps.
+      //  - FILL layer: opacity climbs sharply with hail size so small
+      //    bands fade and severe-hail cores read loud.
+      //  - LINE layer: hair-thin, color-matched, with a touch of blur
+      //    so the polygon outline feels organic instead of grid-snapped.
+      map.addLayer({
+        id: LAYER_GLOW,
+        type: "line",
+        source: SOURCE_BANDS,
+        paint: {
+          "line-color": [
+            "step", ["get", "min_size_in"],
+            "#5DCAA5",
+            1.0,  "#E2B843",
+            1.25, "#D88A3D",
+            1.5,  "#C46434",
+            1.75, "#A8412D",
+            2.0,  "#822424",
+            2.5,  "#5B2059",
+            3.0,  "#1F1B33",
+          ],
+          "line-width": [
+            "interpolate", ["linear"], ["zoom"],
+            3,  3,
+            6,  10,
+            9,  22,
+          ],
+          "line-blur": [
+            "interpolate", ["linear"], ["zoom"],
+            3,  4,
+            6,  10,
+            9,  20,
+          ],
+          "line-opacity": [
+            "interpolate", ["linear"], ["get", "min_size_in"],
+            0.75, 0.10,
+            1.5,  0.18,
+            2.0,  0.28,
+            3.0,  0.40,
+          ],
+        },
+      });
+
       map.addLayer({
         id: LAYER_FILL,
         type: "fill",
@@ -153,13 +195,17 @@ export function StormsLayer({
           ],
           "fill-opacity": [
             "interpolate", ["linear"], ["get", "min_size_in"],
-            0.75, 0.28,
-            1.0,  0.36,
-            1.5,  0.50,
-            2.0,  0.66,
-            2.5,  0.78,
-            3.0,  0.88,
+            0.75, 0.38,
+            1.0,  0.48,
+            1.5,  0.60,
+            2.0,  0.74,
+            2.5,  0.84,
+            3.0,  0.92,
           ],
+          // Subtle blur on the antialiased fill edges. MapLibre paints
+          // polygon fills with hard edges; fill-antialias=true plus the
+          // glow underneath does most of the smoothing visually.
+          "fill-antialias": true,
         },
       });
 
@@ -185,7 +231,8 @@ export function StormsLayer({
             6, 0.55,
             9, 0.9,
           ],
-          "line-opacity": 0.6,
+          "line-blur": 0.5,
+          "line-opacity": 0.55,
         },
       });
 
@@ -313,6 +360,8 @@ export function StormsLayer({
         : null;
     if (map.getLayer(LAYER_FILL)) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      map.setFilter(LAYER_GLOW, bandFilter as any);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       map.setFilter(LAYER_FILL, bandFilter as any);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       map.setFilter(LAYER_LINE, bandFilter as any);
@@ -323,7 +372,7 @@ export function StormsLayer({
   useEffect(() => {
     if (!map) return;
     const v = visible ? "visible" : "none";
-    for (const id of [LAYER_FILL, LAYER_LINE, LAYER_CENTROID, LAYER_CENTROID_RING, LAYER_DATE_LABEL]) {
+    for (const id of [LAYER_GLOW, LAYER_FILL, LAYER_LINE, LAYER_CENTROID, LAYER_CENTROID_RING, LAYER_DATE_LABEL]) {
       if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", v);
     }
   }, [map, visible]);
