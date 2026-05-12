@@ -98,16 +98,15 @@ async def query_storms_in_bbox(
         # plain ST_Simplify. Wrap with ST_Multi so the output stays a
         # MultiPolygon (simplification can downgrade a single-piece
         # MultiPolygon to a plain Polygon, which fails Pydantic).
-        # ST_ChaikinSmoothing(2) iteratively rounds the 1km grid corners
-        # into smooth blob shapes — the difference between "pixelated
-        # MS-Paint blob" and "HailTrace polygon". 2 iterations is a
-        # sweet spot: visually smooth, vertex count roughly 4x simplified
-        # input (still well within payload budget at 0.02° tolerance).
+        # ST_ChaikinSmoothing(1) rounds the 1km-grid stair-steps into
+        # gentler curves without homogenizing every polygon into the
+        # same oval. 2 iterations was over-smoothing — small cells lost
+        # their shape signature entirely.
         if swath_simplify_tolerance > 0:
             simplified = ST_SimplifyPreserveTopology(
                 HailSwath.geom_multipolygon, swath_simplify_tolerance
             )
-            smoothed = func.ST_ChaikinSmoothing(simplified, 2)
+            smoothed = func.ST_ChaikinSmoothing(simplified, 1)
             geom_expr = ST_AsGeoJSON(ST_Multi(smoothed))
         else:
             geom_expr = ST_AsGeoJSON(HailSwath.geom_multipolygon)

@@ -139,17 +139,19 @@ export function StormsLayer({
       //    bands fade and severe-hail cores read loud.
       //  - LINE layer: hair-thin, color-matched, with a touch of blur
       //    so the polygon outline feels organic instead of grid-snapped.
+      // Glow halo — kept subtle so it accents the SEVERE tiers only.
+      // Light hail had a glow that competed with the fill and blurred
+      // adjacent cells into one wash. Now: nothing under 1.5", a soft
+      // edge at 2.0", visible halo only at the softball tier.
       map.addLayer({
         id: LAYER_GLOW,
         type: "line",
         source: SOURCE_BANDS,
+        filter: [">=", ["get", "min_size_in"], 1.5],
         paint: {
           "line-color": [
             "step", ["get", "min_size_in"],
-            "#5DCAA5",
-            1.0,  "#E2B843",
-            1.25, "#D88A3D",
-            1.5,  "#C46434",
+            "#C46434",
             1.75, "#A8412D",
             2.0,  "#822424",
             2.5,  "#5B2059",
@@ -157,22 +159,21 @@ export function StormsLayer({
           ],
           "line-width": [
             "interpolate", ["linear"], ["zoom"],
-            3,  3,
-            6,  10,
-            9,  22,
+            3,  2,
+            6,  6,
+            9,  14,
           ],
           "line-blur": [
             "interpolate", ["linear"], ["zoom"],
-            3,  4,
-            6,  10,
-            9,  20,
+            3,  3,
+            6,  7,
+            9,  12,
           ],
           "line-opacity": [
             "interpolate", ["linear"], ["get", "min_size_in"],
-            0.75, 0.10,
-            1.5,  0.18,
-            2.0,  0.28,
-            3.0,  0.40,
+            1.5,  0.12,
+            2.0,  0.22,
+            3.0,  0.36,
           ],
         },
       });
@@ -193,14 +194,17 @@ export function StormsLayer({
             2.5,  "#5B2059", // plum
             3.0,  "#1F1B33", // deep purple
           ],
+          // Lower opacities all around so overlapping cells layer
+          // cleanly instead of producing one opaque mass. The severe
+          // tiers still read because the glow halo amplifies them.
           "fill-opacity": [
             "interpolate", ["linear"], ["get", "min_size_in"],
-            0.75, 0.38,
-            1.0,  0.48,
-            1.5,  0.60,
-            2.0,  0.74,
-            2.5,  0.84,
-            3.0,  0.92,
+            0.75, 0.22,
+            1.0,  0.32,
+            1.5,  0.48,
+            2.0,  0.62,
+            2.5,  0.74,
+            3.0,  0.84,
           ],
           // Subtle blur on the antialiased fill edges. MapLibre paints
           // polygon fills with hard edges; fill-antialias=true plus the
@@ -225,14 +229,17 @@ export function StormsLayer({
             2.5,  "#3F143E",
             3.0,  "#0F0E1E",
           ],
+          // Stronger outline — defines the shape of each cell instead
+          // of letting fills bleed into each other. Crisper at all
+          // zoom levels than before.
           "line-width": [
             "interpolate", ["linear"], ["zoom"],
-            3, 0.25,
-            6, 0.55,
-            9, 0.9,
+            3, 0.6,
+            6, 1.1,
+            9, 1.6,
           ],
-          "line-blur": 0.5,
-          "line-opacity": 0.55,
+          "line-blur": 0.3,
+          "line-opacity": 0.75,
         },
       });
 
