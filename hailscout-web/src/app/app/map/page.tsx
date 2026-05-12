@@ -75,7 +75,7 @@ export default function MapPage() {
     to: tomorrow,
     limit: 200,
     includeSwaths: true,
-    swathSimplify: 0.05,
+    swathSimplify: 0.02,
     fallbackToFixtures: true,
   });
 

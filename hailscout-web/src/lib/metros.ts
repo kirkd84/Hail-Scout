@@ -93,11 +93,6 @@ export const METROS: readonly Metro[] = [
   { name: "Boston",         state: "MA", lat: 42.36, lng:  -71.06 },
 ];
 
-/** Approximate-mile threshold below which we tag a storm with a metro name.
- * Beyond this we fall back to a coarser regional label (e.g. "Northern
- * Plains"). 75 mi is roughly the radius of a metro media market. */
-export const NEAREST_METRO_FALLBACK_MILES = 75;
-
 const MILES_PER_DEG_LAT = 69.0;
 
 /** Approx Haversine in degrees — fast and accurate enough at CONUS scale. */
@@ -109,37 +104,26 @@ function approxMiles(lat1: number, lng1: number, lat2: number, lng2: number): nu
   return Math.sqrt(dLat * dLat + dLng * dLng);
 }
 
-/** Coarse region buckets used when no metro is close. */
-function regionFallback(lat: number, lng: number): string {
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return "United States";
-  let ns = "";
-  if (lat >= 41) ns = "Northern";
-  else if (lat >= 36) ns = "Central";
-  else ns = "Southern";
-  let ew = "";
-  if (lng <= -105) ew = "Rockies";
-  else if (lng <= -95) ew = "Plains";
-  else if (lng <= -85) ew = "Midwest";
-  else ew = "East";
-  return `${ns} ${ew}`;
-}
-
 export interface NearestMetroResult {
-  /** "Dallas, TX" if within range, otherwise "Central Plains" etc. */
+  /** "Dallas, TX" — always the closest metro from METROS. */
   label: string;
-  /** Distance to the nearest metro in miles. Infinity for the fallback. */
+  /** Distance to the matched metro in miles (rounded). */
   miles: number;
-  /** The matched metro, or null if we fell back to a region label. */
-  metro: Metro | null;
+  /** The matched metro. */
+  metro: Metro;
 }
 
 /**
- * Find the nearest metro to a (lat, lng). Returns a label suitable for
- * showing in a storm card.
+ * Find the nearest metro to a (lat, lng). Always returns the closest
+ * one from METROS — no fallback to coarser region labels (the user
+ * preferred always-show-city even at 200+ miles).
+ *
+ * Returns `null` only if the input is non-finite.
  */
-export function nearestMetro(lat: number, lng: number): NearestMetroResult {
-  let best: Metro | null = null;
-  let bestMiles = Infinity;
+export function nearestMetro(lat: number, lng: number): NearestMetroResult | null {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  let best: Metro = METROS[0];
+  let bestMiles = approxMiles(lat, lng, best.lat, best.lng);
   for (const m of METROS) {
     const miles = approxMiles(lat, lng, m.lat, m.lng);
     if (miles < bestMiles) {
@@ -147,8 +131,9 @@ export function nearestMetro(lat: number, lng: number): NearestMetroResult {
       best = m;
     }
   }
-  if (best && bestMiles <= NEAREST_METRO_FALLBACK_MILES) {
-    return { label: `${best.name}, ${best.state}`, miles: bestMiles, metro: best };
-  }
-  return { label: regionFallback(lat, lng), miles: Infinity, metro: null };
+  return {
+    label: `${best.name}, ${best.state}`,
+    miles: Math.round(bestMiles),
+    metro: best,
+  };
 }

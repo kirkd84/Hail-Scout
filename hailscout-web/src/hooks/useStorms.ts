@@ -135,8 +135,9 @@ export interface UseStormsArgs {
    *  (simplified server-side via ST_Simplify). Used for polygon rendering on
    *  the map at low / medium zoom. Adds ~10-50KB per storm to the payload. */
   includeSwaths?: boolean;
-  /** ST_Simplify tolerance in degrees when includeSwaths is true. Defaults
-   *  to 0.05 (~5km) — good for state-level zoom. Use 0 for full precision. */
+  /** ST_SimplifyPreserveTopology tolerance in degrees when includeSwaths
+   *  is true. Defaults to 0.02 (~2km) — preserves cell-level polygon
+   *  shape. Use 0 for full precision. */
   swathSimplify?: number;
 }
 
@@ -157,7 +158,7 @@ export function useStorms(args: UseStormsArgs) {
     limit = 50,
     fallbackToFixtures = false,
     includeSwaths = false,
-    swathSimplify = 0.05,
+    swathSimplify = 0.02,
   } = args;
   const fixtureMode = isFixtureMode();
 

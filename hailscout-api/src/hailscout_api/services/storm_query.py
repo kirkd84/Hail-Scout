@@ -13,7 +13,7 @@ from geoalchemy2.functions import (
     ST_MakeEnvelope,
     ST_MakePoint,
     ST_SetSRID,
-    ST_Simplify,
+    ST_SimplifyPreserveTopology,
 )
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -91,9 +91,15 @@ async def query_storms_in_bbox(
     if include_swaths and storm_ids:
         # Single batched query for every swath belonging to the matched
         # storms — N+1 would be brutal across 200 storms.
+        # ST_SimplifyPreserveTopology guarantees a non-empty result even
+        # when small per-cell polygons would otherwise collapse under
+        # plain ST_Simplify — that was the cause of swaths rendering
+        # invisible at higher tolerances.
         geom_expr = (
             ST_AsGeoJSON(
-                ST_Simplify(HailSwath.geom_multipolygon, swath_simplify_tolerance)
+                ST_SimplifyPreserveTopology(
+                    HailSwath.geom_multipolygon, swath_simplify_tolerance
+                )
             )
             if swath_simplify_tolerance > 0
             else ST_AsGeoJSON(HailSwath.geom_multipolygon)

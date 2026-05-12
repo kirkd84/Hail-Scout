@@ -73,6 +73,13 @@ export function StormPicker({ map, storms, limit = 10 }: Props) {
           {top.map((s) => {
             const where = nearestMetro(s.centroid_lat, s.centroid_lng);
             const c = hailColor(s.max_hail_size_in);
+            const cityLabel = where?.label ?? "United States";
+            // Show "~12mi" if it's a near miss; hide for very close hits
+            // and very distant ones (looks weird otherwise).
+            const distanceLabel =
+              where && where.miles >= 5 && where.miles <= 250
+                ? ` · ${where.miles}mi`
+                : "";
             // Heavy hail tiers (>= 1.5") use white text on the dark solid
             // background; lighter tiers use the dark per-tier text on a
             // lighter solid background. Works in both light + dark modes
@@ -106,7 +113,10 @@ export function StormPicker({ map, storms, limit = 10 }: Props) {
                   </span>
                   <span className="flex-1 min-w-0">
                     <span className="block truncate text-sm font-medium text-foreground">
-                      {where.label}
+                      {cityLabel}
+                      <span className="text-muted-foreground/70 font-mono-num text-xs font-normal">
+                        {distanceLabel}
+                      </span>
                     </span>
                     <span className="block truncate text-xs text-muted-foreground font-mono-num">
                       {timeAgo(s.start_time)} ·{" "}

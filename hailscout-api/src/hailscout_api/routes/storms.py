@@ -51,11 +51,13 @@ async def list_storms(
                     "simplified hail-swath GeoJSON for each storm.",
     ),
     simplify: float = Query(
-        0.05,
+        0.02,
         ge=0.0, le=1.0,
-        description="ST_Simplify tolerance in degrees for `include=swaths`. "
-                    "0 = no simplification. 0.05 ≈ 5km — good for "
-                    "CONUS / state zoom.",
+        description="ST_SimplifyPreserveTopology tolerance in degrees for "
+                    "`include=swaths`. 0 = no simplification. 0.02 ≈ 2km "
+                    "— preserves cell-level polygon shape while keeping "
+                    "payload reasonable. Higher = smoother + lighter but "
+                    "small cells degenerate.",
     ),
     session: AsyncSession = Depends(get_db_session),
 ) -> StormsListResponse:
