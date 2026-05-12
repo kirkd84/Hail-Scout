@@ -12,6 +12,7 @@ from geoalchemy2.functions import (
     ST_Intersects,
     ST_MakeEnvelope,
     ST_MakePoint,
+    ST_Multi,
     ST_SetSRID,
     ST_SimplifyPreserveTopology,
 )
@@ -93,12 +94,16 @@ async def query_storms_in_bbox(
         # storms — N+1 would be brutal across 200 storms.
         # ST_SimplifyPreserveTopology guarantees a non-empty result even
         # when small per-cell polygons would otherwise collapse under
-        # plain ST_Simplify — that was the cause of swaths rendering
-        # invisible at higher tolerances.
+        # plain ST_Simplify. Wrap with ST_Multi so the output stays a
+        # MultiPolygon — simplification can downgrade a single-piece
+        # MultiPolygon to a plain Polygon, which then fails the
+        # GeoMultiPolygon Pydantic schema on the way out.
         geom_expr = (
             ST_AsGeoJSON(
-                ST_SimplifyPreserveTopology(
-                    HailSwath.geom_multipolygon, swath_simplify_tolerance
+                ST_Multi(
+                    ST_SimplifyPreserveTopology(
+                        HailSwath.geom_multipolygon, swath_simplify_tolerance
+                    )
                 )
             )
             if swath_simplify_tolerance > 0
