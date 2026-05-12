@@ -28,6 +28,7 @@ const LAYER_FILL = "hs-live-fill";
 const LAYER_LINE = "hs-live-line";
 const LAYER_CENTROID = "hs-live-centroid";
 const LAYER_CENTROID_RING = "hs-live-centroid-ring";
+const LAYER_DATE_LABEL = "hs-live-date-label";
 
 interface Props {
   map: MapLibreMap | null;
@@ -47,6 +48,12 @@ function categoryToMinInches(label: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+function formatDateLabel(iso: string): string {
+  const d = new Date(iso);
+  // "May 11" / "Aug 03" — same format the time-scrubber uses.
+  return d.toLocaleDateString(undefined, { month: "short", day: "2-digit" });
+}
+
 function buildCentroidFC(storms: StormWithSwaths[]): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
@@ -57,6 +64,8 @@ function buildCentroidFC(storms: StormWithSwaths[]): GeoJSON.FeatureCollection {
         id: s.id,
         peak_size_in: s.max_hail_size_in,
         start_time: s.start_time,
+        date_label: formatDateLabel(s.start_time),
+        peak_label: `${s.max_hail_size_in.toFixed(1)}″`,
       },
     })),
   };
@@ -120,6 +129,12 @@ export function StormsLayer({
         data: { type: "FeatureCollection", features: [] },
       });
 
+      // Polish notes:
+      //  - Fill opacity climbs more aggressively with size (small bands
+      //    fade; severe-hail cores read loud) — same idea as HailTrace.
+      //  - Stroke is hair-thin and color-matched to the fill so the
+      //    polygon shape reads as a single shape, not a fortified outline.
+      //  - Fills paint above the basemap (default), strokes paint on top.
       map.addLayer({
         id: LAYER_FILL,
         type: "fill",
@@ -127,23 +142,23 @@ export function StormsLayer({
         paint: {
           "fill-color": [
             "step", ["get", "min_size_in"],
-            "#36C168",
-            1.0, "#F2D530",
-            1.5, "#EA7A2C",
-            1.75, "#D9462F",
-            2.0, "#A11F2A",
-            2.5, "#D45BAA",
-            2.75, "#8E3CA8",
-            3.0, "#4A2070",
+            "#5DCAA5",       // 0.75 — soft teal-green
+            1.0,  "#E2B843", // amber
+            1.25, "#D88A3D", // copper
+            1.5,  "#C46434", // burnt orange
+            1.75, "#A8412D", // brick
+            2.0,  "#822424", // oxblood
+            2.5,  "#5B2059", // plum
+            3.0,  "#1F1B33", // deep purple
           ],
           "fill-opacity": [
             "interpolate", ["linear"], ["get", "min_size_in"],
-            0.5, 0.34,
-            1.0, 0.42,
-            1.5, 0.52,
-            2.0, 0.62,
-            2.75, 0.72,
-            3.0, 0.78,
+            0.75, 0.28,
+            1.0,  0.36,
+            1.5,  0.50,
+            2.0,  0.66,
+            2.5,  0.78,
+            3.0,  0.88,
           ],
         },
       });
@@ -155,23 +170,22 @@ export function StormsLayer({
         paint: {
           "line-color": [
             "step", ["get", "min_size_in"],
-            "#1F8B47",
-            1.0, "#B89A23",
-            1.5, "#B85920",
-            1.75, "#9B311F",
-            2.0, "#741A1F",
-            2.5, "#9C3F7A",
-            2.75, "#62286F",
-            3.0, "#2B1340",
+            "#3FAF8A",
+            1.0,  "#C19A2E",
+            1.25, "#B66B2A",
+            1.5,  "#9E4823",
+            1.75, "#82301F",
+            2.0,  "#5E1B1B",
+            2.5,  "#3F143E",
+            3.0,  "#0F0E1E",
           ],
           "line-width": [
-            "interpolate", ["linear"], ["get", "min_size_in"],
-            0.75, 0.4,
-            1.5, 0.7,
-            2.5, 1.1,
-            3.0, 1.4,
+            "interpolate", ["linear"], ["zoom"],
+            3, 0.25,
+            6, 0.55,
+            9, 0.9,
           ],
-          "line-opacity": 0.85,
+          "line-opacity": 0.6,
         },
       });
 
@@ -217,12 +231,46 @@ export function StormsLayer({
           ],
           "circle-color": [
             "step", ["get", "peak_size_in"],
-            "#36C168", 1.0, "#F2D530", 1.5, "#EA7A2C", 1.75, "#D9462F",
-            2.0, "#A11F2A", 2.5, "#D45BAA", 2.75, "#8E3CA8", 3.0, "#4A2070",
+            "#5DCAA5", 1.0, "#E2B843", 1.25, "#D88A3D", 1.5, "#C46434",
+            1.75, "#A8412D", 2.0, "#822424", 2.5, "#5B2059", 3.0, "#1F1B33",
           ],
           "circle-stroke-color": "#FAF7F1",
           "circle-stroke-width": 1.6,
           "circle-opacity": 1,
+        },
+      });
+
+      // Date label — appears next to each centroid. Two-line text:
+      // date on top, peak size below. Painted at zoom 5+ to keep the
+      // CONUS view uncluttered.
+      map.addLayer({
+        id: LAYER_DATE_LABEL,
+        type: "symbol",
+        source: SOURCE_CENTROIDS,
+        minzoom: 5,
+        layout: {
+          "text-field": ["format",
+            ["get", "date_label"], { "font-scale": 1.0 },
+            "\n",                  {},
+            ["get", "peak_label"], { "font-scale": 0.85 },
+          ],
+          "text-anchor": "left",
+          "text-offset": [0.9, 0],
+          "text-size": [
+            "interpolate", ["linear"], ["zoom"],
+            5, 10,
+            8, 12,
+            12, 14,
+          ],
+          "text-allow-overlap": false,
+          "text-ignore-placement": false,
+          "text-padding": 4,
+        },
+        paint: {
+          "text-color": "#2B2620",      // matches --foreground
+          "text-halo-color": "#FAF7F1", // matches --cream-50
+          "text-halo-width": 1.4,
+          "text-halo-blur": 0.2,
         },
       });
     };
@@ -275,7 +323,7 @@ export function StormsLayer({
   useEffect(() => {
     if (!map) return;
     const v = visible ? "visible" : "none";
-    for (const id of [LAYER_FILL, LAYER_LINE, LAYER_CENTROID, LAYER_CENTROID_RING]) {
+    for (const id of [LAYER_FILL, LAYER_LINE, LAYER_CENTROID, LAYER_CENTROID_RING, LAYER_DATE_LABEL]) {
       if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", v);
     }
   }, [map, visible]);

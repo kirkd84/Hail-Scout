@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import type { HailAtAddressResponse, Storm } from "@/lib/api-types";
@@ -54,16 +54,27 @@ export default function MapPage() {
   const [selectedStorm, setSelectedStorm] = useState<Storm | null>(null);
   const [showStormDetail, setShowStormDetail] = useState(false);
 
-  // Live storms from /v1/storms — CONUS bbox, last 12 months, WITH
-  // simplified hail-swath polygons for low-zoom rendering. The
-  // useStorms hook handles fixture fallback when NEXT_PUBLIC_USE_FIXTURES
-  // is on; here we let it fall back automatically if the API is empty
-  // so dev / preview environments aren't blank.
+  // Live storms — default to the **last 7 days** so the initial
+  // CONUS-wide view doesn't overlap 365 days' worth of swath polygons
+  // (which becomes visual mush and hammers the wire with ~500KB).
+  // The date filter UI (last 24h / 7d / 30d) can still widen this; we
+  // only set the API window, not the rendered window. Future:
+  // expand bbox / dates dynamically on zoom-in.
+  const sevenDaysAgo = useMemo(() => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - 7);
+    return d.toISOString().slice(0, 10);
+  }, []);
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + 1); // include today's UTC date
+    return d.toISOString().slice(0, 10);
+  }, []);
   const { storms } = useStorms({
     bbox: [-125, 24, -66, 50],
-    from: "2025-05-08",
-    to: "2026-12-31",
-    limit: 200,
+    from: sevenDaysAgo,
+    to: today,
+    limit: 50,
     includeSwaths: true,
     swathSimplify: 0.05,
     fallbackToFixtures: true,
