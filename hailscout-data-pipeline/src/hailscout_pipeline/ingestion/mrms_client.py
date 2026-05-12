@@ -5,9 +5,12 @@ with botocore.UNSIGNED so no AWS creds are needed.
 
 Live products keep ~24-72h history. For older data, use IowaArchiveClient.
 
-Bucket layout (CONUS):
-    s3://noaa-mrms-pds/CONUS/MESH_Max_1440min_00.50/{YYYYMMDD}/
-        MRMS_MESH_Max_1440min_00.50_{YYYYMMDD}-{HHMMSS}.grib2.gz
+Bucket layout (CONUS, instantaneous MESH — what the cell-tracking
+pipeline ingests, Phase 17):
+    s3://noaa-mrms-pds/CONUS/MESH_00.50/{YYYYMMDD}/
+        MRMS_MESH_00.50_{YYYYMMDD}-{HHMMSS}.grib2.gz
+
+Files publish every ~2 minutes; matching the radar volume-scan cadence.
 """
 from __future__ import annotations
 import re
@@ -23,9 +26,12 @@ from botocore.client import Config
 log = structlog.get_logger()
 
 
-# Filename: MRMS_MESH_Max_1440min_00.50_YYYYMMDD-HHMMSS.grib2[.gz]
+# Filename: MRMS_MESH_00.50_YYYYMMDD-HHMMSS.grib2[.gz]
+# Pattern matches both the instantaneous product (Phase 17) and the
+# legacy daily-max product (so a redeploy with the new config doesn't
+# choke on lingering files in a temp dir).
 MESH_PATTERN = re.compile(
-    r"^MRMS_MESH_Max_1440min_00\.50_(?P<date>\d{8})-(?P<time>\d{6})"
+    r"^MRMS_MESH(?:_Max_\d+min)?_00\.50_(?P<date>\d{8})-(?P<time>\d{6})"
     r"\.grib2(?:\.gz)?$"
 )
 
@@ -34,7 +40,7 @@ class MRMSClient:
     """Anonymous client for the public NOAA MRMS S3 bucket."""
 
     def __init__(self, bucket_name: str = "noaa-mrms-pds",
-                 product: str = "MESH_Max_1440min_00.50") -> None:
+                 product: str = "MESH_00.50") -> None:
         self.bucket_name = bucket_name
         self.product = product
         # Anonymous access — no creds needed for public bucket
@@ -116,15 +122,13 @@ from urllib.error import HTTPError, URLError
 class IowaArchiveClient:
     """Pulls historical MRMS MESH from Iowa State's MtArchive (HTTPS).
 
-    URL pattern:
+    URL pattern (Phase 17 instantaneous product):
         https://mtarchive.geol.iastate.edu/{YYYY}/{MM}/{DD}/mrms/ncep/
-            MESH_Max_1440min/
-            MESH_Max_1440min_00.50_{YYYYMMDD}-{HHMMSS}.grib2.gz
+            MESH/MESH_00.50_{YYYYMMDD}-{HHMMSS}.grib2.gz
 
-    Files appear at 30-minute cadence (00:00, 00:30, 01:00, ..., 23:30).
-    Note that the *directory* is `MESH_Max_1440min` while the *filename*
-    inside includes the `_00.50` resolution suffix — different from
-    NOAA's S3 layout which has `_00.50` at both levels.
+    Files publish every 2 minutes (00:00:00, 00:02:00, 00:04:00, ...).
+    The directory is `MESH` (no resolution suffix); the filename
+    inside includes `_00.50`. NOAA's S3 has the suffix at both levels.
 
     This is the standard public archive going back ~10+ years, used when
     the live `noaa-mrms-pds` bucket no longer has the file.
@@ -134,8 +138,8 @@ class IowaArchiveClient:
 
     def __init__(
         self,
-        archive_subdir: str = "MESH_Max_1440min",
-        file_prefix: str = "MESH_Max_1440min_00.50",
+        archive_subdir: str = "MESH",
+        file_prefix: str = "MESH_00.50",
     ) -> None:
         self.archive_subdir = archive_subdir
         self.file_prefix = file_prefix

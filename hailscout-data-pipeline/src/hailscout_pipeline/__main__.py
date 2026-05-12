@@ -88,7 +88,13 @@ def ingest_grib_file(grib_path: str, ts: datetime) -> dict:
     first_storm_id = None
     with SessionLocal() as session:
         for bundle in cell_bundles:
-            summary = upsert_cell(session, bundle)
+            # track=True is the Phase 17 behavior: across consecutive
+            # 2-min snapshots, cells that match an existing Storm by
+            # proximity get their swath geometry UNIONED with the
+            # existing one rather than overwritten. Result: the same
+            # cell drifting across timesteps produces a meandering
+            # ribbon polygon — the HailTrace-style track shape.
+            summary = upsert_cell(session, bundle, track=True)
             total_swaths += summary["swath_count"]
             max_in_overall = max(max_in_overall, summary["max_hail_size_in"])
             if first_storm_id is None:

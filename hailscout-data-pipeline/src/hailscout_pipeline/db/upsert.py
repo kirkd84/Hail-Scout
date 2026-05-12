@@ -1,25 +1,28 @@
 """Idempotent upsert for storms + hail_swaths.
 
-Two grouping rules, kept as separate entry points:
+Three grouping rules:
 
-  upsert_swaths(swaths)          — legacy daily-rollup mode.
-                                   One Storm row per (UTC date, source).
-                                   Bbox = union of all swath bboxes
-                                   (CONUS-wide on a busy day).
+  upsert_swaths(swaths)        — LEGACY daily-rollup mode.
+                                  One Storm row per (UTC date, source).
+                                  Kept for backwards compat; not used
+                                  by the current pipeline.
 
-  upsert_cell(swaths)            — per-cell mode (Phase 16.8 follow-up).
-                                   One Storm row per (UTC date, source,
-                                   cell-centroid). Caller has already
-                                   spatially clustered the per-pixel
-                                   polygons via `extraction.clustering`
-                                   so each call's `swaths` belongs to a
-                                   single storm cell. Existing-storm
-                                   match uses PostGIS proximity: same
-                                   day + source + centroid within
-                                   STORM_MERGE_RADIUS_DEG.
+  upsert_cell(swaths)          — PER-CELL mode (Phase 16.8).
+                                  One Storm per (UTC date, source,
+                                  cell-centroid). Caller pre-clusters
+                                  per-pixel polygons into cell bundles.
 
-Both call sites still rely on the `uq_storm_category` constraint on
-hail_swaths so per-storm + per-category swaths upsert idempotently.
+  upsert_cell(..., track=True) — TRACKED CELL mode (Phase 17).
+                                  Same proximity match as per-cell, but
+                                  the swath geometry is UNIONED with
+                                  the existing one (ST_Union via
+                                  ON CONFLICT) so successive 2-min
+                                  snapshots accumulate into a single
+                                  meandering track polygon — the
+                                  HailTrace-style ribbon. Storm.bbox is
+                                  the envelope of the union.
+
+All three rely on the `uq_storm_category` constraint on hail_swaths.
 """
 from __future__ import annotations
 import secrets
@@ -29,6 +32,8 @@ import structlog
 from geoalchemy2.functions import ST_DWithin, ST_GeomFromText
 from shapely.geometry import MultiPolygon, Point, Polygon, box
 from shapely.ops import unary_union
+from shapely import wkb as shapely_wkb
+from sqlalchemy import func, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
@@ -62,25 +67,50 @@ def _day_window(ts: datetime) -> tuple[datetime, datetime]:
 
 
 def _write_swaths(session: Session, storm_id: str,
-                  swaths: list[HailSwathData]) -> None:
-    """ON CONFLICT upsert of per-category swaths for one storm."""
+                  swaths: list[HailSwathData],
+                  track: bool = False) -> None:
+    """ON CONFLICT upsert of per-category swaths for one storm.
+
+    When `track=True`, conflicts UNION the new polygon with the existing
+    one (via Postgres ST_Union on EXCLUDED) so consecutive snapshots of
+    the same storm cell accumulate into a track-shaped polygon. Wrapped
+    with ST_Multi so the result stays a MultiPolygon.
+
+    When `track=False` (legacy), conflicts overwrite the polygon — the
+    daily-max product behavior where each snapshot replaces the prior.
+    """
     for s in swaths:
-        stmt = (
-            pg_insert(HailSwath)
-            .values(
-                id=_new_id("swath"),
-                storm_id=storm_id,
-                hail_size_category=s.hail_size_category,
-                geom_multipolygon=_wkt_with_srid(s.geom_multipolygon),
+        insert_stmt = pg_insert(HailSwath).values(
+            id=_new_id("swath"),
+            storm_id=storm_id,
+            hail_size_category=s.hail_size_category,
+            geom_multipolygon=_wkt_with_srid(s.geom_multipolygon),
+        )
+        if track:
+            stmt = insert_stmt.on_conflict_do_update(
+                constraint="uq_storm_category",
+                set_={
+                    # ST_Multi(ST_Union(existing, incoming)) — accumulates
+                    # the cell's footprint over time. PostGIS handles the
+                    # geometry coercion; we keep MultiPolygon as the
+                    # storage type so the column constraint holds.
+                    "geom_multipolygon": func.ST_Multi(
+                        func.ST_Union(
+                            HailSwath.geom_multipolygon,
+                            insert_stmt.excluded.geom_multipolygon,
+                        )
+                    ),
+                    "updated_at": datetime.now(timezone.utc),
+                },
             )
-            .on_conflict_do_update(
+        else:
+            stmt = insert_stmt.on_conflict_do_update(
                 constraint="uq_storm_category",
                 set_={
                     "geom_multipolygon": _wkt_with_srid(s.geom_multipolygon),
                     "updated_at": datetime.now(timezone.utc),
                 },
             )
-        )
         session.execute(stmt)
 
 
@@ -152,7 +182,11 @@ def upsert_swaths(session: Session, swaths: list[HailSwathData]) -> dict:
 
 # ── Per-cell upsert (Phase 16.8: knock-socks-off mode) ─────────────────
 
-def upsert_cell(session: Session, swaths: list[HailSwathData]) -> dict:
+def upsert_cell(
+    session: Session,
+    swaths: list[HailSwathData],
+    track: bool = False,
+) -> dict:
     """Upsert a single storm cell's swaths.
 
     The caller is responsible for clustering — every swath in this
@@ -160,6 +194,14 @@ def upsert_cell(session: Session, swaths: list[HailSwathData]) -> dict:
     `cluster_swaths_into_cells`). Match against existing storms uses
     PostGIS `ST_DWithin` so a cell that drifts slightly across
     consecutive timestamps still hits its earlier Storm row.
+
+    track=True (Phase 17): swath geometry is UNIONED with existing on
+        conflict; storm bbox grows to enclose all snapshots. Produces
+        the meandering ribbon shape for moving cells. Required for the
+        instantaneous-MESH pipeline.
+
+    track=False (legacy): swath geometry is OVERWRITTEN on conflict;
+        storm bbox is replaced. Was the daily-max-product behavior.
     """
     if not swaths:
         log.info("upsert_cell_skipped", reason="no swaths")
@@ -196,15 +238,24 @@ def upsert_cell(session: Session, swaths: list[HailSwathData]) -> dict:
             storm.end_time = timestamp
         if max_size > (storm.max_hail_size_in or 0.0):
             storm.max_hail_size_in = max_size
-        # Centroid is the union of OLD + NEW geometry's centroid would
-        # require fetching the old geometry. For v1 we just keep the
-        # original centroid (cells don't move much in 6h) and widen
-        # the bbox.
-        storm.bbox_geom = _wkt_with_srid(bbox_poly)
+        if track:
+            # Grow the bbox to enclose the existing one + the new one.
+            # ST_Envelope(ST_Union) keeps the column-type as POLYGON.
+            existing_bbox_expr = text(
+                "(SELECT bbox_geom FROM storms WHERE id = :sid)"
+            ).bindparams(sid=storm.id)
+            storm.bbox_geom = func.ST_Envelope(
+                func.ST_Union(
+                    existing_bbox_expr,
+                    ST_GeomFromText(_wkt_with_srid(bbox_poly), 4326),
+                )
+            )
+        else:
+            storm.bbox_geom = _wkt_with_srid(bbox_poly)
         storm.updated_at = datetime.now(timezone.utc)
         session.flush()
         log.info("cell_updated", id=storm.id, max_in=storm.max_hail_size_in,
-                 swaths=len(swaths))
+                 swaths=len(swaths), track=track)
     else:
         storm = Storm(
             id=_new_id("storm"),
@@ -218,9 +269,9 @@ def upsert_cell(session: Session, swaths: list[HailSwathData]) -> dict:
         session.add(storm)
         session.flush()
         log.info("cell_created", id=storm.id, max_in=storm.max_hail_size_in,
-                 swaths=len(swaths))
+                 swaths=len(swaths), track=track)
 
-    _write_swaths(session, storm.id, swaths)
+    _write_swaths(session, storm.id, swaths, track=track)
     session.commit()
     return {
         "storm_id": storm.id,
