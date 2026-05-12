@@ -1,6 +1,6 @@
 """Idempotent upsert for storms + hail_swaths.
 
-Three grouping rules:
+Four grouping rules:
 
   upsert_swaths(swaths)        — LEGACY daily-rollup mode.
                                   One Storm row per (UTC date, source).
@@ -15,14 +15,17 @@ Three grouping rules:
   upsert_cell(..., track=True) — TRACKED CELL mode (Phase 17).
                                   Same proximity match as per-cell, but
                                   the swath geometry is UNIONED with
-                                  the existing one (ST_Union via
-                                  ON CONFLICT) so successive 2-min
-                                  snapshots accumulate into a single
-                                  meandering track polygon — the
-                                  HailTrace-style ribbon. Storm.bbox is
-                                  the envelope of the union.
+                                  the existing one across snapshots so
+                                  cells become meandering track-shaped
+                                  ribbons. Storm.bbox is the envelope of
+                                  the union.
 
-All three rely on the `uq_storm_category` constraint on hail_swaths.
+  upsert_nexrad_cell(cell)     — NEXRAD SCIT mode (Phase 18).
+                                  One Storm per NEXRAD track_id; cell
+                                  footprint accumulates across volume
+                                  scans via ST_Union. source = "NEXRAD".
+
+All four rely on the `uq_storm_category` constraint on hail_swaths.
 """
 from __future__ import annotations
 import secrets
@@ -277,4 +280,134 @@ def upsert_cell(
         "storm_id": storm.id,
         "swath_count": len(swaths),
         "max_hail_size_in": float(storm.max_hail_size_in or 0.0),
+    }
+
+
+# ── NEXRAD-derived per-cell upsert (Phase 18) ──────────────────────────
+
+def upsert_nexrad_cell(session: Session, cell) -> dict:  # noqa: ANN001
+    """Upsert one NEXRAD-derived storm cell.
+
+    Match logic:
+      1. If `cell.track_id` matches an existing Storm.id (cells from
+         the same volume-scan track), reuse that storm. The footprint
+         gets UNIONED with the existing geometry across consecutive
+         scans, producing the cell-track polygon.
+      2. Otherwise fall back to spatial proximity within the UTC day +
+         source="NEXRAD", same logic as `upsert_cell`.
+      3. No match → new Storm row, id = track_id (so the next scan
+         hits case 1 cleanly).
+
+    Each cell becomes ONE Storm with source="NEXRAD" and a single
+    HailSwath in the category implied by its peak dBZ.
+    """
+    # Imported here to keep the MRMS path free of py-ART transitive
+    # dependencies. nexrad_scit is the only place that imports py-ART
+    # at module load.
+    from hailscout_pipeline.extraction.nexrad_scit import (
+        NexradCell,
+        _hail_size_to_category,
+    )
+
+    if not isinstance(cell, NexradCell):
+        raise TypeError(
+            f"upsert_nexrad_cell expects NexradCell, got {type(cell).__name__}"
+        )
+
+    timestamp = cell.timestamp
+    source = "NEXRAD"
+    day_start, day_end = _day_window(timestamp)
+
+    footprint = cell.footprint
+    centroid: Point = cell.centroid
+    bbox_poly: Polygon = box(*footprint.bounds)
+    hail_size = cell.estimated_hail_size_in
+    category = _hail_size_to_category(hail_size)
+
+    # 1) Track-id match (cross-volume continuity for the same cell)
+    existing = None
+    if cell.track_id:
+        existing = session.query(Storm).filter(Storm.id == cell.track_id).first()
+
+    # 2) Spatial-proximity fallback (recovers when a track_id is fresh
+    #    but the cell drifted into an existing storm region)
+    if not existing:
+        centroid_geom_expr = ST_GeomFromText(_wkt_with_srid(centroid), 4326)
+        existing = (
+            session.query(Storm)
+            .filter(
+                Storm.start_time >= day_start,
+                Storm.start_time <= day_end,
+                Storm.source == source,
+                ST_DWithin(Storm.centroid_geom, centroid_geom_expr,
+                           STORM_MERGE_RADIUS_DEG),
+            )
+            .order_by(Storm.start_time.asc())
+            .first()
+        )
+
+    if existing:
+        storm = existing
+        if timestamp > storm.end_time:
+            storm.end_time = timestamp
+        if hail_size > (storm.max_hail_size_in or 0.0):
+            storm.max_hail_size_in = hail_size
+        # Grow the bbox to enclose the track's full footprint
+        existing_bbox_expr = text(
+            "(SELECT bbox_geom FROM storms WHERE id = :sid)"
+        ).bindparams(sid=storm.id)
+        storm.bbox_geom = func.ST_Envelope(
+            func.ST_Union(
+                existing_bbox_expr,
+                ST_GeomFromText(_wkt_with_srid(bbox_poly), 4326),
+            )
+        )
+        storm.updated_at = datetime.now(timezone.utc)
+        session.flush()
+        log.info("nexrad_cell_updated", id=storm.id, peak_dbz=cell.peak_dbz,
+                 hail_in=hail_size, station=cell.station)
+    else:
+        storm_id = cell.track_id or _new_id("storm")
+        storm = Storm(
+            id=storm_id,
+            start_time=timestamp,
+            end_time=timestamp,
+            max_hail_size_in=hail_size,
+            centroid_geom=_wkt_with_srid(centroid),
+            bbox_geom=_wkt_with_srid(bbox_poly),
+            source=source,
+        )
+        session.add(storm)
+        session.flush()
+        log.info("nexrad_cell_created", id=storm.id, peak_dbz=cell.peak_dbz,
+                 hail_in=hail_size, station=cell.station)
+
+    # One HailSwath per cell, with the cell footprint as the polygon.
+    # Track=True so cross-scan upserts UNION the geometry instead of
+    # overwriting — producing the meandering polygon over time.
+    insert_stmt = pg_insert(HailSwath).values(
+        id=_new_id("swath"),
+        storm_id=storm.id,
+        hail_size_category=category,
+        geom_multipolygon=_wkt_with_srid(footprint),
+    )
+    stmt = insert_stmt.on_conflict_do_update(
+        constraint="uq_storm_category",
+        set_={
+            "geom_multipolygon": func.ST_Multi(
+                func.ST_Union(
+                    HailSwath.geom_multipolygon,
+                    insert_stmt.excluded.geom_multipolygon,
+                )
+            ),
+            "updated_at": datetime.now(timezone.utc),
+        },
+    )
+    session.execute(stmt)
+    session.commit()
+    return {
+        "storm_id": storm.id,
+        "category": category,
+        "hail_in": hail_size,
+        "peak_dbz": cell.peak_dbz,
     }

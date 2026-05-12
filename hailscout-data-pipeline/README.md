@@ -1,6 +1,29 @@
 # HailScout Data Pipeline
 
-Production-ready Python service for continuous ingestion of NOAA MRMS MESH hail data into PostGIS.
+Production-ready Python service for continuous ingestion of NOAA hail data into PostGIS.
+
+## Services
+
+The repo contains **two** Railway services that share the same source tree:
+
+| Service | Source | Dockerfile | Config | Resolution |
+|---|---|---|---|---|
+| `hailscout-pipeline` (MRMS) | MRMS_MESH instantaneous, every 2 min, CONUS-wide grid | `Dockerfile` | `railway.json` | ~1 km |
+| `hailscout-nexrad` (NEXRAD L2, Phase 18) | NEXRAD Level II volume scans per station | `Dockerfile.nexrad` | `railway.nexrad.json` | ~150 m radial |
+
+Both write to the same `storms` + `hail_swaths` tables (distinguished by `source = "MRMS"` vs `"NEXRAD"`). The API treats them uniformly — every consumer downstream sees one unified storm cell.
+
+### Deploying the NEXRAD service
+
+In the Railway dashboard, create a new service in the same project:
+1. **+ New** → **GitHub Repo** → `kirkd84/Hail-Scout`
+2. Settings → Source → **Root directory:** `hailscout-data-pipeline`
+3. Settings → Build → **Dockerfile path:** `Dockerfile.nexrad`
+4. Variables → reference `DATABASE_URL` from the shared Postgres
+5. Deploy. First build is ~5-8 min (py-ART + HDF5 stack).
+
+After it boots, watch the Logs tab for `nexrad_loop_start` then `nexrad_ingested` lines every ~10 minutes (one per CONUS hail-belt station).
+
 
 ## Overview
 

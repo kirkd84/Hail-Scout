@@ -1,0 +1,57 @@
+# Railway worker image for HailScout NEXRAD Level II pipeline (Phase 18).
+#
+# Separate from the MRMS pipeline's Dockerfile because py-ART pulls in a
+# heavy native stack (HDF5, NetCDF, scipy, matplotlib) that the lighter
+# MRMS image doesn't need. Image is ~1.5-2 GB vs. the MRMS ~700 MB.
+#
+# Build:  docker build -f Dockerfile.nexrad -t hailscout-nexrad .
+# Run:    docker run --rm -e DATABASE_URL=... hailscout-nexrad
+#
+# On Railway: create a new service from this repo, set
+#   - Root directory: hailscout-data-pipeline
+#   - Dockerfile path: Dockerfile.nexrad
+#   - Start command (auto-picked from railway.nexrad.json)
+
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    DEBIAN_FRONTEND=noninteractive
+
+# System deps for py-ART (HDF5 + NetCDF backends) on top of the same
+# GDAL/PROJ/GEOS stack the MRMS pipeline uses for shapely + rasterio.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgdal-dev gdal-bin \
+    libeccodes0 libeccodes-tools \
+    libproj-dev proj-data proj-bin \
+    libgeos-dev \
+    libhdf5-dev libhdf5-103 \
+    libnetcdf-dev libnetcdf19 \
+    gfortran \
+    build-essential \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Reuse the base requirements (MRMS deps), then layer py-ART + scipy.
+# Keeping them in separate RUN steps so the base layer caches across
+# Dockerfile + Dockerfile.nexrad builds.
+COPY requirements.txt /app/requirements.txt
+RUN pip install -r requirements.txt
+
+# NEXRAD-specific additions. arm-pyart brings scipy + netCDF4 + xarray
+# (already pinned) + matplotlib transitively; the version is the one
+# tested against Python 3.12 wheels at time of write.
+RUN pip install \
+    'arm-pyart>=1.18,<2.0' \
+    'scipy>=1.11,<2.0'
+
+COPY src /app/src
+ENV PYTHONPATH=/app/src
+
+# Default command: 10-min radar polling loop across CONUS hail-belt
+# stations. Override on the service if you want a backfill or a
+# different station subset.
+CMD ["python", "-m", "hailscout_pipeline.nexrad_main", "loop", "--interval-seconds", "600"]
