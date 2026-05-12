@@ -24,7 +24,8 @@ import structlog
 
 from hailscout_pipeline.config import settings
 from hailscout_pipeline.db.session import SessionLocal
-from hailscout_pipeline.db.upsert import upsert_swaths
+from hailscout_pipeline.db.upsert import upsert_cell, upsert_swaths
+from hailscout_pipeline.extraction.clustering import cluster_swaths_into_cells
 from hailscout_pipeline.extraction.polygonize import extract_swaths_from_grid
 from hailscout_pipeline.ingestion.grib_to_geotiff import parse_mesh_grib
 from hailscout_pipeline.ingestion.mrms_client import (
@@ -57,14 +58,47 @@ log = structlog.get_logger()
 
 # ----- core ingest cycle -----
 def ingest_grib_file(grib_path: str, ts: datetime) -> dict:
-    """Parse one GRIB2 file end-to-end and write to DB. Returns summary."""
+    """Parse one GRIB2 file end-to-end and write to DB. Returns summary.
+
+    Two-stage write:
+      1. parse_mesh_grib → MeshGrid (raster in inches)
+      2. extract_swaths_from_grid → per-category MultiPolygons (CONUS-wide)
+      3. cluster_swaths_into_cells → list of per-cell HailSwath bundles
+      4. upsert_cell per cell → one Storm row each, matched by (UTC date,
+         source, centroid within STORM_MERGE_RADIUS_DEG)
+
+    Summary aggregates across all cells created/updated this cycle.
+    """
     grid = parse_mesh_grib(grib_path, ts)
     swaths = extract_swaths_from_grid(grid)
     if not swaths:
         log.info("no_swaths", ts=ts.isoformat())
-        return {"storm_id": None, "swath_count": 0, "max_hail_size_in": 0.0}
+        return {"storm_id": None, "swath_count": 0, "max_hail_size_in": 0.0,
+                "cells": 0}
+
+    cell_bundles = cluster_swaths_into_cells(swaths)
+    if not cell_bundles:
+        log.info("no_cells_after_clustering", ts=ts.isoformat(),
+                 input_swaths=len(swaths))
+        return {"storm_id": None, "swath_count": 0, "max_hail_size_in": 0.0,
+                "cells": 0}
+
+    total_swaths = 0
+    max_in_overall = 0.0
+    first_storm_id = None
     with SessionLocal() as session:
-        return upsert_swaths(session, swaths)
+        for bundle in cell_bundles:
+            summary = upsert_cell(session, bundle)
+            total_swaths += summary["swath_count"]
+            max_in_overall = max(max_in_overall, summary["max_hail_size_in"])
+            if first_storm_id is None:
+                first_storm_id = summary["storm_id"]
+    return {
+        "storm_id": first_storm_id,
+        "swath_count": total_swaths,
+        "max_hail_size_in": max_in_overall,
+        "cells": len(cell_bundles),
+    }
 
 
 # ----- subcommands -----
