@@ -42,7 +42,7 @@ export function StormPicker({ map, storms, limit = 10 }: Props) {
   if (top.length === 0) return null;
 
   return (
-    <div className="pointer-events-auto absolute right-4 top-20 z-20 w-72 max-h-[calc(100vh-10rem)] overflow-hidden rounded-xl border border-border bg-card/95 shadow-panel backdrop-blur supports-[backdrop-filter]:bg-card/85 flex flex-col">
+    <div className="pointer-events-auto absolute right-4 top-60 z-10 w-72 max-h-[calc(100vh-18rem)] overflow-hidden rounded-xl border border-border bg-card/95 shadow-panel backdrop-blur supports-[backdrop-filter]:bg-card/85 flex flex-col">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -73,6 +73,12 @@ export function StormPicker({ map, storms, limit = 10 }: Props) {
           {top.map((s) => {
             const where = nearestMetro(s.centroid_lat, s.centroid_lng);
             const c = hailColor(s.max_hail_size_in);
+            // Heavy hail tiers (>= 1.5") use white text on the dark solid
+            // background; lighter tiers use the dark per-tier text on a
+            // lighter solid background. Works in both light + dark modes
+            // because the badge is opaque, not theme-tinted.
+            const isHeavy = s.max_hail_size_in >= 1.5;
+            const badgeText = isHeavy ? "#FAF7F1" : c.text;
             return (
               <li key={s.id}>
                 <button
@@ -88,19 +94,13 @@ export function StormPicker({ map, storms, limit = 10 }: Props) {
                   className="w-full px-4 py-3 text-left transition-colors hover:bg-secondary/30 flex items-start gap-3"
                 >
                   <span
-                    className="mt-0.5 inline-flex h-10 w-12 shrink-0 flex-col items-center justify-center rounded-md border"
-                    style={{ background: c.bg, borderColor: c.border }}
+                    className="mt-0.5 inline-flex h-10 w-12 shrink-0 flex-col items-center justify-center rounded-md ring-1 ring-foreground/15 shadow-sm"
+                    style={{ background: c.solid, color: badgeText }}
                   >
-                    <span
-                      className="font-mono-num text-xs font-medium leading-none"
-                      style={{ color: c.text }}
-                    >
+                    <span className="font-mono-num text-xs font-medium leading-none">
                       {s.max_hail_size_in.toFixed(2)}″
                     </span>
-                    <span
-                      className="text-[8px] uppercase tracking-wide-caps font-mono leading-none mt-0.5"
-                      style={{ color: c.text, opacity: 0.78 }}
-                    >
+                    <span className="text-[8px] uppercase tracking-wide-caps font-mono leading-none mt-0.5 opacity-90">
                       {c.object}
                     </span>
                   </span>
