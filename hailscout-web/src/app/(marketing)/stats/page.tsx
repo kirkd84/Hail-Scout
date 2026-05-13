@@ -11,6 +11,7 @@ import { nearestMetro } from "@/lib/metros";
 import { useStorms } from "@/hooks/useStorms";
 import { ActivityTimeline } from "@/components/marketing/activity-timeline";
 import { ActivityCalendar } from "@/components/marketing/activity-calendar";
+import { SizeDistribution } from "@/components/marketing/size-distribution";
 
 interface StatsResponse {
   total_cells: number;
@@ -165,10 +166,11 @@ export default function StatsPage() {
         </div>
       </section>
 
-      {/* Daily activity bar chart */}
+      {/* Daily activity bar chart + size distribution */}
       <section className="bg-card border-t border-border">
-        <div className="container py-12">
+        <div className="container py-12 grid gap-8 lg:grid-cols-2">
           <ActivityTimeline days={60} />
+          <SizeDistribution />
         </div>
       </section>
 
