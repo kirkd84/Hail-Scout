@@ -16,6 +16,7 @@ export function SiteHeader() {
           <Link href="/#how"          className="text-sm text-muted-foreground hover:text-foreground transition-colors">How it works</Link>
           <Link href="/#faq"          className="text-sm text-muted-foreground hover:text-foreground transition-colors">FAQ</Link>
           <Link href="/live"          className="text-sm text-muted-foreground hover:text-foreground transition-colors">Live storms</Link>
+          <Link href="/alerts"        className="text-sm text-muted-foreground hover:text-foreground transition-colors">Alerts</Link>
           <Link href="/storms"        className="text-sm text-muted-foreground hover:text-foreground transition-colors">Storm catalog</Link>
           <Link href="/stats"         className="text-sm text-muted-foreground hover:text-foreground transition-colors">By the numbers</Link>
           <Link href="/claim"         className="text-sm text-muted-foreground hover:text-foreground transition-colors">Claim lookup</Link>
