@@ -9,7 +9,8 @@ import { useReports } from "@/hooks/useReports";
 import { useMe } from "@/hooks/useMe";
 import { hailColor } from "@/lib/hail";
 import { timeAgo } from "@/lib/time-ago";
-import { STORM_FIXTURES } from "@/lib/storm-fixtures";
+import { useStorms } from "@/hooks/useStorms";
+import { nearestMetro } from "@/lib/metros";
 import { MARKER_STATUSES, statusInfo } from "@/lib/markers";
 import { ContourBg } from "@/components/brand/contour-bg";
 import { OnboardingWizard } from "@/components/app/onboarding-wizard";
@@ -53,11 +54,35 @@ export default function DashboardPage() {
   const { alerts, unreadCount } = useAlerts();
   const { reports } = useReports();
 
-  // Live + recent storms (mirror activity-feed logic)
-  const live = STORM_FIXTURES.filter((s) => s.is_live);
-  const recent = [...STORM_FIXTURES]
-    .filter((s) => !s.is_live)
-    .sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime())
+  // Live + recent storms backed by /v1/storms. "Live" = started in the
+  // last 2 hours; "recent" = next 5 by start_time desc. Fixture
+  // fallback keeps the dashboard populated if the API is empty.
+  const dashThirtyDaysAgo = (() => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - 30);
+    return d.toISOString().slice(0, 10);
+  })();
+  const dashTomorrow = (() => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10);
+  })();
+  const { storms: dashStorms } = useStorms({
+    bbox: [-125, 24, -66, 50],
+    from: dashThirtyDaysAgo,
+    to: dashTomorrow,
+    limit: 50,
+    fallbackToFixtures: true,
+  });
+  const liveCutoff = Date.now() - 2 * 60 * 60 * 1000;
+  const sortedDash = [...dashStorms].sort(
+    (a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime(),
+  );
+  const live = sortedDash.filter(
+    (s) => new Date(s.start_time).getTime() >= liveCutoff,
+  );
+  const recent = sortedDash
+    .filter((s) => new Date(s.start_time).getTime() < liveCutoff)
     .slice(0, 5);
 
   // Marker pipeline — count per status
@@ -168,10 +193,12 @@ export default function DashboardPage() {
               <ul className="divide-y divide-border/60">
                 {live.map((s) => {
                   const c = hailColor(s.max_hail_size_in);
+                  const where = nearestMetro(s.centroid_lat, s.centroid_lng);
+                  const heavy = s.max_hail_size_in >= 1.5;
                   return (
                     <li key={s.id}>
                       <Link
-                        href="/app/map"
+                        href={`/app/map`}
                         className="flex items-center gap-3 py-3 transition-colors hover:bg-secondary/30 -mx-2 px-2 rounded-md"
                       >
                         <span className="relative inline-flex h-2.5 w-2.5">
@@ -179,16 +206,18 @@ export default function DashboardPage() {
                           <span className="absolute inset-0 rounded-full bg-copper opacity-60 animate-ping" />
                         </span>
                         <span className="flex-1 min-w-0">
-                          <span className="block truncate text-sm font-medium text-foreground">{s.city}</span>
+                          <span className="block truncate text-sm font-medium text-foreground">
+                            {where?.label ?? "United States"}
+                          </span>
                           <span className="block truncate text-xs text-muted-foreground font-mono-num">
                             {timeAgo(s.start_time)} · started {new Date(s.start_time).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
                           </span>
                         </span>
                         <span
-                          className="inline-flex h-9 w-12 flex-col items-center justify-center rounded-md border"
-                          style={{ background: c.bg, borderColor: c.border }}
+                          className="inline-flex h-9 w-12 flex-col items-center justify-center rounded-md ring-1 ring-foreground/15 shadow-sm"
+                          style={{ background: c.solid, color: heavy ? "#FAF7F1" : c.text }}
                         >
-                          <span className="font-mono-num text-xs font-medium leading-none" style={{ color: c.text }}>
+                          <span className="font-mono-num text-xs font-medium leading-none">
                             {s.max_hail_size_in.toFixed(2)}″
                           </span>
                         </span>
@@ -202,20 +231,23 @@ export default function DashboardPage() {
               <ul className="divide-y divide-border/60">
                 {recent.map((s) => {
                   const c = hailColor(s.max_hail_size_in);
+                  const where = nearestMetro(s.centroid_lat, s.centroid_lng);
                   return (
                     <li key={s.id}>
                       <Link
-                        href="/app/map"
+                        href={`/app/map`}
                         className="flex items-center gap-3 py-3 transition-colors hover:bg-secondary/30 -mx-2 px-2 rounded-md"
                       >
                         <IconPin className="h-4 w-4 text-foreground/40" />
                         <span className="flex-1 min-w-0">
-                          <span className="block truncate text-sm font-medium text-foreground">{s.city}</span>
+                          <span className="block truncate text-sm font-medium text-foreground">
+                            {where?.label ?? "United States"}
+                          </span>
                           <span className="block truncate text-xs text-muted-foreground font-mono-num">
                             {timeAgo(s.start_time)}
                           </span>
                         </span>
-                        <span className="font-mono-num text-xs" style={{ color: c.text }}>
+                        <span className="font-mono-num text-xs" style={{ color: c.solid }}>
                           {s.max_hail_size_in.toFixed(2)}″
                         </span>
                       </Link>

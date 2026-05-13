@@ -5,50 +5,43 @@ import Link from "next/link";
 import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 import { StatTicker } from "@/components/marketing/stat-ticker";
 import { ContourBg } from "@/components/brand/contour-bg";
-import { searchAddress } from "@/lib/geocode";
-import { fixturesAtPoint, STORM_FIXTURES, type StormFixture } from "@/lib/storm-fixtures";
+import { useStormsAtAddress } from "@/hooks/useStormsAtAddress";
 import { hailColor } from "@/lib/hail";
-import { synthesize } from "@/lib/storm-narrative";
 import { timeAgo } from "@/lib/time-ago";
 import { IconSearch } from "@/components/icons";
-
-interface ResultState {
-  address: string;
-  lat: number;
-  lng: number;
-  storms: StormFixture[];
-}
+import { METROS } from "@/lib/metros";
+import type { Storm } from "@/lib/api-types";
 
 /**
  * Public claim lookup — homeowners and insurance adjusters can search
  * any address and see if it's been hit by hail. No auth required.
+ *
+ * Phase 16.8 migration: data sourced from /v1/storms/at-point via the
+ * useStormsAtAddress hook (which geocodes the address and queries the
+ * live API). Hook keeps the fixture polygon hit-test as a fallback so
+ * the page works even if the API is empty.
  */
 export default function ClaimLookupPage() {
   const [query, setQuery] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<ResultState | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState<string | undefined>(undefined);
+  const { data, isLoading, error } = useStormsAtAddress(submitted);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
-    setBusy(true);
-    setError(null);
-    setResult(null);
-    try {
-      const r = await searchAddress(query.trim());
-      if (!r) {
-        setError("Could not find that address. Try a city + state, like 'Dallas TX'.");
-        return;
-      }
-      const storms = fixturesAtPoint(r.lng, r.lat);
-      setResult({ address: r.pretty, lat: r.lat, lng: r.lng, storms });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Search failed.");
-    } finally {
-      setBusy(false);
-    }
+    setSubmitted(query.trim());
   };
+
+  // Pick a small handful of well-known hail-belt metros as "try one of
+  // these" prompts so a fresh visitor can see results immediately.
+  const sampleMetros = [
+    "Dallas, TX",
+    "Amarillo, TX",
+    "Oklahoma City, OK",
+    "Wichita, KS",
+    "Denver, CO",
+    "Omaha, NE",
+  ];
 
   return (
     <main className="bg-background text-foreground">
@@ -68,8 +61,8 @@ export default function ClaimLookupPage() {
             </h1>
             <p className="mt-5 text-lg text-muted-foreground">
               Search any U.S. address. We&apos;ll tell you exactly what hail size
-              fell there — pulled from the same NOAA MRMS data your insurance
-              carrier and roofing contractor use.
+              fell there — pulled from the same NOAA MRMS &amp; NEXRAD data your
+              insurance carrier and roofing contractor use.
             </p>
           </div>
 
@@ -82,49 +75,50 @@ export default function ClaimLookupPage() {
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="2840 N Pleasant Ave, Dallas TX"
                 className="flex-1 bg-transparent text-base text-foreground placeholder:text-foreground/45 outline-none"
-                disabled={busy}
+                disabled={isLoading}
               />
               <button
                 type="submit"
-                disabled={busy || !query.trim()}
+                disabled={isLoading || !query.trim()}
                 className="inline-flex items-center gap-1 rounded-full bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:bg-teal-900 disabled:opacity-60"
               >
-                {busy ? "Looking…" : "Look up"}
+                {isLoading ? "Looking…" : "Look up"}
               </button>
             </div>
           </form>
 
           {error && (
             <p className="mx-auto mt-3 max-w-xl text-center text-sm text-destructive">
-              {error}
+              {error.message}
             </p>
           )}
         </div>
       </section>
 
-      {result && (
+      {data && (
         <section className="bg-card border-y border-border">
           <div className="container py-12 md:py-16 max-w-3xl">
             <p className="font-mono-num text-[11px] uppercase tracking-wide-caps text-copper">
               Result
             </p>
             <h2 className="mt-1 font-display text-3xl font-medium tracking-tight-display text-foreground md:text-4xl">
-              {result.address}
+              {data.address}
             </h2>
             <p className="mt-1 text-xs font-mono-num text-foreground/55">
-              {result.lat.toFixed(4)}°N, {Math.abs(result.lng).toFixed(4)}°W
+              {data.lat.toFixed(4)}°N, {Math.abs(data.lng).toFixed(4)}°W
             </p>
 
             <div className="rule-atlas my-8" />
 
-            {result.storms.length === 0 ? (
+            {data.storms.length === 0 ? (
               <div className="rounded-xl border border-border bg-background p-6 text-center">
                 <p className="font-display text-2xl font-medium tracking-tight-display text-foreground">
                   No hail on record at this address.
                 </p>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Within the last 30 days, no MRMS-detected hail events have
-                  touched this point.
+                  In our indexed window, no MRMS- or NEXRAD-detected hail
+                  events touched this exact point. Try a nearby address or
+                  widen your time window.
                 </p>
               </div>
             ) : (
@@ -134,21 +128,23 @@ export default function ClaimLookupPage() {
                     Summary
                   </p>
                   <p className="mt-2 font-display text-2xl font-medium tracking-tight-display text-foreground">
-                    {result.storms.length} hail event{result.storms.length === 1 ? "" : "s"} on record at this address.
+                    {data.storms.length} hail event
+                    {data.storms.length === 1 ? "" : "s"} on record at this address.
                   </p>
                   <p className="mt-2 text-sm text-foreground/85">
                     Peak hail size:{" "}
                     <span className="font-medium text-copper-700">
-                      {Math.max(...result.storms.map((s) => s.max_hail_size_in)).toFixed(2)}″
+                      {Math.max(...data.storms.map((s) => s.max_hail_size_in)).toFixed(2)}″
                     </span>{" "}
-                    ({hailColor(Math.max(...result.storms.map((s) => s.max_hail_size_in))).object}).
-                    This is well within the threshold for filing a hail-damage
-                    insurance claim.
+                    ({hailColor(Math.max(...data.storms.map((s) => s.max_hail_size_in))).object}).
+                    {Math.max(...data.storms.map((s) => s.max_hail_size_in)) >= 1.0 &&
+                      " This is well within the threshold for filing a hail-damage insurance claim."}
                   </p>
                 </div>
 
                 <ul className="space-y-3">
-                  {result.storms
+                  {data.storms
+                    .slice()
                     .sort((a, b) => b.max_hail_size_in - a.max_hail_size_in)
                     .map((s) => (
                       <StormResultCard key={s.id} storm={s} />
@@ -162,14 +158,14 @@ export default function ClaimLookupPage() {
                 <strong className="font-medium">Next steps:</strong> share this
                 page with your roofer or insurance adjuster — they&apos;ll know
                 exactly what to verify on-site. The storm IDs and dates are
-                citable from NOAA&apos;s MRMS feed.
+                citable from NOAA&apos;s MRMS / NEXRAD feeds.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => {
                     if (typeof window !== "undefined") {
-                      const url = `${window.location.origin}/claim?address=${encodeURIComponent(result.address)}`;
+                      const url = `${window.location.origin}/claim?address=${encodeURIComponent(data.address)}`;
                       void navigator.clipboard?.writeText(url);
                     }
                   }}
@@ -189,40 +185,36 @@ export default function ClaimLookupPage() {
         </section>
       )}
 
-      {!result && (
+      {!data && !isLoading && (
         <section className="bg-card border-y border-border">
           <div className="container py-14 max-w-3xl">
             <p className="font-mono-num text-[11px] uppercase tracking-wide-caps text-copper text-center">
               Try one of these
             </p>
             <div className="mt-6 grid gap-3 md:grid-cols-3">
-              {STORM_FIXTURES.slice(0, 6).map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => {
-                    setQuery(s.city);
-                    setBusy(true);
-                    void (async () => {
-                      try {
-                        const r = await searchAddress(s.city);
-                        if (r) {
-                          const hits = fixturesAtPoint(r.lng, r.lat);
-                          setResult({ address: r.pretty, lat: r.lat, lng: r.lng, storms: hits });
-                        }
-                      } finally {
-                        setBusy(false);
-                      }
-                    })();
-                  }}
-                  className="rounded-lg border border-border bg-background p-4 text-left transition-colors hover:border-copper/50"
-                >
-                  <p className="font-medium text-foreground">{s.city}</p>
-                  <p className="mt-1 text-xs text-muted-foreground font-mono-num">
-                    {s.max_hail_size_in.toFixed(2)}″ · {timeAgo(s.start_time)}
-                  </p>
-                </button>
-              ))}
+              {sampleMetros.map((m) => {
+                const metro = METROS.find(
+                  (x) => `${x.name}, ${x.state}` === m,
+                );
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => {
+                      setQuery(m);
+                      setSubmitted(m);
+                    }}
+                    className="rounded-lg border border-border bg-background p-4 text-left transition-colors hover:border-copper/50"
+                  >
+                    <p className="font-medium text-foreground">{m}</p>
+                    {metro && (
+                      <p className="mt-1 text-xs text-muted-foreground font-mono-num">
+                        {metro.lat.toFixed(2)}°N, {Math.abs(metro.lng).toFixed(2)}°W
+                      </p>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </section>
@@ -234,30 +226,42 @@ export default function ClaimLookupPage() {
   );
 }
 
-function StormResultCard({ storm }: { storm: StormFixture }) {
+function StormResultCard({ storm }: { storm: Storm }) {
   const c = hailColor(storm.max_hail_size_in);
-  const n = synthesize(storm);
+  const heavy = storm.max_hail_size_in >= 1.5;
+  const badgeText = heavy ? "#FAF7F1" : c.text;
+  const peak = storm.max_hail_size_in;
   return (
     <li className="rounded-xl border border-border bg-background p-5 flex items-start gap-4">
       <span
-        className="inline-flex h-14 w-16 shrink-0 flex-col items-center justify-center rounded-md border"
-        style={{ background: c.bg, borderColor: c.border }}
+        className="inline-flex h-14 w-16 shrink-0 flex-col items-center justify-center rounded-md ring-1 ring-foreground/15 shadow-sm"
+        style={{ background: c.solid, color: badgeText }}
       >
-        <span className="font-mono-num text-base font-medium leading-none" style={{ color: c.text }}>
-          {storm.max_hail_size_in.toFixed(2)}″
+        <span className="font-mono-num text-base font-medium leading-none">
+          {peak.toFixed(2)}″
         </span>
-        <span className="text-[9px] uppercase tracking-wide-caps font-mono leading-none mt-1" style={{ color: c.text, opacity: 0.75 }}>
+        <span className="text-[9px] uppercase tracking-wide-caps font-mono leading-none mt-1 opacity-90">
           {c.object}
         </span>
       </span>
       <div className="flex-1 min-w-0">
         <p className="font-display text-lg font-medium tracking-tight-display text-foreground">
-          {storm.city}
+          {new Date(storm.start_time).toLocaleDateString(undefined, {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          })}
         </p>
         <p className="mt-1 text-xs font-mono-num text-foreground/55">
-          {timeAgo(storm.start_time)} · storm id {storm.id.slice(-8)}
+          {timeAgo(storm.start_time)} · {storm.source} · id {storm.id.slice(-8)}
         </p>
-        <p className="mt-2 text-sm text-foreground/85 leading-relaxed line-clamp-2">{n.body}</p>
+        <p className="mt-2 text-sm text-foreground/85 leading-relaxed">
+          {peak >= 2.0
+            ? `Damaging ${c.object.toLowerCase()}-size hail (${peak.toFixed(2)}″) confirmed at this point.`
+            : peak >= 1.0
+              ? `${peak.toFixed(2)}″ hail at this point — claim-eligible damage likely on standard roofing materials.`
+              : `${peak.toFixed(2)}″ hail at this point. Minor surface impact possible.`}
+        </p>
         <Link
           href={`/storm/${storm.id}`}
           className="mt-2 inline-flex items-center gap-1 text-xs font-mono uppercase tracking-wide-caps text-copper hover:text-copper-700"
@@ -291,4 +295,3 @@ function FinalCta() {
     </section>
   );
 }
-
