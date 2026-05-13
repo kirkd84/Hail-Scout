@@ -282,9 +282,10 @@ export default function DashboardPage() {
           </Card>
         </section>
 
-        {/* Biggest this week — top peak-size cells */}
-        <section>
+        {/* Two side-by-side leaderboards */}
+        <section className="grid gap-6 md:grid-cols-2">
           <BiggestThisWeek />
+          <TopHailStates />
         </section>
 
         {/* Follow-ups due — CRM widget */}
@@ -551,6 +552,101 @@ function BiggestThisWeek() {
           );
         })}
       </ol>
+    </Card>
+  );
+}
+
+/**
+ * "Top hail states · past 30 days" tile.
+ *
+ * Pulls 200 most recent storms over CONUS, groups by nearest-metro
+ * state, counts cells per state, shows the top 5. Severity bar
+ * inside each row weights by peak hail size so a state with a
+ * single 3.0"+ cell stands out from a state with 20 light-hail
+ * cells.
+ */
+function TopHailStates() {
+  const from = (() => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - 30);
+    return d.toISOString().slice(0, 10);
+  })();
+  const to = (() => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10);
+  })();
+  const { storms } = useStorms({
+    bbox: [-125, 24, -66, 50],
+    from,
+    to,
+    limit: 200,
+    fallbackToFixtures: true,
+  });
+
+  // Group + aggregate
+  const byState = new Map<string, { count: number; peak: number }>();
+  for (const s of storms) {
+    const where = nearestMetro(s.centroid_lat, s.centroid_lng);
+    if (!where) continue;
+    const key = where.metro.state;
+    const cur = byState.get(key) ?? { count: 0, peak: 0 };
+    cur.count += 1;
+    cur.peak = Math.max(cur.peak, s.max_hail_size_in);
+    byState.set(key, cur);
+  }
+  const top = [...byState.entries()]
+    .map(([state, v]) => ({ state, ...v }))
+    .sort((a, b) => b.count - a.count || b.peak - a.peak)
+    .slice(0, 5);
+
+  const maxCount = top[0]?.count ?? 1;
+
+  if (top.length === 0) {
+    return (
+      <Card title="Top hail states · past 30 days" eyebrow="Hot zones">
+        <p className="text-sm text-muted-foreground py-3">
+          No cells yet in this window. As the pipeline ingests more
+          data, the most active states will show here.
+        </p>
+      </Card>
+    );
+  }
+
+  return (
+    <Card title="Top hail states · past 30 days" eyebrow="Hot zones">
+      <ul className="space-y-3">
+        {top.map((row, i) => {
+          const c = hailColor(row.peak);
+          const pct = Math.max(8, Math.round((row.count / maxCount) * 100));
+          return (
+            <li key={row.state}>
+              <div className="flex items-baseline justify-between mb-1.5">
+                <span className="flex items-baseline gap-2">
+                  <span className="font-mono-num text-xs text-foreground/45 w-5">
+                    {i + 1}
+                  </span>
+                  <span className="font-display text-base font-medium text-foreground">
+                    {row.state}
+                  </span>
+                  <span className="font-mono-num text-[10px] uppercase tracking-wide-caps text-foreground/45">
+                    peak {row.peak.toFixed(2)}″ · {c.object}
+                  </span>
+                </span>
+                <span className="font-mono-num text-sm font-medium text-foreground">
+                  {row.count}
+                </span>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-foreground/5 overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{ width: `${pct}%`, background: c.solid, opacity: 0.85 }}
+                />
+              </div>
+            </li>
+          );
+        })}
+      </ul>
     </Card>
   );
 }
