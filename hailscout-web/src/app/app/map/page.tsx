@@ -7,6 +7,7 @@ import type { HailAtAddressResponse, Storm } from "@/lib/api-types";
 import { HailMap } from "@/components/map/HailMap";
 import { BasemapToggle, type BasemapId } from "@/components/map/basemap-toggle";
 import { StormsLayer } from "@/components/map/storms-layer";
+import { StormsHeatmapLayer } from "@/components/map/storms-heatmap-layer";
 import { NexradStationsLayer } from "@/components/map/nexrad-stations-layer";
 import { TimeScrubber } from "@/components/map/time-scrubber";
 import { useStorms } from "@/hooks/useStorms";
@@ -51,6 +52,11 @@ export default function MapPage() {
   const [size, setSize] = useState<SizeFilter>("any");
   const [source, setSource] = useState<SourceFilter>("all");
   const [scrubberMs, setScrubberMs] = useState<number | null>(null);
+  // View mode: "cells" (per-cell polygons + centroids) or "heatmap"
+  // (density overlay). Visual A/B for showing the same data set in
+  // different ways. Heatmap is more compelling at low zoom; cells
+  // are more useful zoomed in.
+  const [viewMode, setViewMode] = useState<"cells" | "heatmap">("cells");
   // NEXRAD stations overlay — show by default when "NEXRAD" or "all"
   // is selected, hide for "MRMS only" to reduce visual noise.
   const showNexradStations = source !== "MRMS";
@@ -201,6 +207,7 @@ export default function MapPage() {
       <StormsLayer
         map={map}
         storms={storms}
+        visible={viewMode === "cells"}
         startTimeMin={dateFilterToCutoff(date)}
         minSizeIn={sizeFilterToMin(size)}
         startTimeMax={scrubberMs}
@@ -211,6 +218,11 @@ export default function MapPage() {
             setShowStormDetail(true);
           }
         }}
+      />
+      <StormsHeatmapLayer
+        map={map}
+        storms={storms}
+        visible={viewMode === "heatmap"}
       />
       <NexradStationsLayer map={map} visible={showNexradStations} />
       <MarkersLayer
@@ -259,7 +271,10 @@ export default function MapPage() {
         <TimeScrubber cursorMs={scrubberMs} onCursorChange={setScrubberMs} />
       </div>
       <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex justify-center px-4">
-        <BasemapToggle value={basemap} onChange={setBasemap} />
+        <div className="pointer-events-auto flex items-center gap-2">
+          <BasemapToggle value={basemap} onChange={setBasemap} />
+          <ViewModeToggle value={viewMode} onChange={setViewMode} />
+        </div>
       </div>
 
       <Sheet open={showResults} onOpenChange={setShowResults}>
@@ -341,6 +356,48 @@ export default function MapPage() {
       />
 
       <WelcomeTour />
+    </div>
+  );
+}
+
+/**
+ * Compact pill toggle between the per-cell view and the density
+ * heatmap. Sits next to the BasemapToggle in the bottom-center of
+ * the map. Same glass pill styling as the rest of the map controls.
+ */
+function ViewModeToggle({
+  value,
+  onChange,
+}: {
+  value: "cells" | "heatmap";
+  onChange: (next: "cells" | "heatmap") => void;
+}) {
+  return (
+    <div className="glass inline-flex items-center rounded-full p-1 shadow-panel text-xs">
+      <button
+        type="button"
+        onClick={() => onChange("cells")}
+        className={
+          "px-3 py-1 rounded-full transition-colors " +
+          (value === "cells"
+            ? "bg-primary text-primary-foreground"
+            : "text-foreground/70 hover:text-foreground")
+        }
+      >
+        Cells
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange("heatmap")}
+        className={
+          "px-3 py-1 rounded-full transition-colors " +
+          (value === "heatmap"
+            ? "bg-primary text-primary-foreground"
+            : "text-foreground/70 hover:text-foreground")
+        }
+      >
+        Heatmap
+      </button>
     </div>
   );
 }
