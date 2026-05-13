@@ -268,7 +268,12 @@ export default function MapPage() {
       <SweepTool map={map} />
 
       <div className="pointer-events-none absolute inset-x-0 bottom-20 z-20 flex justify-center px-4">
-        <TimeScrubber cursorMs={scrubberMs} onCursorChange={setScrubberMs} />
+        <TimeScrubber
+          rangeStart={fromDate}
+          rangeEnd={toDate}
+          cursorMs={scrubberMs}
+          onCursorChange={setScrubberMs}
+        />
       </div>
       <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex justify-center px-4">
         <div className="pointer-events-auto flex items-center gap-2">
