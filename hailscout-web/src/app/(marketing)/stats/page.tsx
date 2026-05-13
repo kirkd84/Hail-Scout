@@ -10,6 +10,7 @@ import { hailColor } from "@/lib/hail";
 import { nearestMetro } from "@/lib/metros";
 import { useStorms } from "@/hooks/useStorms";
 import { ActivityTimeline } from "@/components/marketing/activity-timeline";
+import { ActivityCalendar } from "@/components/marketing/activity-calendar";
 
 interface StatsResponse {
   total_cells: number;
@@ -157,15 +158,22 @@ export default function StatsPage() {
         </div>
       </section>
 
-      {/* Activity timeline */}
+      {/* Year-at-a-glance activity calendar */}
       <section className="bg-background">
+        <div className="container py-12">
+          <ActivityCalendar />
+        </div>
+      </section>
+
+      {/* Daily activity bar chart */}
+      <section className="bg-card border-t border-border">
         <div className="container py-12">
           <ActivityTimeline days={60} />
         </div>
       </section>
 
       {/* Top biggest events */}
-      <section className="bg-card border-t border-border">
+      <section className="bg-background border-t border-border">
         <div className="container py-12">
           <p className="font-mono-num text-[11px] uppercase tracking-wide-caps text-copper">
             Hall of hail
