@@ -12,6 +12,7 @@ import { useStorms } from "@/hooks/useStorms";
 import { ActivityTimeline } from "@/components/marketing/activity-timeline";
 import { ActivityCalendar } from "@/components/marketing/activity-calendar";
 import { SizeDistribution } from "@/components/marketing/size-distribution";
+import { TopMetros } from "@/components/marketing/top-metros";
 
 interface StatsResponse {
   total_cells: number;
@@ -174,8 +175,15 @@ export default function StatsPage() {
         </div>
       </section>
 
-      {/* Top biggest events */}
+      {/* Top metros */}
       <section className="bg-background border-t border-border">
+        <div className="container py-12">
+          <TopMetros />
+        </div>
+      </section>
+
+      {/* Top biggest events */}
+      <section className="bg-card border-t border-border">
         <div className="container py-12">
           <p className="font-mono-num text-[11px] uppercase tracking-wide-caps text-copper">
             Hall of hail
