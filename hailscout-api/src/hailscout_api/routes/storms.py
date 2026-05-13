@@ -59,6 +59,18 @@ async def list_storms(
                     "payload reasonable. Higher = smoother + lighter but "
                     "small cells degenerate.",
     ),
+    source: str | None = Query(
+        None,
+        description="Filter by pipeline source: 'MRMS' or 'NEXRAD'. "
+                    "Omit (or pass empty) to return both.",
+    ),
+    min_size: float | None = Query(
+        None,
+        ge=0.0,
+        description="Drop storms with peak hail < this size (inches). "
+                    "Applies at the DB layer, so it tightens the row set "
+                    "before swath join.",
+    ),
     session: AsyncSession = Depends(get_db_session),
 ) -> StormsListResponse:
     """Storms whose bounding box intersects the query envelope."""
@@ -74,10 +86,13 @@ async def list_storms(
     to_dt = _parse_iso_dt(to_date, "to")
 
     includes = {part.strip() for part in (include or "").split(",") if part.strip()}
+    source_filter = source.strip() if source and source.strip() else None
     storms = await query_storms_in_bbox(
         session, min_lon, min_lat, max_lon, max_lat, from_dt, to_dt, limit,
         include_swaths="swaths" in includes,
         swath_simplify_tolerance=simplify,
+        source=source_filter,
+        min_hail_size_in=min_size,
     )
     return StormsListResponse(storms=storms, cursor=None, total=len(storms))
 

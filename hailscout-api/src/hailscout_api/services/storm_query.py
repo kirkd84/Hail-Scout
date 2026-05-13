@@ -39,6 +39,8 @@ async def query_storms_in_bbox(
     limit: int = 50,
     include_swaths: bool = False,
     swath_simplify_tolerance: float = 0.05,
+    source: str | None = None,
+    min_hail_size_in: float | None = None,
 ) -> list[dict[str, Any]]:
     """Storms whose bbox intersects the query envelope, in date range.
 
@@ -51,10 +53,23 @@ async def query_storms_in_bbox(
     so the payload stays sane for CONUS-wide map renders. Tolerance
     0.05 ≈ 5km — fine for zoom 4-6 (state-level), coarse for closer
     inspection. Pass 0 for no simplification.
+
+    Optional server-side filters:
+      source           — "MRMS" | "NEXRAD" (case-sensitive match)
+      min_hail_size_in — drop storms with peak < this value
     """
     envelope = ST_SetSRID(
         ST_MakeEnvelope(min_lon, min_lat, max_lon, max_lat), 4326
     )
+    filters = [
+        Storm.start_time >= from_date,
+        Storm.start_time <= to_date,
+        ST_Intersects(Storm.bbox_geom, envelope),
+    ]
+    if source:
+        filters.append(Storm.source == source)
+    if min_hail_size_in is not None and min_hail_size_in > 0:
+        filters.append(Storm.max_hail_size_in >= min_hail_size_in)
     stmt = (
         select(
             Storm.id,
@@ -65,13 +80,7 @@ async def query_storms_in_bbox(
             ST_AsGeoJSON(Storm.centroid_geom).label("centroid_json"),
             ST_AsGeoJSON(Storm.bbox_geom).label("bbox_json"),
         )
-        .where(
-            and_(
-                Storm.start_time >= from_date,
-                Storm.start_time <= to_date,
-                ST_Intersects(Storm.bbox_geom, envelope),
-            )
-        )
+        .where(and_(*filters))
         .order_by(Storm.start_time.desc())
         .limit(limit)
     )

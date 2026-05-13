@@ -139,6 +139,10 @@ export interface UseStormsArgs {
    *  is true. Defaults to 0.02 (~2km) — preserves cell-level polygon
    *  shape. Use 0 for full precision. */
   swathSimplify?: number;
+  /** Pipeline source filter — "MRMS" or "NEXRAD". Omit to return both. */
+  source?: "MRMS" | "NEXRAD" | null;
+  /** Min peak hail size (inches). Applied at the DB layer. */
+  minSize?: number | null;
 }
 
 /** Storm with optional swath payload (when fetched with includeSwaths). */
@@ -159,6 +163,8 @@ export function useStorms(args: UseStormsArgs) {
     fallbackToFixtures = false,
     includeSwaths = false,
     swathSimplify = 0.02,
+    source = null,
+    minSize = null,
   } = args;
   const fixtureMode = isFixtureMode();
 
@@ -172,6 +178,8 @@ export function useStorms(args: UseStormsArgs) {
     qsParams.include = "swaths";
     qsParams.simplify = String(swathSimplify);
   }
+  if (source) qsParams.source = source;
+  if (minSize != null && minSize > 0) qsParams.min_size = String(minSize);
   const qs = new URLSearchParams(qsParams);
   const swrKey = fixtureMode ? null : `/v1/storms?${qs}`;
   const { data, error, isLoading, mutate } = useSWR<ApiStormsListResponse>(

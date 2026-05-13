@@ -105,7 +105,9 @@ export default function MapPage() {
     return d.toISOString().slice(0, 10);
   }, []);
 
-  const { storms: allStorms } = useStorms({
+  // Source filter goes server-side via /v1/storms?source= so we don't
+  // pull rows just to drop them client-side.
+  const { storms } = useStorms({
     bbox: viewportBbox,
     from: fromDate,
     to: toDate,
@@ -113,15 +115,8 @@ export default function MapPage() {
     includeSwaths: true,
     swathSimplify: 0.02,
     fallbackToFixtures: true,
+    source: source === "all" ? null : source,
   });
-
-  // Source filter is applied client-side; the API doesn't yet accept
-  // ?source= so we pull the full set, filter here. Fast enough at the
-  // 200-storm cap; we'll move to server-side if the cap rises.
-  const storms = useMemo(() => {
-    if (source === "all") return allStorms;
-    return allStorms.filter((s) => s.source === source);
-  }, [allStorms, source]);
 
   // Canvassing markers
   const { markers, add, update, remove } = useMarkers();
