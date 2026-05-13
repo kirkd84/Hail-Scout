@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { useSavedAddresses } from "@/hooks/useSavedAddresses";
 import { searchAddress } from "@/lib/geocode";
+import { apiClient } from "@/lib/api";
 import { fixturesAtPoint, STORM_FIXTURES, type StormFixture } from "@/lib/storm-fixtures";
+import type { Storm } from "@/lib/api-types";
 import { hailColor } from "@/lib/hail";
 import { Wordmark } from "@/components/brand/wordmark";
 import { ContourBg } from "@/components/brand/contour-bg";
@@ -13,6 +15,54 @@ import { IconClose, IconChevronRight, IconAddresses, IconBolt, IconReport, IconU
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "hs.onboarding.v1";
+
+/**
+ * Try the live /v1/storms/at-point endpoint; fall back to the fixture
+ * polygon hit-test if the API is empty / errors. Keeps the onboarding
+ * "look what hit your address" wow moment intact whether or not the
+ * pipeline has data yet.
+ */
+async function getHitsAtPoint(
+  lat: number,
+  lng: number,
+): Promise<StormFixture[]> {
+  try {
+    const qs = new URLSearchParams({ lat: String(lat), lng: String(lng) });
+    const data = await apiClient.get<{
+      hits: Array<{
+        id: string;
+        start_time: string;
+        end_time: string;
+        max_hail_size_in: number;
+        source: string;
+        category_at_point: string;
+      }>;
+    }>(`/v1/storms/at-point?${qs}`);
+    if (data.hits && data.hits.length > 0) {
+      // Adapt API hits to the StormFixture shape the wizard expects.
+      // Centroid/bbox/bands fields aren't returned by at-point; we set
+      // placeholders centered on the queried address. The wizard only
+      // uses max_hail_size_in for its summary, so the placeholders are
+      // OK for display.
+      return data.hits.map<StormFixture>((h) => ({
+        id: h.id,
+        start_time: h.start_time,
+        end_time: h.end_time,
+        max_hail_size_in: h.max_hail_size_in,
+        centroid_lat: lat,
+        centroid_lng: lng,
+        bbox: { min_lat: lat - 0.05, min_lng: lng - 0.05, max_lat: lat + 0.05, max_lng: lng + 0.05 },
+        source: h.source,
+        city: "Your address",
+        bands: [],
+        is_live: false,
+      } as StormFixture));
+    }
+  } catch {
+    // fall through to fixture fallback
+  }
+  return fixturesAtPoint(lng, lat);
+}
 
 type Step = "welcome" | "address" | "storms" | "report" | "team" | "done";
 
@@ -70,7 +120,7 @@ export function OnboardingWizard({ forceOpen }: Props) {
       try {
         const r = await searchAddress("Dallas TX");
         if (r) {
-          const hits = fixturesAtPoint(r.lng, r.lat);
+          const hits = await getHitsAtPoint(r.lat, r.lng);
           await save({
             address: r.pretty,
             lat: r.lat,
