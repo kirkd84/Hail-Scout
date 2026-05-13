@@ -30,9 +30,12 @@ interface Props {
   /** Optional eyebrow label — e.g. "this region · 5 yr". Falls back
    *  to "Recent storms" when omitted. */
   scopeLabel?: string;
+  /** When set, clicking a row also bubbles the storm to the parent
+   *  (which can open a detail sheet). Map fly-to still happens. */
+  onStormClick?: (storm: Storm) => void;
 }
 
-export function StormPicker({ map, storms, limit = 10, scopeLabel }: Props) {
+export function StormPicker({ map, storms, limit = 10, scopeLabel, onStormClick }: Props) {
   const [open, setOpen] = useState(true);
 
   const top = useMemo(() => {
@@ -94,12 +97,14 @@ export function StormPicker({ map, storms, limit = 10, scopeLabel }: Props) {
                 <button
                   type="button"
                   onClick={() => {
-                    if (!map) return;
-                    map.flyTo({
-                      center: [s.centroid_lng, s.centroid_lat],
-                      zoom: 8,
-                      duration: 1100,
-                    });
+                    if (map) {
+                      map.flyTo({
+                        center: [s.centroid_lng, s.centroid_lat],
+                        zoom: 8,
+                        duration: 1100,
+                      });
+                    }
+                    onStormClick?.(s);
                   }}
                   className="w-full px-4 py-3 text-left transition-colors hover:bg-secondary/30 flex items-start gap-3"
                 >

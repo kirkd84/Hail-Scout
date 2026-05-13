@@ -223,6 +223,10 @@ export default function MapPage() {
             ? "this region · 1 yr"
             : "Recent · 30 d"
         }
+        onStormClick={(s) => {
+          setSelectedStorm(s);
+          setShowStormDetail(true);
+        }}
       />
 
       <MapFilters
