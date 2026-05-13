@@ -318,20 +318,76 @@ returns placeholder `[0.0, 0.0]`. Uses `ST_AsGeoJSON` for centroid +
 bbox. New `/v1/storms/at-point?lat=&lng=` for "what hit this address?"
 Real `/v1/storms/{id}` detail endpoint with all swaths.
 
-**16.6 — 16.9 (status):**
-- 16.6 — 12-month backfill (~2-4 hrs runtime). Iowa client URL fix was
-  prerequisite. Ready when Docker + DATABASE_URL are in hand.
-- 16.7 — Schedule live ingestion as a Railway worker (5-min loop).
-  Code is deploy-ready (`railway.json` + Dockerfile). Needs Railway
-  dashboard hand to spin up the service.
-- 16.8 *(in progress)* `0d0df20` — added `useStorms`,
-  `useStormDetail`, `useStormsAtPoint` hooks under
-  `hailscout-web/src/hooks/useStorms.ts`. Additive only — no
-  consumers migrated yet (do that once the pipeline is producing
-  data so the hooks have something to render). Also fixed a stale
-  `(storm, swath)` tuple unpack in the legacy `/v1/hail-at-address`
-  route that would have crashed on first MRMS write.
-- 16.9 — Switch mobile from fixtures to live API. Pending.
+**16.6 — Backfill (multiple runs).** Started with a 6h-cadence 12mo
+backfill that produced 22 days of CONUS-wide rollups; then a 30-day
+1h-cadence re-run with `--reset` after the noise-floor + tier-filter
+fixes (commit `3589129`). Both used the legacy daily-max MESH product,
+producing CONUS-wide blob polygons — replaced by Phase 17.
+
+**16.7 — Railway worker** — pipeline service deployed; `loop --interval
+300` runs continuously. Live `MRMS` ingest confirmed working.
+
+**16.8 — Web fixture migration** — `0d0df20` shipped the hooks
+(`useStorms` / `useStormDetail` / `useStormsAtPoint`). Subsequent
+session (2026-05-12 → 13) migrated every meaningful consumer:
+- `/app/map` (atlas + storm picker, viewport-driven)
+- `/(marketing)/live` (public gallery)
+- `/(marketing)/storm/[id]` (public detail)
+- `/(marketing)/claim` (homeowner lookup via /v1/storms/at-point)
+- `/app` dashboard ("today on the atlas")
+- `/app/compare` (storm A vs B)
+The hooks all fall back to fixtures when the API returns empty so
+preview / pre-data windows stay populated.
+
+**16.9 — Mobile** — HomeScreen migrated via new
+`hailscout-mobile/src/hooks/useStorms.ts`.
+
+**16.10 — Per-cell clustering** `3ae20ae` — `extraction/clustering.py`
+splits per-category CONUS swaths into per-cell bundles via shapely's
+buffer-then-union (no sklearn). `upsert_cell()` matches by spatial
+proximity within the UTC day so per-snapshot cells with the same
+centroid merge into one Storm row.
+
+**16.11 — Atlas polish** — date labels on map centroids, hail picker
+with nearest-metro labels, viewport-driven storm fetch (5y at city
+zoom, 1y at state, 30d at CONUS), ST_SimplifyPreserveTopology +
+ST_Multi to prevent the simplify pass from null'ing single-piece
+polygons.
+
+## Phase 17 — Instantaneous MESH + cell tracking
+
+`f15b21c` — source switched from `MESH_Max_1440min_00.50` (24h
+rolling max — daily snapshots, no motion data) to `MESH_00.50`
+(instantaneous, 2-min cadence). `upsert_cell(track=True)`:
+- swath geometry is `ST_Union`'d with existing on conflict, so
+  consecutive 2-min snapshots of the same cell accumulate into one
+  track-shaped MultiPolygon — the HailTrace-style ribbon.
+- bbox grows via `ST_Envelope(ST_Union(prior, new))` to enclose the
+  whole track.
+
+After 15-day backfill at 10-min cadence: 530+ tracked cells across
+the window, vs 22 with the old daily-rollup approach.
+
+## Phase 18 — NEXRAD Level II ingestion (code complete)
+
+`9754855` — second Railway service. Code:
+- `extraction/nexrad_scit.py`: py-ART parses Level II archive,
+  composite reflectivity → connected components → convex-hull
+  cells projected to WGS84. SCIT cross-volume tracking via greedy
+  centroid NN.
+- `nexrad_main.py`: dedicated CLI (`loop` / `once` / `backfill`)
+  with 33-station CONUS hail-belt subset.
+- `db/upsert.upsert_nexrad_cell()`: match by track_id first, then
+  spatial proximity; cell footprint accumulates via ST_Union.
+- `Dockerfile.nexrad`: separate ~1.5 GB image with HDF5, NetCDF,
+  arm-pyart, scipy.
+- `railway.nexrad.json`: second service config.
+
+**Deployment pending Kirk's Railway dashboard action**:
+1. Create new service from repo, root dir `hailscout-data-pipeline`
+2. Variable: `RAILWAY_DOCKERFILE_PATH=Dockerfile.nexrad`
+3. Variable: `DATABASE_URL` (reference shared Postgres)
+4. Custom start command: `python -m hailscout_pipeline.nexrad_main loop --interval-seconds 600`
 
 ---
 
