@@ -9,6 +9,7 @@ import { ContourBg } from "@/components/brand/contour-bg";
 import { hailColor } from "@/lib/hail";
 import { nearestMetro } from "@/lib/metros";
 import { useStorms } from "@/hooks/useStorms";
+import { ActivityTimeline } from "@/components/marketing/activity-timeline";
 
 interface StatsResponse {
   total_cells: number;
@@ -156,8 +157,15 @@ export default function StatsPage() {
         </div>
       </section>
 
-      {/* Top biggest events */}
+      {/* Activity timeline */}
       <section className="bg-background">
+        <div className="container py-12">
+          <ActivityTimeline days={60} />
+        </div>
+      </section>
+
+      {/* Top biggest events */}
+      <section className="bg-card border-t border-border">
         <div className="container py-12">
           <p className="font-mono-num text-[11px] uppercase tracking-wide-caps text-copper">
             Hall of hail
