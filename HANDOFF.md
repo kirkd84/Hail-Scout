@@ -1,12 +1,11 @@
-# HailScout — Claude Code Handoff (updated 2026-05-07)
+# HailScout — Claude Code Handoff (updated 2026-05-13)
 
-You're picking up an in-flight build of HailScout, a multi-tenant SaaS hail
-intelligence platform for roofing contractors. Most of the app is shipped
-and live. The current focus is **getting real NOAA MRMS hail data flowing
-into the production database** — replacing fixture data everywhere.
+Hail intelligence platform for roofing contractors. Multi-tenant SaaS.
+Most of Phase 16 / 17 / 18 has shipped — see "Current state" below
+for what's live and what's pending.
 
-**Read this whole file before touching code.** Then run the steps in the
-"How to pick up" section.
+**Read this whole file before touching code.** The
+[`STATUS.md`](./STATUS.md) has the full per-phase commit log.
 
 ---
 
@@ -19,7 +18,42 @@ into the production database** — replacing fixture data everywhere.
 - Auth: Clerk (https://dashboard.clerk.com)
 - Tiles: MapTiler
 - Repo: https://github.com/kirkd84/Hail-Scout
-- Latest commit on `main`: `ff357e6` (or newer)
+- Working folder: `C:\Users\kirkd\Claude Working Folder\Hail-Scout`
+- Latest commit on `main`: `66d3457` (or newer)
+
+## Current state (as of 2026-05-13)
+
+**Live + tracking, cell-level**
+- MRMS pipeline (Railway service `hailscout-pipeline`): instantaneous
+  `MESH_00.50` product, 2-min cadence, cells unioned across snapshots
+  into track-shaped Storms via `upsert_cell(track=True)`.
+- Every web surface backed by live API: `/app/map`, `/(marketing)/live`,
+  `/(marketing)/storm/[id]`, `/(marketing)/claim`, `/app` dashboard,
+  `/app/compare`. Mobile HomeScreen too.
+
+**Backfill IN PROGRESS (started 2026-05-13)**
+- Pipeline service running 12-month backfill: 2025-05-13 → 2026-05-13
+  at 1h cadence with `--reset`. ~8,760 timestamps, ETA ~12-24 hrs.
+- railway.json points at the backfill command. Reverts to `loop` only
+  after the next push. Expected completion: 2026-05-14 sometime
+  during the day.
+- After completion, push the revert (railway.json startCommand →
+  `python -m hailscout_pipeline loop --interval-seconds 300`,
+  restartPolicy → `ON_FAILURE` / max 5). Auto-revert poll is
+  monitoring the API for `latest_date` reaching 2026-05-13.
+
+**Phase 18 NEXRAD — code complete, deployment pending**
+- See `hailscout-data-pipeline/Dockerfile.nexrad`,
+  `nexrad_main.py`, `extraction/nexrad_scit.py`,
+  `db/upsert.upsert_nexrad_cell`.
+- Kirk needs to create a second Railway service:
+  - Root dir: `hailscout-data-pipeline`
+  - Variable `RAILWAY_DOCKERFILE_PATH = Dockerfile.nexrad`
+  - Variable `DATABASE_URL` (reference shared Postgres)
+  - Custom start command: `python -m hailscout_pipeline.nexrad_main loop --interval-seconds 600`
+- Once live, NEXRAD cells write to the same `storms` + `hail_swaths`
+  tables with `source="NEXRAD"`. The `/app/map` Filter panel already
+  has a source toggle (All / MRMS / NEXRAD).
 
 **What's already done (96 phases):**
 The app has marketing site (landing, pricing, FAQ, case studies, live storms,

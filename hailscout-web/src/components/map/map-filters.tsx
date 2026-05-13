@@ -6,6 +6,7 @@ import { IconChevronRight } from "@/components/icons";
 
 export type DateFilter = "24h" | "7d" | "30d" | "all";
 export type SizeFilter = "any" | "1.0" | "1.75" | "2.5";
+export type SourceFilter = "all" | "MRMS" | "NEXRAD";
 
 const DATE_OPTIONS: { id: DateFilter; label: string; days: number | null }[] = [
   { id: "24h", label: "24 hr",  days: 1 },
@@ -21,6 +22,12 @@ const SIZE_OPTIONS: { id: SizeFilter; label: string; min: number }[] = [
   { id: "2.5",  label: "≥ 2.5″",   min: 2.5  },
 ];
 
+const SOURCE_OPTIONS: { id: SourceFilter; label: string }[] = [
+  { id: "all",    label: "All sources" },
+  { id: "MRMS",   label: "MRMS (1 km)" },
+  { id: "NEXRAD", label: "NEXRAD (150 m)" },
+];
+
 export function dateFilterToCutoff(f: DateFilter): number | null {
   const opt = DATE_OPTIONS.find((o) => o.id === f);
   if (!opt || opt.days === null) return null;
@@ -34,16 +41,19 @@ export function sizeFilterToMin(f: SizeFilter): number {
 interface Props {
   date: DateFilter;
   size: SizeFilter;
+  source: SourceFilter;
   onDateChange: (next: DateFilter) => void;
   onSizeChange: (next: SizeFilter) => void;
+  onSourceChange: (next: SourceFilter) => void;
 }
 
-export function MapFilters({ date, size, onDateChange, onSizeChange }: Props) {
+export function MapFilters({ date, size, source, onDateChange, onSizeChange, onSourceChange }: Props) {
   const [open, setOpen] = useState(false);
 
   const activeDate = DATE_OPTIONS.find((o) => o.id === date)!;
   const activeSize = SIZE_OPTIONS.find((o) => o.id === size)!;
-  const filtersActive = date !== "all" || size !== "any";
+  const activeSource = SOURCE_OPTIONS.find((o) => o.id === source)!;
+  const filtersActive = date !== "all" || size !== "any" || source !== "all";
 
   return (
     <div className="pointer-events-auto absolute top-24 left-4 z-20">
@@ -62,8 +72,9 @@ export function MapFilters({ date, size, onDateChange, onSizeChange }: Props) {
         <span className="text-xs font-medium text-foreground/85">Filter</span>
         {filtersActive && (
           <span className="font-mono text-[10px] uppercase tracking-wide-caps text-copper">
-            {activeDate.id !== "all" ? activeDate.id : ""}{" "}
-            {activeSize.id !== "any" ? `· ${activeSize.label.replace("≥ ", "")}` : ""}
+            {activeDate.id !== "all" ? activeDate.id : ""}
+            {activeSize.id !== "any" ? ` · ${activeSize.label.replace("≥ ", "")}` : ""}
+            {activeSource.id !== "all" ? ` · ${activeSource.id}` : ""}
           </span>
         )}
         <IconChevronRight
@@ -122,12 +133,36 @@ export function MapFilters({ date, size, onDateChange, onSizeChange }: Props) {
             </div>
           </div>
 
+          <div>
+            <p className="mb-1.5 text-[10px] font-mono uppercase tracking-wide-caps text-copper">
+              Data source
+            </p>
+            <div className="grid grid-cols-1 gap-1">
+              {SOURCE_OPTIONS.map((o) => (
+                <button
+                  key={o.id}
+                  type="button"
+                  onClick={() => onSourceChange(o.id)}
+                  className={cn(
+                    "rounded-md px-3 py-1.5 text-xs font-medium transition-colors text-left",
+                    source === o.id
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground/75 hover:bg-foreground/5",
+                  )}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {filtersActive && (
             <button
               type="button"
               onClick={() => {
                 onDateChange("all");
                 onSizeChange("any");
+                onSourceChange("all");
               }}
               className="w-full text-center text-[11px] font-mono uppercase tracking-wide-caps text-copper hover:text-copper-700 pt-2 border-t border-border"
             >

@@ -16,6 +16,7 @@ import {
   sizeFilterToMin,
   type DateFilter,
   type SizeFilter,
+  type SourceFilter,
 } from "@/components/map/map-filters";
 import { SwathLegend } from "@/components/map/swath-legend";
 import { MarkersLayer } from "@/components/map/markers-layer";
@@ -47,6 +48,7 @@ export default function MapPage() {
   const [basemap, setBasemap] = useState<BasemapId>("atlas");
   const [date, setDate] = useState<DateFilter>("all");
   const [size, setSize] = useState<SizeFilter>("any");
+  const [source, setSource] = useState<SourceFilter>("all");
   const [scrubberMs, setScrubberMs] = useState<number | null>(null);
 
   const [searchResults, setSearchResults] = useState<HailAtAddressResponse | null>(null);
@@ -103,7 +105,7 @@ export default function MapPage() {
     return d.toISOString().slice(0, 10);
   }, []);
 
-  const { storms } = useStorms({
+  const { storms: allStorms } = useStorms({
     bbox: viewportBbox,
     from: fromDate,
     to: toDate,
@@ -112,6 +114,14 @@ export default function MapPage() {
     swathSimplify: 0.02,
     fallbackToFixtures: true,
   });
+
+  // Source filter is applied client-side; the API doesn't yet accept
+  // ?source= so we pull the full set, filter here. Fast enough at the
+  // 200-storm cap; we'll move to server-side if the cap rises.
+  const storms = useMemo(() => {
+    if (source === "all") return allStorms;
+    return allStorms.filter((s) => s.source === source);
+  }, [allStorms, source]);
 
   // Canvassing markers
   const { markers, add, update, remove } = useMarkers();
@@ -215,7 +225,14 @@ export default function MapPage() {
         }
       />
 
-      <MapFilters date={date} size={size} onDateChange={setDate} onSizeChange={setSize} />
+      <MapFilters
+        date={date}
+        size={size}
+        source={source}
+        onDateChange={setDate}
+        onSizeChange={setSize}
+        onSourceChange={setSource}
+      />
       <SwathLegend />
 
       <DropModeToggle
