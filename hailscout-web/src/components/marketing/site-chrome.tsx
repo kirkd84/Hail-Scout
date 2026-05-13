@@ -16,6 +16,7 @@ export function SiteHeader() {
           <Link href="/#how"          className="text-sm text-muted-foreground hover:text-foreground transition-colors">How it works</Link>
           <Link href="/#faq"          className="text-sm text-muted-foreground hover:text-foreground transition-colors">FAQ</Link>
           <Link href="/live"          className="text-sm text-muted-foreground hover:text-foreground transition-colors">Live storms</Link>
+          <Link href="/storms"        className="text-sm text-muted-foreground hover:text-foreground transition-colors">Storm catalog</Link>
           <Link href="/claim"         className="text-sm text-muted-foreground hover:text-foreground transition-colors">Claim lookup</Link>
           <Link href="/case-studies"  className="text-sm text-muted-foreground hover:text-foreground transition-colors">Customers</Link>
           <Link href="/pricing"       className="text-sm text-muted-foreground hover:text-foreground transition-colors">Pricing</Link>
@@ -48,6 +49,7 @@ export function SiteFooter() {
           <Wordmark size="sm" />
           <nav className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
             <Link href="/live" className="hover:text-foreground">Live storms</Link>
+            <Link href="/storms" className="hover:text-foreground">Storm catalog</Link>
             <Link href="/pricing" className="hover:text-foreground">Pricing</Link>
             <Link href="/case-studies" className="hover:text-foreground">Customers</Link>
             <Link href="/compare" className="hover:text-foreground">Compare</Link>
