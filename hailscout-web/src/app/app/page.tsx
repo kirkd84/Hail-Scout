@@ -282,6 +282,11 @@ export default function DashboardPage() {
           </Card>
         </section>
 
+        {/* Biggest this week — top peak-size cells */}
+        <section>
+          <BiggestThisWeek />
+        </section>
+
         {/* Follow-ups due — CRM widget */}
         <section>
           <FollowUpsWidget />
@@ -468,5 +473,84 @@ function NotificationsPermissionBar() {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * "Biggest this week" leaderboard tile — top 5 storms by peak hail
+ * size over the last 7 days, ordered DESC. Uses the new
+ * /v1/storms?order=peak server-side sort so we don't pull a long
+ * recent list just to sort client-side.
+ */
+function BiggestThisWeek() {
+  const from = (() => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - 7);
+    return d.toISOString().slice(0, 10);
+  })();
+  const to = (() => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10);
+  })();
+  const { storms } = useStorms({
+    bbox: [-125, 24, -66, 50],
+    from,
+    to,
+    limit: 5,
+    order: "peak",
+    fallbackToFixtures: true,
+  });
+
+  if (storms.length === 0) {
+    return (
+      <Card title="Biggest hail · past 7 days" eyebrow="Leaderboard">
+        <p className="text-sm text-muted-foreground py-3">
+          No cells indexed in the last week. Once the live pipeline
+          ingests a storm, the top 5 show up here.
+        </p>
+      </Card>
+    );
+  }
+
+  return (
+    <Card title="Biggest hail · past 7 days" eyebrow="Leaderboard">
+      <ol className="divide-y divide-border/60">
+        {storms.map((s, i) => {
+          const c = hailColor(s.max_hail_size_in);
+          const where = nearestMetro(s.centroid_lat, s.centroid_lng);
+          const heavy = s.max_hail_size_in >= 1.5;
+          return (
+            <li key={s.id}>
+              <Link
+                href={`/storm/${s.id}`}
+                className="flex items-center gap-3 py-3 transition-colors hover:bg-secondary/30 -mx-2 px-2 rounded-md"
+              >
+                <span className="font-mono-num font-medium text-sm w-5 text-foreground/45">
+                  {i + 1}
+                </span>
+                <span
+                  className="inline-flex h-9 w-12 flex-col items-center justify-center rounded-md ring-1 ring-foreground/15 shadow-sm"
+                  style={{ background: c.solid, color: heavy ? "#FAF7F1" : c.text }}
+                >
+                  <span className="font-mono-num text-xs font-medium leading-none">
+                    {s.max_hail_size_in.toFixed(2)}″
+                  </span>
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block truncate text-sm font-medium text-foreground">
+                    {where?.label ?? "United States"}
+                  </span>
+                  <span className="block truncate text-xs text-muted-foreground font-mono-num">
+                    {timeAgo(s.start_time)} · {c.object} · {s.source}
+                  </span>
+                </span>
+                <IconChevronRight className="h-4 w-4 text-foreground/30" />
+              </Link>
+            </li>
+          );
+        })}
+      </ol>
+    </Card>
   );
 }

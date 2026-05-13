@@ -71,6 +71,11 @@ async def list_storms(
                     "Applies at the DB layer, so it tightens the row set "
                     "before swath join.",
     ),
+    order: str = Query(
+        "recent",
+        description="Sort order: 'recent' (start_time DESC, default) or "
+                    "'peak' (max_hail_size_in DESC) for a top-events feed.",
+    ),
     session: AsyncSession = Depends(get_db_session),
 ) -> StormsListResponse:
     """Storms whose bounding box intersects the query envelope."""
@@ -93,6 +98,7 @@ async def list_storms(
         swath_simplify_tolerance=simplify,
         source=source_filter,
         min_hail_size_in=min_size,
+        order=order,
     )
     return StormsListResponse(storms=storms, cursor=None, total=len(storms))
 

@@ -143,6 +143,9 @@ export interface UseStormsArgs {
   source?: "MRMS" | "NEXRAD" | null;
   /** Min peak hail size (inches). Applied at the DB layer. */
   minSize?: number | null;
+  /** Sort order. "recent" (default) sorts by start_time DESC; "peak"
+   *  sorts by max_hail_size_in DESC — for leaderboards. */
+  order?: "recent" | "peak";
 }
 
 /** Storm with optional swath payload (when fetched with includeSwaths). */
@@ -165,6 +168,7 @@ export function useStorms(args: UseStormsArgs) {
     swathSimplify = 0.02,
     source = null,
     minSize = null,
+    order,
   } = args;
   const fixtureMode = isFixtureMode();
 
@@ -180,6 +184,7 @@ export function useStorms(args: UseStormsArgs) {
   }
   if (source) qsParams.source = source;
   if (minSize != null && minSize > 0) qsParams.min_size = String(minSize);
+  if (order) qsParams.order = order;
   const qs = new URLSearchParams(qsParams);
   const swrKey = fixtureMode ? null : `/v1/storms?${qs}`;
   const { data, error, isLoading, mutate } = useSWR<ApiStormsListResponse>(

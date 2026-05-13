@@ -41,6 +41,7 @@ async def query_storms_in_bbox(
     swath_simplify_tolerance: float = 0.05,
     source: str | None = None,
     min_hail_size_in: float | None = None,
+    order: str = "recent",
 ) -> list[dict[str, Any]]:
     """Storms whose bbox intersects the query envelope, in date range.
 
@@ -70,6 +71,14 @@ async def query_storms_in_bbox(
         filters.append(Storm.source == source)
     if min_hail_size_in is not None and min_hail_size_in > 0:
         filters.append(Storm.max_hail_size_in >= min_hail_size_in)
+
+    # Sort: "recent" (default) = by start_time DESC; "peak" = by
+    # max_hail_size_in DESC for "biggest events" leaderboards.
+    if order == "peak":
+        order_clause = Storm.max_hail_size_in.desc()
+    else:
+        order_clause = Storm.start_time.desc()
+
     stmt = (
         select(
             Storm.id,
@@ -81,7 +90,7 @@ async def query_storms_in_bbox(
             ST_AsGeoJSON(Storm.bbox_geom).label("bbox_json"),
         )
         .where(and_(*filters))
-        .order_by(Storm.start_time.desc())
+        .order_by(order_clause)
         .limit(limit)
     )
     rows = (await session.execute(stmt)).all()

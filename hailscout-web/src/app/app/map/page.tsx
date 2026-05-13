@@ -7,6 +7,7 @@ import type { HailAtAddressResponse, Storm } from "@/lib/api-types";
 import { HailMap } from "@/components/map/HailMap";
 import { BasemapToggle, type BasemapId } from "@/components/map/basemap-toggle";
 import { StormsLayer } from "@/components/map/storms-layer";
+import { NexradStationsLayer } from "@/components/map/nexrad-stations-layer";
 import { TimeScrubber } from "@/components/map/time-scrubber";
 import { useStorms } from "@/hooks/useStorms";
 import { StormPicker } from "@/components/app/storm-picker";
@@ -50,6 +51,9 @@ export default function MapPage() {
   const [size, setSize] = useState<SizeFilter>("any");
   const [source, setSource] = useState<SourceFilter>("all");
   const [scrubberMs, setScrubberMs] = useState<number | null>(null);
+  // NEXRAD stations overlay — show by default when "NEXRAD" or "all"
+  // is selected, hide for "MRMS only" to reduce visual noise.
+  const showNexradStations = source !== "MRMS";
 
   const [searchResults, setSearchResults] = useState<HailAtAddressResponse | null>(null);
   const [showResults, setShowResults] = useState(false);
@@ -201,6 +205,7 @@ export default function MapPage() {
         minSizeIn={sizeFilterToMin(size)}
         startTimeMax={scrubberMs}
       />
+      <NexradStationsLayer map={map} visible={showNexradStations} />
       <MarkersLayer
         map={map}
         markers={markers}
