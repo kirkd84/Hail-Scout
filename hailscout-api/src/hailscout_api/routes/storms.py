@@ -14,9 +14,11 @@ from hailscout_api.schemas.storm import (
     StormDetailResponse,
     StormReplayResponse,
     StormsListResponse,
+    StormsStatsResponse,
 )
 from hailscout_api.services.storm_query import (
     get_storm_with_swaths,
+    get_storms_stats,
     query_hail_at_point,
     query_storms_in_bbox,
 )
@@ -123,6 +125,21 @@ async def storms_at_point(
     return HailAtPointListResponse(
         lat=lat, lng=lng, hits=hits, total=len(hits)
     )
+
+
+@router.get("/storms/stats", response_model=StormsStatsResponse)
+async def storms_stats(
+    session: AsyncSession = Depends(get_db_session),
+) -> StormsStatsResponse:
+    """Aggregate counts over the whole `storms` table.
+
+    Cheap rollup — single SELECT with conditional COUNTs. Used by the
+    public /stats page + dashboard widgets that want totals beyond the
+    200-row /v1/storms cap. Registered BEFORE /storms/{storm_id} so the
+    literal "stats" path doesn't get treated as a storm_id.
+    """
+    data = await get_storms_stats(session)
+    return StormsStatsResponse(**data)
 
 
 @router.get("/storms/{storm_id}", response_model=StormDetailResponse)

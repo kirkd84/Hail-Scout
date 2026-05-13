@@ -92,6 +92,20 @@ class StormReplayResponse(BaseModel):
     frames: list[NexradFrameResponse] = Field(default_factory=list)
 
 
+# ---- Public stats rollup (Phase 17.11) ----
+
+class StormsStatsResponse(BaseModel):
+    """Aggregate counts for the /v1/storms/stats endpoint."""
+    total_cells: int
+    cells_last_24h: int
+    cells_last_7d: int
+    cells_last_30d: int
+    peak_hail_in: float
+    earliest: datetime | None = None
+    latest: datetime | None = None
+    sources: dict[str, int] = Field(default_factory=dict)
+
+
 # Resolve the forward reference on StormResponse.swaths so Pydantic v2
 # can validate the field. `from __future__ import annotations` makes
 # every annotation a string, so we need an explicit rebuild here.

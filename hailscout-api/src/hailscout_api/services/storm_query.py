@@ -277,6 +277,62 @@ async def query_hail_at_point(
     return out
 
 
+async def get_storms_stats(session: AsyncSession) -> dict[str, Any]:
+    """Aggregate counters for the public /v1/storms/stats endpoint.
+
+    Cheap rollup over the whole `storms` table. Returns:
+        total_cells          — every Storm row in the DB
+        cells_last_24h       — Storm rows with start_time >= now - 24h
+        cells_last_7d
+        cells_last_30d
+        peak_hail_in         — max(max_hail_size_in)
+        sources              — {"MRMS": N, "NEXRAD": N, ...}
+        earliest             — min(start_time)
+        latest               — max(start_time)
+    """
+    # Counts per recent window — single roundtrip via CASE WHEN
+    from datetime import timedelta, timezone
+
+    now = datetime.now(timezone.utc)
+    h24 = now - timedelta(hours=24)
+    d7 = now - timedelta(days=7)
+    d30 = now - timedelta(days=30)
+
+    stmt = select(
+        func.count(Storm.id).label("total"),
+        func.count(Storm.id).filter(Storm.start_time >= h24).label("c24"),
+        func.count(Storm.id).filter(Storm.start_time >= d7).label("c7"),
+        func.count(Storm.id).filter(Storm.start_time >= d30).label("c30"),
+        func.max(Storm.max_hail_size_in).label("peak"),
+        func.min(Storm.start_time).label("earliest"),
+        func.max(Storm.start_time).label("latest"),
+    )
+    row = (await session.execute(stmt)).first()
+
+    # Per-source counts
+    src_stmt = (
+        select(Storm.source, func.count(Storm.id).label("n"))
+        .group_by(Storm.source)
+    )
+    src_rows = (await session.execute(src_stmt)).all()
+    sources = {r.source: int(r.n) for r in src_rows}
+
+    out = {
+        "total_cells": int(row.total or 0) if row else 0,
+        "cells_last_24h": int(row.c24 or 0) if row else 0,
+        "cells_last_7d": int(row.c7 or 0) if row else 0,
+        "cells_last_30d": int(row.c30 or 0) if row else 0,
+        "peak_hail_in": float(row.peak or 0.0) if row else 0.0,
+        "earliest": row.earliest if row else None,
+        "latest": row.latest if row else None,
+        "sources": sources,
+    }
+    logger.info("Storms stats rolled up", **{
+        k: v for k, v in out.items() if k not in ("sources", "earliest", "latest")
+    })
+    return out
+
+
 def _cat_min(label: str) -> float:
     """Min hail size in inches for a category label like '1.5' or '3.0+'."""
     return float(label.rstrip("+"))
