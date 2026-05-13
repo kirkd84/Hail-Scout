@@ -19,7 +19,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import type { Map as MapLibreMap } from "maplibre-gl";
+import type { Map as MapLibreMap, MapLayerMouseEvent } from "maplibre-gl";
 import type { StormWithSwaths } from "@/hooks/useStorms";
 
 const SOURCE_BANDS = "hs-live-bands";
@@ -41,6 +41,9 @@ interface Props {
   minSizeIn?: number;
   /** Time scrubber cursor. Storms started after this are hidden. */
   startTimeMax?: number | null;
+  /** Called when the user clicks a centroid or swath on the map.
+   *  Parent typically opens a detail sheet. */
+  onStormClick?: (stormId: string) => void;
 }
 
 /** Map hail_size_category label (e.g. "1.5", "3.0+") → min inches. */
@@ -105,6 +108,7 @@ export function StormsLayer({
   startTimeMin = null,
   minSizeIn = 0,
   startTimeMax = null,
+  onStormClick,
 }: Props) {
   // Filtered storms (applied to both centroids and bands).
   const filtered = useMemo(() => {
@@ -396,6 +400,45 @@ export function StormsLayer({
       if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", v);
     }
   }, [map, visible]);
+
+  // ── Pointer cursor + click → open detail ─────────────────────────
+  // Clicking either the centroid dot OR a swath polygon bubbles the
+  // storm's id up to onStormClick. Hovering anywhere on a centroid
+  // or swath turns the cursor to a pointer so the affordance is
+  // discoverable without a tooltip.
+  useEffect(() => {
+    if (!map || !onStormClick) return;
+    const clickableLayers = [LAYER_CENTROID, LAYER_CENTROID_RING, LAYER_FILL];
+
+    const onEnter = () => {
+      map.getCanvas().style.cursor = "pointer";
+    };
+    const onLeave = () => {
+      map.getCanvas().style.cursor = "";
+    };
+    const onClick = (e: MapLayerMouseEvent) => {
+      const feat = e.features?.[0];
+      if (!feat) return;
+      // Centroid features carry `id`; band features carry `storm_id`.
+      const stormId =
+        (feat.properties?.id as string | undefined) ??
+        (feat.properties?.storm_id as string | undefined);
+      if (stormId) onStormClick(stormId);
+    };
+
+    for (const id of clickableLayers) {
+      map.on("mouseenter", id, onEnter);
+      map.on("mouseleave", id, onLeave);
+      map.on("click", id, onClick);
+    }
+    return () => {
+      for (const id of clickableLayers) {
+        map.off("mouseenter", id, onEnter);
+        map.off("mouseleave", id, onLeave);
+        map.off("click", id, onClick);
+      }
+    };
+  }, [map, onStormClick]);
 
   return null;
 }

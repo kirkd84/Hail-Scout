@@ -204,6 +204,13 @@ export default function MapPage() {
         startTimeMin={dateFilterToCutoff(date)}
         minSizeIn={sizeFilterToMin(size)}
         startTimeMax={scrubberMs}
+        onStormClick={(stormId) => {
+          const hit = storms.find((s) => s.id === stormId);
+          if (hit) {
+            setSelectedStorm(hit);
+            setShowStormDetail(true);
+          }
+        }}
       />
       <NexradStationsLayer map={map} visible={showNexradStations} />
       <MarkersLayer
