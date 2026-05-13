@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useClerk } from "@clerk/nextjs";
 import { useMe } from "@/hooks/useMe";
-import { STORM_FIXTURES } from "@/lib/storm-fixtures";
+import { useStorms } from "@/hooks/useStorms";
+import { nearestMetro } from "@/lib/metros";
 import {
   IconMap, IconAddresses, IconFlag, IconReport, IconSettings,
   IconUsers, IconSearch, IconLayers, IconClose, IconPin, IconBolt, IconCompass,
@@ -55,19 +56,52 @@ export function CommandPalette({ open, setOpen }: PaletteContextProps) {
     return () => window.removeEventListener("keydown", handler);
   }, [open, setOpen]);
 
+  // Pull the 20 most recent storms over CONUS so the palette's "Storms"
+  // section shows real cell tracks instead of fixture demo cities. The
+  // hook falls back to fixtures when the API is empty so the palette
+  // still has results in offline-dev.
+  const paletteFrom = useMemo(() => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - 30);
+    return d.toISOString().slice(0, 10);
+  }, []);
+  const paletteTo = useMemo(() => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10);
+  }, []);
+  const { storms } = useStorms({
+    bbox: [-125, 24, -66, 50],
+    from: paletteFrom,
+    to: paletteTo,
+    limit: 20,
+    fallbackToFixtures: true,
+  });
+
   const stormItems = useMemo(
     () =>
-      STORM_FIXTURES.map((s) => ({
-        id: s.id,
-        title: s.city,
-        sub: `${s.max_hail_size_in.toFixed(2)}″ · ${new Date(s.start_time).toLocaleDateString(undefined, {
-          month: "short",
-          day: "numeric",
-        })}`,
-        lng: s.centroid_lng,
-        lat: s.centroid_lat,
-      })),
-    [],
+      [...storms]
+        .sort(
+          (a, b) =>
+            new Date(b.start_time).getTime() - new Date(a.start_time).getTime(),
+        )
+        .slice(0, 20)
+        .map((s) => {
+          const where = nearestMetro(s.centroid_lat, s.centroid_lng);
+          return {
+            id: s.id,
+            title: where?.label ?? "Storm cell",
+            sub: `${s.max_hail_size_in.toFixed(2)}″ · ${new Date(
+              s.start_time,
+            ).toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+            })} · ${s.source}`,
+            lng: s.centroid_lng,
+            lat: s.centroid_lat,
+          };
+        }),
+    [storms],
   );
 
   const go = (href: string) => {

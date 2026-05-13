@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { STORM_FIXTURES } from "@/lib/storm-fixtures";
+import { useEffect, useMemo, useState } from "react";
+import { useStorms } from "@/hooks/useStorms";
 
 /**
- * Small "N storms tracking right now" badge for the marketing landing.
- * Pulls live count from the same fixture data the rest of the app uses
- * (re-evaluates on a 60s tick to refresh elapsed-time semantics).
+ * Small "N cells tracking right now" badge for the marketing landing.
+ * Pulls the live count from /v1/storms (CONUS, last 2 hours) — same
+ * 2-hour window the /live and /app/map pages use for "live".
+ *
+ * Re-fetches every 60 seconds via SWR's dedupingInterval; revalidates
+ * on focus so a returning visitor sees the latest count immediately.
  */
 export function LiveCountBadge({ className }: { className?: string }) {
   const [, setTick] = useState(0);
@@ -16,7 +19,31 @@ export function LiveCountBadge({ className }: { className?: string }) {
     return () => clearInterval(id);
   }, []);
 
-  const liveCount = STORM_FIXTURES.filter((s) => s.is_live).length;
+  // Last 24h window for the API query (it's bounded at day granularity);
+  // we count "live" client-side as started in the last 2 hours.
+  const from = useMemo(() => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - 1);
+    return d.toISOString().slice(0, 10);
+  }, []);
+  const to = useMemo(() => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10);
+  }, []);
+
+  const { storms } = useStorms({
+    bbox: [-125, 24, -66, 50],
+    from,
+    to,
+    limit: 50,
+    fallbackToFixtures: true,
+  });
+
+  const liveCutoff = Date.now() - 2 * 60 * 60 * 1000;
+  const liveCount = storms.filter(
+    (s) => new Date(s.start_time).getTime() >= liveCutoff,
+  ).length;
 
   return (
     <Link
@@ -33,7 +60,9 @@ export function LiveCountBadge({ className }: { className?: string }) {
         )}
       </span>
       <span className="font-mono-num font-medium uppercase tracking-wide-caps text-copper-700">
-        {liveCount > 0 ? `${liveCount} storm${liveCount === 1 ? "" : "s"} tracking now` : "Storm tracker · live"}
+        {liveCount > 0
+          ? `${liveCount} cell${liveCount === 1 ? "" : "s"} tracking now`
+          : "Storm tracker · live"}
       </span>
       <span className="text-foreground/45" aria-hidden>→</span>
     </Link>
