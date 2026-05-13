@@ -621,28 +621,33 @@ function TopHailStates() {
           const pct = Math.max(8, Math.round((row.count / maxCount) * 100));
           return (
             <li key={row.state}>
-              <div className="flex items-baseline justify-between mb-1.5">
-                <span className="flex items-baseline gap-2">
-                  <span className="font-mono-num text-xs text-foreground/45 w-5">
-                    {i + 1}
+              <Link
+                href={`/storms/state/${row.state}`}
+                className="block -mx-2 px-2 py-1 rounded-md transition-colors hover:bg-secondary/30"
+              >
+                <div className="flex items-baseline justify-between mb-1.5">
+                  <span className="flex items-baseline gap-2">
+                    <span className="font-mono-num text-xs text-foreground/45 w-5">
+                      {i + 1}
+                    </span>
+                    <span className="font-display text-base font-medium text-foreground">
+                      {row.state}
+                    </span>
+                    <span className="font-mono-num text-[10px] uppercase tracking-wide-caps text-foreground/45">
+                      peak {row.peak.toFixed(2)}″ · {c.object}
+                    </span>
                   </span>
-                  <span className="font-display text-base font-medium text-foreground">
-                    {row.state}
+                  <span className="font-mono-num text-sm font-medium text-foreground">
+                    {row.count}
                   </span>
-                  <span className="font-mono-num text-[10px] uppercase tracking-wide-caps text-foreground/45">
-                    peak {row.peak.toFixed(2)}″ · {c.object}
-                  </span>
-                </span>
-                <span className="font-mono-num text-sm font-medium text-foreground">
-                  {row.count}
-                </span>
-              </div>
-              <div className="h-1.5 w-full rounded-full bg-foreground/5 overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all"
-                  style={{ width: `${pct}%`, background: c.solid, opacity: 0.85 }}
-                />
-              </div>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-foreground/5 overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${pct}%`, background: c.solid, opacity: 0.85 }}
+                  />
+                </div>
+              </Link>
             </li>
           );
         })}
