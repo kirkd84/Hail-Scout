@@ -157,6 +157,26 @@
     background: hsl(var(--card) / 0.78);
   }
 
+  /* Storm hover popup — used by StormsLayer's MapLibre Popup. We
+     override the default tip + container styling so the popup feels
+     part of the atlas, not stock MapLibre. */
+  .hs-storm-popup .maplibregl-popup-content {
+    padding: 0;
+    border-radius: 10px;
+    background: hsl(var(--card) / 0.97);
+    color: hsl(var(--foreground));
+    border: 1px solid hsl(var(--border));
+    box-shadow:
+      0 1px 0 0 hsl(var(--border)),
+      0 12px 40px -12px hsl(var(--foreground) / 0.18);
+    backdrop-filter: saturate(140%) blur(8px);
+    -webkit-backdrop-filter: saturate(140%) blur(8px);
+  }
+  .hs-storm-popup .maplibregl-popup-tip {
+    border-top-color: hsl(var(--border));
+    border-bottom-color: hsl(var(--border));
+  }
+
   /* Quiet horizontal divider with a single copper tick — atlas-style */
   .rule-atlas {
     height: 1px;

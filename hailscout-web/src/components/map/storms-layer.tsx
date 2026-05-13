@@ -19,8 +19,11 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
+import { Popup } from "maplibre-gl";
 import type { Map as MapLibreMap, MapLayerMouseEvent } from "maplibre-gl";
 import type { StormWithSwaths } from "@/hooks/useStorms";
+import { hailColor } from "@/lib/hail";
+import { nearestMetro } from "@/lib/metros";
 
 const SOURCE_BANDS = "hs-live-bands";
 const SOURCE_CENTROIDS = "hs-live-centroids";
@@ -401,25 +404,72 @@ export function StormsLayer({
     }
   }, [map, visible]);
 
-  // ── Pointer cursor + click → open detail ─────────────────────────
-  // Clicking either the centroid dot OR a swath polygon bubbles the
-  // storm's id up to onStormClick. Hovering anywhere on a centroid
-  // or swath turns the cursor to a pointer so the affordance is
-  // discoverable without a tooltip.
+  // ── Pointer cursor + hover popup + click → open detail ──────────
+  // Hovering shows a small popup card with date + size + metro.
+  // Clicking bubbles the storm_id to onStormClick (parent typically
+  // opens a full-detail sheet). Centroid features carry `id` directly;
+  // band (swath) features carry `storm_id`.
   useEffect(() => {
-    if (!map || !onStormClick) return;
+    if (!map) return;
     const clickableLayers = [LAYER_CENTROID, LAYER_CENTROID_RING, LAYER_FILL];
 
-    const onEnter = () => {
+    // Tooltip popup — reused across hovers so we don't churn DOM.
+    // closeButton: false so it disappears on mouseleave instead of
+    // sitting there with an X. className gives us the brand styling
+    // hooks; rest is inline so we don't ship a stylesheet for this.
+    const popup = new Popup({
+      closeButton: false,
+      closeOnClick: false,
+      offset: 12,
+      className: "hs-storm-popup",
+    });
+
+    const stormById = new Map(storms.map((s) => [s.id, s]));
+
+    const onEnter = (e: MapLayerMouseEvent) => {
       map.getCanvas().style.cursor = "pointer";
+      const feat = e.features?.[0];
+      if (!feat) return;
+      const stormId =
+        (feat.properties?.id as string | undefined) ??
+        (feat.properties?.storm_id as string | undefined);
+      if (!stormId) return;
+      const s = stormById.get(stormId);
+      if (!s) return;
+      const c = hailColor(s.max_hail_size_in);
+      const where = nearestMetro(s.centroid_lat, s.centroid_lng);
+      const heavy = s.max_hail_size_in >= 1.5;
+      const badgeFg = heavy ? "#FAF7F1" : c.text;
+      const dateStr = new Date(s.start_time).toLocaleDateString(undefined, {
+        month: "short",
+        day: "2-digit",
+        year: "numeric",
+      });
+      // Inline HTML kept tight; styling matches the picker card.
+      const html = `
+        <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 10px;min-width:200px;">
+          <span style="display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:42px;height:38px;border-radius:6px;background:${c.solid};color:${badgeFg};box-shadow:0 1px 3px rgba(0,0,0,0.15);">
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:500;line-height:1;">${s.max_hail_size_in.toFixed(2)}″</span>
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:8px;text-transform:uppercase;letter-spacing:0.08em;line-height:1;margin-top:2px;opacity:0.9;">${c.object}</span>
+          </span>
+          <div style="min-width:0;">
+            <div style="font-family:Fraunces,Cambria,serif;font-size:15px;font-weight:500;letter-spacing:-0.01em;line-height:1.2;">${where?.label ?? "United States"}</div>
+            <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;opacity:0.65;margin-top:3px;">${dateStr} · ${s.source}</div>
+          </div>
+        </div>`;
+      popup.setLngLat(e.lngLat).setHTML(html).addTo(map);
+    };
+    const onMove = (e: MapLayerMouseEvent) => {
+      popup.setLngLat(e.lngLat);
     };
     const onLeave = () => {
       map.getCanvas().style.cursor = "";
+      popup.remove();
     };
     const onClick = (e: MapLayerMouseEvent) => {
+      if (!onStormClick) return;
       const feat = e.features?.[0];
       if (!feat) return;
-      // Centroid features carry `id`; band features carry `storm_id`.
       const stormId =
         (feat.properties?.id as string | undefined) ??
         (feat.properties?.storm_id as string | undefined);
@@ -428,17 +478,20 @@ export function StormsLayer({
 
     for (const id of clickableLayers) {
       map.on("mouseenter", id, onEnter);
+      map.on("mousemove", id, onMove);
       map.on("mouseleave", id, onLeave);
       map.on("click", id, onClick);
     }
     return () => {
       for (const id of clickableLayers) {
         map.off("mouseenter", id, onEnter);
+        map.off("mousemove", id, onMove);
         map.off("mouseleave", id, onLeave);
         map.off("click", id, onClick);
       }
+      popup.remove();
     };
-  }, [map, onStormClick]);
+  }, [map, onStormClick, storms]);
 
   return null;
 }
