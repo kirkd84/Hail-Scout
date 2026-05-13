@@ -51,11 +51,13 @@ export function SiteFooter() {
           <Wordmark size="sm" />
           <nav className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
             <Link href="/live" className="hover:text-foreground">Live storms</Link>
+            <Link href="/alerts" className="hover:text-foreground">Alerts</Link>
             <Link href="/storms" className="hover:text-foreground">Storm catalog</Link>
+            <Link href="/stats" className="hover:text-foreground">By the numbers</Link>
             <Link href="/pricing" className="hover:text-foreground">Pricing</Link>
             <Link href="/case-studies" className="hover:text-foreground">Customers</Link>
-            <Link href="/compare" className="hover:text-foreground">Compare</Link>
             <Link href="/claim" className="hover:text-foreground">Claim lookup</Link>
+            <Link href="/api" className="hover:text-foreground">API</Link>
             <Link href="/sign-in" className="hover:text-foreground">Sign in</Link>
           </nav>
         </div>
