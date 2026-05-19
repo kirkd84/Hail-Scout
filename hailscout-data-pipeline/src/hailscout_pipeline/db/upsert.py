@@ -419,3 +419,102 @@ def upsert_nexrad_cell(session: Session, cell) -> dict:  # noqa: ANN001
         "hail_in": hail_size,
         "peak_dbz": cell.peak_dbz,
     }
+
+
+# ── SPC LSR upsert (Phase 21) ──────────────────────────────────────────
+
+def upsert_lsr_report(session: Session, report) -> dict:  # noqa: ANN001
+    """Upsert one SPC Local Storm Report as a Storm row.
+
+    Reuses the existing Storm schema with `source="SPC-LSR"` — each
+    report becomes its own Storm so the existing API + UI surfaces
+    (map, picker, /stats, /storms catalog) render it alongside
+    radar-derived cells. The Storm.id is deterministic from the
+    report's (date, lat, lng, time) so re-ingesting the same daily
+    CSV is idempotent.
+
+    The "footprint" stored on hail_swaths is a tiny ~2km box around
+    the report point — LSRs are point observations, not polygons.
+    Downstream consumers can use ST_Contains against bbox_geom for
+    "is this address inside a reported impact zone" queries.
+    """
+    from hailscout_pipeline.extraction.nexrad_scit import (
+        _hail_size_to_category,
+    )
+    from hailscout_pipeline.ingestion.spc_lsr_client import StormReport
+
+    if not isinstance(report, StormReport):
+        raise TypeError(
+            f"upsert_lsr_report expects StormReport, got {type(report).__name__}"
+        )
+
+    timestamp = report.timestamp
+    if timestamp.tzinfo is None:
+        timestamp = timestamp.replace(tzinfo=timezone.utc)
+    source = "SPC-LSR"
+    storm_id = report.synthetic_id
+
+    centroid = Point(report.lng, report.lat)
+    # Small box around the point — ~2km on a side at CONUS latitudes.
+    PAD = 0.01  # degrees
+    bbox_poly = box(
+        report.lng - PAD, report.lat - PAD,
+        report.lng + PAD, report.lat + PAD,
+    )
+    # Footprint slightly tighter than bbox so the API's
+    # `include=swaths` returns something visually meaningful.
+    footprint = MultiPolygon([box(
+        report.lng - PAD * 0.7, report.lat - PAD * 0.7,
+        report.lng + PAD * 0.7, report.lat + PAD * 0.7,
+    )])
+
+    category = _hail_size_to_category(report.size_in)
+
+    existing = session.query(Storm).filter(Storm.id == storm_id).first()
+    if existing:
+        # Re-ingest of same LSR — refresh updated_at, leave geometry
+        # alone (the report didn't move).
+        existing.max_hail_size_in = report.size_in
+        existing.updated_at = datetime.now(timezone.utc)
+        session.flush()
+        log.info("lsr_refreshed", id=storm_id, size_in=report.size_in,
+                 location=report.location, state=report.state)
+    else:
+        storm = Storm(
+            id=storm_id,
+            start_time=timestamp,
+            end_time=timestamp,
+            max_hail_size_in=report.size_in,
+            centroid_geom=_wkt_with_srid(centroid),
+            bbox_geom=_wkt_with_srid(bbox_poly),
+            source=source,
+        )
+        session.add(storm)
+        session.flush()
+        log.info("lsr_created", id=storm_id, size_in=report.size_in,
+                 location=report.location, state=report.state,
+                 nws_office=report.nws_office)
+
+    # One swath per LSR — same category for the whole footprint since
+    # an LSR is a single observation, not a graded swath.
+    insert_stmt = pg_insert(HailSwath).values(
+        id=_new_id("swath"),
+        storm_id=storm_id,
+        hail_size_category=category,
+        geom_multipolygon=_wkt_with_srid(footprint),
+    )
+    stmt = insert_stmt.on_conflict_do_update(
+        constraint="uq_storm_category",
+        set_={
+            "geom_multipolygon": _wkt_with_srid(footprint),
+            "updated_at": datetime.now(timezone.utc),
+        },
+    )
+    session.execute(stmt)
+    session.commit()
+    return {
+        "storm_id": storm_id,
+        "category": category,
+        "size_in": report.size_in,
+        "location": f"{report.location}, {report.state}",
+    }

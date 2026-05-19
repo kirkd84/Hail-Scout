@@ -5,12 +5,14 @@ Subcommands:
     backfill  - Walk a date range, pulling from Iowa State MtArchive
     once      - Ingest a specific GRIB2 file (debugging)
     loop      - Run `live` on an interval (for Railway worker mode)
+    lsr       - Pull SPC daily hail Local Storm Reports (Phase 21)
 
 Usage:
     python -m hailscout_pipeline live
     python -m hailscout_pipeline backfill --since 2025-05-04 --until 2026-05-03 --cadence 6h
     python -m hailscout_pipeline once /path/to/file.grib2
     python -m hailscout_pipeline loop --interval-seconds 300
+    python -m hailscout_pipeline lsr --since 2026-05-17 --until 2026-05-18
 """
 from __future__ import annotations
 import argparse
@@ -24,7 +26,11 @@ import structlog
 
 from hailscout_pipeline.config import settings
 from hailscout_pipeline.db.session import SessionLocal
-from hailscout_pipeline.db.upsert import upsert_cell, upsert_swaths
+from hailscout_pipeline.db.upsert import (
+    upsert_cell,
+    upsert_lsr_report,
+    upsert_swaths,
+)
 from hailscout_pipeline.extraction.clustering import cluster_swaths_into_cells
 from hailscout_pipeline.extraction.polygonize import extract_swaths_from_grid
 from hailscout_pipeline.ingestion.grib_to_geotiff import parse_mesh_grib
@@ -32,6 +38,7 @@ from hailscout_pipeline.ingestion.mrms_client import (
     IowaArchiveClient,
     MRMSClient,
 )
+from hailscout_pipeline.ingestion.spc_lsr_client import SpcLsrClient
 
 
 # ----- logging setup -----
@@ -214,6 +221,41 @@ def cmd_loop(args: argparse.Namespace) -> int:
         time.sleep(interval)
 
 
+def cmd_lsr(args: argparse.Namespace) -> int:
+    """Pull SPC Local Storm Reports for a UTC date range and upsert.
+
+    Each daily CSV ranges from ~10 reports (quiet day) to hundreds
+    (major outbreak). Re-running the same range is idempotent — Storm
+    ids are deterministic from (date, lat, lng, time)."""
+    since = datetime.fromisoformat(args.since).replace(tzinfo=timezone.utc)
+    if args.until:
+        until = datetime.fromisoformat(args.until).replace(tzinfo=timezone.utc)
+    else:
+        # Default: just the --since day
+        until = since
+    log.info("lsr_start", since=since.isoformat(), until=until.isoformat())
+
+    client = SpcLsrClient()
+    n_ok, n_fail = 0, 0
+    started = time.monotonic()
+
+    with SessionLocal() as session:
+        for report in client.fetch_range(since, until):
+            try:
+                upsert_lsr_report(session, report)
+                n_ok += 1
+            except Exception as e:
+                n_fail += 1
+                log.warning("lsr_upsert_failed",
+                            id=report.synthetic_id,
+                            location=report.location,
+                            error=str(e))
+
+    log.info("lsr_done", ok=n_ok, fail=n_fail,
+             elapsed_seconds=int(time.monotonic() - started))
+    return 0
+
+
 def _parse_cadence(s: str) -> timedelta:
     """Parse '6h', '30m', '2h30m', '15m', '1d'."""
     s = s.strip().lower()
@@ -261,6 +303,16 @@ def main() -> int:
     sp_loop = sub.add_parser("loop", help="Run `live` forever on an interval")
     sp_loop.add_argument("--interval-seconds", type=int, default=300)
     sp_loop.set_defaults(func=cmd_loop)
+
+    sp_lsr = sub.add_parser(
+        "lsr",
+        help="Ingest SPC daily hail Local Storm Reports for a UTC date range",
+    )
+    sp_lsr.add_argument("--since", required=True,
+                        help="ISO date (UTC), e.g. 2026-05-17")
+    sp_lsr.add_argument("--until",
+                        help="ISO date (UTC), default = --since")
+    sp_lsr.set_defaults(func=cmd_lsr)
 
     args = ap.parse_args()
     return int(args.func(args))
