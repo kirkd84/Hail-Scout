@@ -25,6 +25,7 @@ Usage:
 from __future__ import annotations
 import argparse
 import logging
+import os
 import sys
 import time
 from datetime import datetime, timedelta, timezone
@@ -134,6 +135,17 @@ def cmd_loop(args: argparse.Namespace) -> int:
 
     Stations come from the --stations arg (comma-separated) or from
     CONUS_NEXRAD_STATIONS (hail-belt subset, ~33 sites).
+
+    Optional one-shot deep-backfill on startup: if
+    `DEEP_BACKFILL_SINCE` is set in the environment, run a single
+    `deep-backfill` pass against the NCEI archive before entering
+    the normal live loop. Useful for seeding historical track data
+    without spinning up a separate Railway service. Companion env
+    vars: `DEEP_BACKFILL_UNTIL` (default = SINCE+1d) and
+    `DEEP_BACKFILL_STATIONS` (default = --stations or hail-belt).
+    Upserts are idempotent by track_id, so re-runs on container
+    restart are wasteful but not harmful — clear the env vars when
+    finished.
     """
     interval = args.interval_seconds
     stations = (
@@ -141,6 +153,30 @@ def cmd_loop(args: argparse.Namespace) -> int:
         if args.stations
         else list(CONUS_NEXRAD_STATIONS.keys())
     )
+
+    backfill_since_env = os.environ.get("DEEP_BACKFILL_SINCE", "").strip()
+    if backfill_since_env:
+        backfill_until_env = os.environ.get("DEEP_BACKFILL_UNTIL", "").strip()
+        backfill_stations_env = os.environ.get(
+            "DEEP_BACKFILL_STATIONS", "",
+        ).strip()
+        # Reuse cmd_deep_backfill by faking the argparse Namespace.
+        fake_args = argparse.Namespace(
+            since=backfill_since_env,
+            until=(backfill_until_env
+                   or (datetime.fromisoformat(backfill_since_env)
+                       + timedelta(days=1)).isoformat()),
+            stations=(backfill_stations_env or args.stations),
+        )
+        log.info("nexrad_loop_pre_backfill_start",
+                 since=fake_args.since, until=fake_args.until,
+                 stations=fake_args.stations or "(hail-belt default)")
+        try:
+            cmd_deep_backfill(fake_args)
+        except Exception as e:
+            log.exception("nexrad_loop_pre_backfill_failed", error=str(e))
+        log.info("nexrad_loop_pre_backfill_done — entering live loop")
+
     log.info("nexrad_loop_start", interval_seconds=interval,
              stations=stations, station_count=len(stations))
 
