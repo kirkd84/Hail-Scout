@@ -4,11 +4,19 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { IconChevronRight } from "@/components/icons";
 
-export type DateFilter = "24h" | "7d" | "30d" | "all";
+export type DateFilter = "live" | "24h" | "7d" | "30d" | "all";
 export type SizeFilter = "any" | "1.0" | "1.75" | "2.5";
 export type SourceFilter = "all" | "MRMS" | "NEXRAD";
 
-const DATE_OPTIONS: { id: DateFilter; label: string; days: number | null }[] = [
+// `days` is used by dateFilterToCutoff; `hours` lets "live" cleanly
+// resolve to a sub-day cutoff without making `days` a float.
+const DATE_OPTIONS: {
+  id: DateFilter;
+  label: string;
+  days: number | null;
+  hours?: number;
+}[] = [
+  { id: "live", label: "Live", days: null, hours: 2 },
   { id: "24h", label: "24 hr",  days: 1 },
   { id: "7d",  label: "7 days", days: 7 },
   { id: "30d", label: "30 days", days: 30 },
@@ -30,7 +38,9 @@ const SOURCE_OPTIONS: { id: SourceFilter; label: string }[] = [
 
 export function dateFilterToCutoff(f: DateFilter): number | null {
   const opt = DATE_OPTIONS.find((o) => o.id === f);
-  if (!opt || opt.days === null) return null;
+  if (!opt) return null;
+  if (opt.hours != null) return Date.now() - opt.hours * 60 * 60 * 1000;
+  if (opt.days == null) return null;
   return Date.now() - opt.days * 24 * 60 * 60 * 1000;
 }
 
