@@ -32,11 +32,11 @@ import secrets
 from datetime import datetime, timezone
 
 import structlog
-from geoalchemy2.functions import ST_DWithin, ST_GeomFromText
+from geoalchemy2.functions import ST_DWithin, ST_GeomFromText, ST_Intersects
 from shapely.geometry import MultiPolygon, Point, Polygon, box
 from shapely.ops import unary_union
 from shapely import wkb as shapely_wkb
-from sqlalchemy import func, text
+from sqlalchemy import func, or_, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
@@ -329,18 +329,26 @@ def upsert_nexrad_cell(session: Session, cell) -> dict:  # noqa: ANN001
     if cell.track_id:
         existing = session.query(Storm).filter(Storm.id == cell.track_id).first()
 
-    # 2) Spatial-proximity fallback (recovers when a track_id is fresh
-    #    but the cell drifted into an existing storm region)
+    # 2) Spatial-proximity fallback. Phase 20 cross-radar merge:
+    #    centroid distance alone misses cells where two radars see the
+    #    same storm complex from different angles — their centroids
+    #    can be 50-100 km apart even though the polygon footprints
+    #    overlap. We OR centroid-proximity with footprint-overlap so
+    #    either signal pulls the new cell into an existing track.
     if not existing:
         centroid_geom_expr = ST_GeomFromText(_wkt_with_srid(centroid), 4326)
+        footprint_geom_expr = ST_GeomFromText(_wkt_with_srid(footprint), 4326)
         existing = (
             session.query(Storm)
             .filter(
                 Storm.start_time >= day_start,
                 Storm.start_time <= day_end,
                 Storm.source == source,
-                ST_DWithin(Storm.centroid_geom, centroid_geom_expr,
-                           STORM_MERGE_RADIUS_DEG),
+                or_(
+                    ST_DWithin(Storm.centroid_geom, centroid_geom_expr,
+                               STORM_MERGE_RADIUS_DEG),
+                    ST_Intersects(Storm.bbox_geom, footprint_geom_expr),
+                ),
             )
             .order_by(Storm.start_time.asc())
             .first()
