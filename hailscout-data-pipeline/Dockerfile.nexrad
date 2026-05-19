@@ -21,13 +21,17 @@ ENV PYTHONUNBUFFERED=1 \
 
 # System deps for py-ART (HDF5 + NetCDF backends) on top of the same
 # GDAL/PROJ/GEOS stack the MRMS pipeline uses for shapely + rasterio.
+# Note: explicit runtime package names like `libhdf5-103` / `libnetcdf19`
+# get renamed with every Debian release (trixie ships libhdf5-hl-310,
+# libnetcdf22, etc.) — relying on the `-dev` packages to pull the
+# matching runtimes via Depends avoids the version-suffix breakage.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgdal-dev gdal-bin \
     libeccodes0 libeccodes-tools \
     libproj-dev proj-data proj-bin \
     libgeos-dev \
-    libhdf5-dev libhdf5-103 \
-    libnetcdf-dev libnetcdf19 \
+    libhdf5-dev \
+    libnetcdf-dev \
     gfortran \
     build-essential \
     ca-certificates \
