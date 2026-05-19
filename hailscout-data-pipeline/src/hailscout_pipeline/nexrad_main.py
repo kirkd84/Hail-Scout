@@ -6,10 +6,11 @@ doesn't belong in the lighter MRMS Docker image. Run as a dedicated
 Railway service with its own Dockerfile + railway.json.
 
 Subcommands:
-    loop      — every interval, pull the latest scan for each station
-                in CONUS_NEXRAD_STATIONS, process + upsert.
-    once <s>  — process one station+scan path locally (debugging).
-    backfill  — walk a date range across all configured stations.
+    loop          — every interval, pull the latest scan for each station
+                    in CONUS_NEXRAD_STATIONS, process + upsert.
+    once <s>      — process one station+scan path locally (debugging).
+    backfill      — walk a date range using the Unidata mirror (last ~7d).
+    deep-backfill — walk a date range using the full NCEI archive (any year).
 
 Usage:
     python -m hailscout_pipeline.nexrad_main loop --interval-seconds 600
@@ -17,6 +18,9 @@ Usage:
     python -m hailscout_pipeline.nexrad_main backfill \
         --since 2026-05-12T00:00 --until 2026-05-12T06:00 \
         --stations KOKC,KFWS,KTLX
+    python -m hailscout_pipeline.nexrad_main deep-backfill \
+        --since 2024-04-26T00:00 --until 2024-04-28T00:00 \
+        --stations KFWS,KTLX
 """
 from __future__ import annotations
 import argparse
@@ -31,6 +35,7 @@ import structlog
 from hailscout_pipeline.config import settings
 from hailscout_pipeline.db.session import SessionLocal
 from hailscout_pipeline.db.upsert import upsert_nexrad_cell
+from hailscout_pipeline.ingestion.ncei_nexrad_client import NceiNexradClient
 from hailscout_pipeline.ingestion.nexrad_client import (
     CONUS_NEXRAD_STATIONS,
     NexradClient,
@@ -236,6 +241,60 @@ def cmd_backfill(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_deep_backfill(args: argparse.Namespace) -> int:
+    """Walk a date range against NOAA's deep Level II archive (any year).
+
+    Identical contract to `cmd_backfill` but sources scans from
+    `noaa-nexrad-level2` via anonymous HTTPS (Phase 22 — Unidata only
+    keeps ~7 days, so anything older needs the NCEI/AWS deep archive).
+    """
+    since = datetime.fromisoformat(args.since).replace(tzinfo=timezone.utc)
+    until = datetime.fromisoformat(args.until).replace(tzinfo=timezone.utc)
+    stations = (
+        [s.strip().upper() for s in args.stations.split(",")]
+        if args.stations
+        else list(CONUS_NEXRAD_STATIONS.keys())
+    )
+    log.info("nexrad_deep_backfill_start",
+             since=since.isoformat(), until=until.isoformat(),
+             stations=stations, station_count=len(stations))
+
+    client = NceiNexradClient()
+    n_ok, n_fail = 0, 0
+    started = time.monotonic()
+
+    for station in stations:
+        try:
+            scans = client.list_volume_scans_window(since, until, station)
+            log.info("nexrad_deep_backfill_station",
+                     station=station, scan_count=len(scans))
+            for scan_key in scans:
+                local = None
+                try:
+                    local = client.download(scan_key)
+                    _process_one(local, scan_key.station, scan_key.timestamp)
+                    n_ok += 1
+                except Exception as e:
+                    n_fail += 1
+                    log.warning("nexrad_deep_backfill_scan_failed",
+                                station=scan_key.station,
+                                ts=scan_key.timestamp.isoformat(),
+                                error=str(e))
+                finally:
+                    if local:
+                        Path(local).unlink(missing_ok=True)
+        except Exception as e:
+            n_fail += 1
+            log.exception("nexrad_deep_backfill_station_failed",
+                          station=station, error=str(e))
+        # Reset track cache between stations (same reason as backfill).
+        _prior_scans.pop(station, None)
+
+    log.info("nexrad_deep_backfill_done", ok=n_ok, fail=n_fail,
+             elapsed_seconds=int(time.monotonic() - started))
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(prog="hailscout-pipeline.nexrad")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -265,6 +324,19 @@ def main() -> int:
                          help="Comma-separated station IDs. "
                               "Default: CONUS_NEXRAD_STATIONS.")
     sp_back.set_defaults(func=cmd_backfill)
+
+    sp_deep = sub.add_parser(
+        "deep-backfill",
+        help="Walk a date range from NOAA's full Level II archive (any year)",
+    )
+    sp_deep.add_argument("--since", required=True,
+                         help="ISO timestamp, e.g. 2024-04-26T00:00")
+    sp_deep.add_argument("--until", required=True,
+                         help="ISO timestamp, e.g. 2024-04-28T00:00")
+    sp_deep.add_argument("--stations",
+                         help="Comma-separated station IDs. "
+                              "Default: CONUS_NEXRAD_STATIONS.")
+    sp_deep.set_defaults(func=cmd_deep_backfill)
 
     args = ap.parse_args()
     return int(args.func(args))
