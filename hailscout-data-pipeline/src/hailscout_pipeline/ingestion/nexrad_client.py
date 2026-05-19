@@ -1,14 +1,14 @@
-"""NEXRAD Level II client — anonymous fetch from `noaa-nexrad-level2`.
+"""NEXRAD Level II client — anonymous fetch from the Unidata mirror.
 
-Phase 18 scaffolding. Level II volume scans are the highest-resolution
-radar data the NWS publishes: ~150m radial resolution, 4-10 min cadence,
+Phase 18. Level II volume scans are the highest-resolution radar data
+the NWS publishes: ~150m radial resolution, 4-10 min cadence,
 per-station (~160 WSR-88D sites across CONUS). They're the foundation
 for industry storm-cell tracking (SCIT) and hydrometeor classification
 (HCA) — what HailTrace / IHM / CoreLogic chain together to produce
 their cell-track polygons.
 
-Bucket layout:
-    s3://noaa-nexrad-level2/{YYYY}/{MM}/{DD}/{Station}/
+Bucket layout (default: `unidata-nexrad-level2`):
+    s3://unidata-nexrad-level2/{YYYY}/{MM}/{DD}/{Station}/
         {Station}{YYYYMMDD}_{HHMMSS}_V06[_MDM]
 
 Each file is ONE volume scan (one station, one timestamp). A
@@ -16,9 +16,13 @@ Each file is ONE volume scan (one station, one timestamp). A
 stations cover the same hail event — we'd typically pick the closest
 station to a candidate cell and use that scan.
 
-The bucket is anonymous-readable for GET but the LIST policy is
-restricted in the public REST endpoint. boto3 with botocore.UNSIGNED
-can list — same trick we use for `noaa-mrms-pds`.
+Why Unidata's mirror instead of the official `noaa-nexrad-level2`:
+the official NOAA bucket revoked anonymous LIST permission, which
+breaks `boto3.UNSIGNED` calls the moment we try to enumerate scans
+for a station. The Unidata mirror has the same key layout AND
+allows anonymous LIST. Trade-off: Unidata keeps ~7 days of recent
+data — deeper history needs a different access path (NCEI HDSS or
+requester-pays against the NOAA bucket).
 
 This module is a thin S3 client; the SCIT / HCA processing lives in
 `extraction.nexrad_scit`. We split them so the client is testable
@@ -58,7 +62,7 @@ class VolumeScanKey:
 class NexradClient:
     """Anonymous client for the public NOAA NEXRAD Level II S3 bucket."""
 
-    def __init__(self, bucket_name: str = "noaa-nexrad-level2") -> None:
+    def __init__(self, bucket_name: str = "unidata-nexrad-level2") -> None:
         self.bucket_name = bucket_name
         self.s3 = boto3.client(
             "s3",

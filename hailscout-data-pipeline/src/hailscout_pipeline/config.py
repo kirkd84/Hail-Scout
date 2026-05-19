@@ -23,13 +23,17 @@ class Settings(BaseSettings):
     # storm-cell tracking (Phase 17) needs.
     mrms_product: str = "MESH_00.50"
 
-    # NEXRAD Level II (anonymous public bucket — Phase 18).
-    # Used for SCIT-style storm-cell identification at sub-km radial
-    # resolution per radar station. Stitched with MRMS for CONUS coverage.
-    noaa_nexrad_bucket: str = "noaa-nexrad-level2"
-
-    # Logging
-    log_level: str = "INFO"
+    # NEXRAD Level II — anonymous public mirror via Unidata.
+    # The original NOAA bucket `noaa-nexrad-level2` revoked anonymous
+    # LIST permission, so `boto3.UNSIGNED` calls bail with AccessDenied
+    # the moment we try to enumerate volume scans. Unidata mirrors the
+    # same Y/M/D/{Station}/ key layout under `unidata-nexrad-level2`
+    # AND allows anonymous LIST.
+    # Trade-off: Unidata keeps only the recent ~7 days, no deep history.
+    # For real-time NEXRAD ingest that's fine; deep historical backfill
+    # would need a different access path (NCEI HDSS, requester-pays
+    # against the NOAA bucket, etc.) when we get there.
+    noaa_nexrad_bucket: str = "unidata-nexrad-level2"
 
     # Logging
     log_level: str = "INFO"
