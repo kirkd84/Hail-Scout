@@ -24,9 +24,8 @@ from hailscout_api.schemas.monitored_address import (
 )
 from hailscout_api.schemas.alert import StormAlertList, StormAlertResponse
 from hailscout_api.db.models.canvass import StormAlert
-from hailscout_api.data.storm_fixtures import all_fixtures, storm_at
 from hailscout_api.db.models.org import Organization
-from hailscout_api.services.slack import format_alert_message, send_slack_alert
+from hailscout_api.services.alert_generator import generate_alerts_for_org
 from hailscout_api.services.audit import write_event
 from datetime import datetime, timezone
 import asyncio
@@ -259,110 +258,51 @@ async def list_alerts(
 ) -> StormAlertList:
     """Lazy-generated storm alerts.
 
-    On each fetch we:
-      1. Pull every monitored address for the user's org
-      2. For each address × every fixture storm, check bbox containment
-      3. If peak_size_in >= alert_threshold_in (default 0.75), persist an
-         alert (idempotent via (org_id, address_id, storm_id) unique index)
-      4. Return all non-dismissed alerts joined with the address record
+    Generation happens via `services.alert_generator.generate_alerts_for_org`
+    against the live `storms` / `hail_swaths` tables. The route just
+    triggers it, then serializes the org's open alerts. Channel
+    fan-out (Slack, email) happens inside the generator; we don't
+    need to touch transports here.
 
-    Once the real MRMS pipeline ships, this becomes a background job — but
-    the API contract stays exactly the same.
+    A background worker can call the same generator on a cadence so
+    alerts arrive without needing a user pageload; this route remains
+    the on-demand path the web app polls.
     """
     user = await _resolve_user(request, session)
 
-    # 1. Load monitored addresses for the org
+    # Load org (for fan-out config) and addresses (for response join)
+    org = (
+        await session.execute(
+            select(Organization).where(Organization.id == user.org_id),
+        )
+    ).scalars().first()
     addresses = (
         await session.execute(
             select(MonitoredAddress).where(MonitoredAddress.org_id == user.org_id),
         )
     ).scalars().all()
-
     address_by_id = {a.id: a for a in addresses}
 
-    # 2. Compute new matches
-    fixtures = all_fixtures()
-    new_matches: list[dict] = []
-    for addr in addresses:
-        if addr.lat is None or addr.lng is None:
-            continue
-        threshold = addr.alert_threshold_in or 0.75
-        for storm in fixtures:
-            if storm.peak_size_in < threshold:
-                continue
-            if not storm_at(addr.lat, addr.lng, storm):
-                continue
-            new_matches.append({
-                "monitored_address_id": addr.id,
-                "storm_id": storm.id,
-                "storm_city": storm.city,
-                "peak_size_in": storm.peak_size_in,
-                "storm_started_at": storm.start_time,
-            })
-
-    # 3. Persist new alerts (best-effort; UNIQUE index makes this idempotent)
+    # Generate new alerts + fan out
     new_count = 0
-    for m in new_matches:
-        # Check existence first (cheaper than catching IntegrityError per row)
-        exists = (
-            await session.execute(
-                select(StormAlert).where(
-                    and_(
-                        StormAlert.org_id == user.org_id,
-                        StormAlert.monitored_address_id == m["monitored_address_id"],
-                        StormAlert.storm_id == m["storm_id"],
-                    ),
-                ),
+    if org is not None:
+        gen_summary = await generate_alerts_for_org(session, org)
+        new_count = gen_summary["created"]
+        if new_count:
+            await write_event(
+                session,
+                action="alerts.generated",
+                org_id=user.org_id,
+                user_id=user.id,
+                subject_type="alert",
+                metadata={
+                    "count": new_count,
+                    "slack_sent": gen_summary["slack_sent"],
+                    "email_sent": gen_summary["email_sent"],
+                },
             )
-        ).scalars().first()
-        if exists is not None:
-            continue
-        alert = StormAlert(
-            org_id=user.org_id,
-            monitored_address_id=m["monitored_address_id"],
-            storm_id=m["storm_id"],
-            storm_city=m["storm_city"],
-            peak_size_in=m["peak_size_in"],
-            storm_started_at=m["storm_started_at"],
-        )
-        session.add(alert)
-        new_count += 1
 
-    if new_count:
-        await session.commit()
-        await write_event(
-            session,
-            action="alerts.generated",
-            org_id=user.org_id,
-            user_id=user.id,
-            subject_type="alert",
-            metadata={"count": new_count},
-        )
-
-    # 3b. Fan out new alerts to Slack (best-effort, non-blocking)
-    if new_count:
-        org = (
-            await session.execute(
-                select(Organization).where(Organization.id == user.org_id),
-            )
-        ).scalars().first()
-        if org and org.slack_enabled and org.slack_webhook_url:
-            for m in new_matches:
-                addr = address_by_id.get(m["monitored_address_id"])
-                payload = format_alert_message(
-                    address=addr.address if addr else "",
-                    address_label=addr.label if addr else None,
-                    storm_city=m["storm_city"],
-                    peak_size_in=m["peak_size_in"],
-                    started_at=m["storm_started_at"].isoformat() if m["storm_started_at"] else "",
-                )
-                # Fire-and-forget — don't block alerts API on Slack latency
-                try:
-                    await send_slack_alert(org.slack_webhook_url, payload)
-                except Exception:
-                    pass
-
-    # 4. Return the live list
+    # Serialize the live, non-dismissed alert list
     rows = (
         await session.execute(
             select(StormAlert)
@@ -432,48 +372,23 @@ async def stream_alerts(
                 break
 
             # Re-resolve org-scoped query every iteration so we don't hold a
-            # stale session row across the loop. We use the same logic as
-            # the regular /v1/alerts endpoint but only emit the diff.
+            # stale session row across the loop. Generation is delegated
+            # to the shared alert_generator service — same code path as
+            # the polling /v1/alerts route — and this loop only emits
+            # the diff of newly-persisted alerts.
             try:
                 addresses = (
                     await session.execute(
                         select(MonitoredAddress).where(MonitoredAddress.org_id == org_id),
                     )
                 ).scalars().all()
-
-                fixtures = all_fixtures()
-                for addr in addresses:
-                    if addr.lat is None or addr.lng is None:
-                        continue
-                    threshold = addr.alert_threshold_in or 0.75
-                    for storm in fixtures:
-                        if storm.peak_size_in < threshold:
-                            continue
-                        if not storm_at(addr.lat, addr.lng, storm):
-                            continue
-                        exists = (
-                            await session.execute(
-                                select(StormAlert).where(
-                                    and_(
-                                        StormAlert.org_id == org_id,
-                                        StormAlert.monitored_address_id == addr.id,
-                                        StormAlert.storm_id == storm.id,
-                                    ),
-                                ),
-                            )
-                        ).scalars().first()
-                        if exists is None:
-                            alert = StormAlert(
-                                org_id=org_id,
-                                monitored_address_id=addr.id,
-                                storm_id=storm.id,
-                                storm_city=storm.city,
-                                peak_size_in=storm.peak_size_in,
-                                storm_started_at=storm.start_time,
-                            )
-                            session.add(alert)
-                            await session.commit()
-                            await session.refresh(alert)
+                org = (
+                    await session.execute(
+                        select(Organization).where(Organization.id == org_id),
+                    )
+                ).scalars().first()
+                if org is not None:
+                    await generate_alerts_for_org(session, org)
 
                 # Now emit any rows whose id > last_seen_id
                 fresh = (

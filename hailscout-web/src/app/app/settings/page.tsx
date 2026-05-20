@@ -20,6 +20,7 @@ import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { useMe } from "@/hooks/useMe";
 import { BrandingCard } from "@/components/app/branding-card";
+import { EmailAlertsCard } from "@/components/app/email-alerts-card";
 import { SlackCard } from "@/components/app/slack-card";
 import { cn } from "@/lib/utils";
 import {
@@ -197,6 +198,7 @@ function WorkspaceTab() {
 function IntegrationsTab() {
   return (
     <>
+      <EmailAlertsCard />
       <SlackCard />
       <SectionCard
         eyebrow="Coming soon"
@@ -243,12 +245,14 @@ function NotificationsTab() {
         </Link>
       </SectionCard>
       <SectionCard
-        eyebrow="Cadence"
-        title="Email digests"
-        description="Coming soon — daily or weekly digest of new hail hits across your watchlist."
+        eyebrow="Channels"
+        title="Where alerts arrive"
+        description="Email recipients, Slack channel, and any future webhook destinations are configured under Integrations."
       >
         <p className="text-sm text-foreground/55">
-          Today: real-time alerts only, in-app + Slack.
+          Real-time alerts fire in-app, by email (if a recipient list is set),
+          and by Slack (if connected). Daily and weekly digest emails are on
+          the roadmap.
         </p>
       </SectionCard>
     </>

@@ -126,6 +126,15 @@ class StormAlert(Base):
     dismissed_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # Per-channel delivery timestamps (Phase 23). Null = not sent.
+    # We re-check these in the alert generator before fanning out so
+    # a rerun against the same alert doesn't re-deliver.
+    slack_sent_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    email_sent_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = created_at_column()
 
     def __repr__(self) -> str:

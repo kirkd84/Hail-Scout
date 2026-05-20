@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, ForeignKey, String
+from sqlalchemy import Boolean, Float, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from hailscout_api.db.base import Base, created_at_column, id_column, updated_at_column
@@ -33,6 +33,18 @@ class Organization(Base):
     slack_webhook_url: Mapped[str | None] = mapped_column(String(512))
     slack_enabled:     Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False, server_default="false"
+    )
+    # Email alert delivery (per-org). `alert_email_recipients` is a
+    # comma-separated list (≤ 8 addresses) — we keep the column flat
+    # because per-recipient preferences are not in scope yet.
+    alert_emails_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, server_default="false"
+    )
+    alert_email_recipients: Mapped[str | None] = mapped_column(String(2048))
+    # Org-level default threshold — addresses with their own
+    # `alert_threshold_in` override this.
+    alert_min_size_in: Mapped[float] = mapped_column(
+        Float, nullable=False, server_default="0.75", default=0.75,
     )
     created_at: Mapped[datetime] = created_at_column()
 

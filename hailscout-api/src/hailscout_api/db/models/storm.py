@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from typing import Optional
+
 from geoalchemy2 import Geometry
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from hailscout_api.db.base import Base, created_at_column, id_column, updated_at_column
@@ -31,6 +33,20 @@ class Storm(Base):
         Geometry("POLYGON", srid=4326), nullable=False
     )
     source: Mapped[str] = mapped_column(String(50), default="MESH", nullable=False)
+    # LSR↔NEXRAD confirmation (Phase 23 bonus). The lsr_linker service
+    # stamps these when a SPC Local Storm Report falls inside a NEXRAD
+    # cell's footprint within ±30 min. Alerts and the UI prefer
+    # confirmed cells.
+    lsr_confirmed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false",
+        index=True,
+    )
+    lsr_observed_size_in: Mapped[Optional[float]] = mapped_column(
+        Float, nullable=True,
+    )
+    lsr_observed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+    )
     created_at: Mapped[datetime] = created_at_column()
     updated_at: Mapped[datetime] = updated_at_column()
 

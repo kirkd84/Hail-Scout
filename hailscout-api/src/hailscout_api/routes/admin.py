@@ -28,6 +28,7 @@ from hailscout_api.schemas.admin import (
     SetSuperAdmin,
     UserSummary,
 )
+from hailscout_api.services.lsr_linker import link_recent_lsrs
 
 router = APIRouter(prefix="/admin")
 
@@ -252,3 +253,24 @@ async def set_super_admin(
     await session.refresh(target)
 
     return UserSummary.model_validate(target)
+
+
+@router.post("/lsr/link")
+async def run_lsr_linker(
+    lookback_days: int = 30,
+    _: User = Depends(require_super_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Run the LSR ↔ NEXRAD/MRMS confirmation pass on demand.
+
+    Walks every Storm row with `source='SPC-LSR'` from the last
+    `lookback_days` and stamps any radar-cell match with
+    `lsr_confirmed=true`. Idempotent — re-running just refreshes
+    flags. Will become a periodic worker job; this endpoint is the
+    manual override for ad-hoc backfill confirmation.
+    """
+    if lookback_days < 1 or lookback_days > 365:
+        raise HTTPException(status_code=422,
+                            detail="lookback_days must be 1..365")
+    summary = await link_recent_lsrs(session, lookback_days=lookback_days)
+    return {"ok": True, **summary}
