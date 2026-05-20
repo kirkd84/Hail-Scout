@@ -10,6 +10,16 @@ export interface Storm {
   /** Bounding box of the swath. */
   bbox: { min_lat: number; min_lng: number; max_lat: number; max_lng: number };
   source: string;
+  /**
+   * SPC Local Storm Report confirmation (Phase 23). True when a
+   * ground-truth report fell inside this cell within ±30 min.
+   * `lsr_observed_size_in` carries the reported size (often within
+   * 0.25″ of the radar's estimated size); `lsr_observed_at` is the
+   * report timestamp.
+   */
+  lsr_confirmed?: boolean;
+  lsr_observed_size_in?: number | null;
+  lsr_observed_at?: string | null;
 }
 
 /** Per-storm hail observation at an address. */

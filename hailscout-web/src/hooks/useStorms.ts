@@ -49,6 +49,11 @@ interface ApiStorm {
   source: string;
   centroid: ApiGeoPoint | null;
   bbox: ApiGeoPolygon | null;
+  /** Phase 23 LSR confirmation fields. Always present on /v1/storms;
+   *  default false / null. */
+  lsr_confirmed?: boolean;
+  lsr_observed_size_in?: number | null;
+  lsr_observed_at?: string | null;
   /** Only populated when the request includes `include=swaths`. */
   swaths?: ApiHailSwath[];
 }
@@ -114,6 +119,9 @@ export function adaptApiStorm(s: ApiStorm): Storm {
     centroid_lng: centLng,
     bbox: { min_lat: minLat, min_lng: minLng, max_lat: maxLat, max_lng: maxLng },
     source: s.source,
+    lsr_confirmed: s.lsr_confirmed ?? false,
+    lsr_observed_size_in: s.lsr_observed_size_in ?? null,
+    lsr_observed_at: s.lsr_observed_at ?? null,
   };
 }
 

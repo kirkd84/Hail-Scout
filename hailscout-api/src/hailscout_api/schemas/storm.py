@@ -31,6 +31,13 @@ class StormResponse(BaseModel):
     centroid: GeoPoint | None = None
     bbox: GeoPolygon | None = None
     source: str = "MESH"
+    # LSR confirmation (Phase 23). When `lsr_confirmed` is true, an SPC
+    # Local Storm Report fell inside this cell within ±30 min and the
+    # observed size is in `lsr_observed_size_in`. The UI surfaces a
+    # "ground-truth confirmed" badge on these.
+    lsr_confirmed: bool = False
+    lsr_observed_size_in: float | None = None
+    lsr_observed_at: datetime | None = None
     swaths: list["HailSwathResponse"] | None = None  # only when include=swaths
 
     model_config = {"from_attributes": True}
@@ -57,6 +64,9 @@ class StormDetailResponse(BaseModel):
     source: str = "MESH"
     centroid: GeoPoint | None = None
     bbox: GeoPolygon | None = None
+    lsr_confirmed: bool = False
+    lsr_observed_size_in: float | None = None
+    lsr_observed_at: datetime | None = None
     swaths: list[HailSwathResponse] = Field(default_factory=list)
 
 

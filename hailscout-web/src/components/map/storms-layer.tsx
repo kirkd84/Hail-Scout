@@ -446,6 +446,19 @@ export function StormsLayer({
         year: "numeric",
       });
       // Inline HTML kept tight; styling matches the picker card.
+      // The LSR-confirmed pill appears only when an SPC ground-truth
+      // report fell inside this cell within ±30 min — it's a quiet
+      // green checkmark, not a flashy badge, so the popup still reads
+      // as one piece of information rather than two.
+      const confirmedPill = s.lsr_confirmed
+        ? `<span style="display:inline-flex;align-items:center;gap:3px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:0.08em;color:#2f7a4f;background:rgba(47,122,79,0.12);border:1px solid rgba(47,122,79,0.3);border-radius:3px;padding:1px 5px;margin-left:6px;vertical-align:middle;">✓ Confirmed</span>`
+        : "";
+      const lsrSizeNote =
+        s.lsr_confirmed && s.lsr_observed_size_in
+          ? `<div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;opacity:0.55;margin-top:2px;">Ground report: ${s.lsr_observed_size_in.toFixed(
+              2,
+            )}″</div>`
+          : "";
       const html = `
         <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 10px;min-width:200px;">
           <span style="display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:42px;height:38px;border-radius:6px;background:${c.solid};color:${badgeFg};box-shadow:0 1px 3px rgba(0,0,0,0.15);">
@@ -453,8 +466,9 @@ export function StormsLayer({
             <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:8px;text-transform:uppercase;letter-spacing:0.08em;line-height:1;margin-top:2px;opacity:0.9;">${c.object}</span>
           </span>
           <div style="min-width:0;">
-            <div style="font-family:Fraunces,Cambria,serif;font-size:15px;font-weight:500;letter-spacing:-0.01em;line-height:1.2;">${where?.label ?? "United States"}</div>
+            <div style="font-family:Fraunces,Cambria,serif;font-size:15px;font-weight:500;letter-spacing:-0.01em;line-height:1.2;">${where?.label ?? "United States"}${confirmedPill}</div>
             <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;opacity:0.65;margin-top:3px;">${dateStr} · ${s.source}</div>
+            ${lsrSizeNote}
           </div>
         </div>`;
       popup.setLngLat(e.lngLat).setHTML(html).addTo(map);

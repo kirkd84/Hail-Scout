@@ -139,6 +139,24 @@ export function StormDetailSheet({ storm, isOpen, onClose, address, map }: Storm
               </span>
             }
           />
+          {storm.lsr_confirmed && (
+            <Row
+              term="Ground truth"
+              def={
+                <span className="inline-flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-forest/10 px-2 py-0.5 text-[10px] font-mono uppercase tracking-wide-caps text-forest ring-1 ring-forest/30">
+                    <span className="h-1.5 w-1.5 rounded-full bg-forest" />
+                    SPC LSR confirmed
+                  </span>
+                  {storm.lsr_observed_size_in != null && (
+                    <span className="font-mono-num text-xs text-foreground/70">
+                      {storm.lsr_observed_size_in.toFixed(2)}″ reported
+                    </span>
+                  )}
+                </span>
+              }
+            />
+          )}
         </dl>
 
         <div className="px-6 pb-6">
