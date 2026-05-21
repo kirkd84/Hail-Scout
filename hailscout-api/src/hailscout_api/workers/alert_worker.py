@@ -29,6 +29,8 @@ from datetime import datetime, timezone
 from hailscout_api.config import get_settings
 from hailscout_api.db import session as db_session
 from hailscout_api.services.alert_generator import generate_alerts_for_all_orgs
+from hailscout_api.services.lsr_linker import link_recent_lsrs
+from hailscout_api.services.storm_screener import screen_recent_storms
 
 log = logging.getLogger(__name__)
 
@@ -50,7 +52,18 @@ def _run_once_mode() -> bool:
 
 
 async def _one_pass() -> dict:
-    """One generator pass across every org. Returns the per-org summary."""
+    """One worker tick. Runs three jobs in order against fresh sessions:
+
+      1. Screen recent storms (incremental — only unscreened rows). New
+         pipeline arrivals get tagged before any user-facing surface
+         (or alert) sees them.
+      2. Link new SPC LSRs to nearby radar cells.
+      3. Generate + fan out alerts for every org.
+
+    Order matters: screening before alert-gen means suspect cells get
+    rejected at the alert layer. Linking before alert-gen means a
+    confirmed cell shows up as such in any email that triggers.
+    """
     factory = db_session._async_session_factory  # noqa: SLF001
     if factory is None:
         # First-time init in this process. The web app initializes this
@@ -59,12 +72,42 @@ async def _one_pass() -> dict:
         db_session.init_db(get_settings())
         factory = db_session._async_session_factory  # noqa: SLF001
         assert factory is not None
+
+    screen_summary: dict = {}
+    link_summary: dict = {}
+    alert_summary: dict = {}
+
     async with factory() as session:
-        return await generate_alerts_for_all_orgs(session)
+        try:
+            screen_summary = await screen_recent_storms(
+                session, lookback_days=2, only_unscreened=True,
+            )
+        except Exception:
+            log.exception("alert_worker.screen_failed")
+
+    async with factory() as session:
+        try:
+            link_summary = await link_recent_lsrs(session, lookback_days=2)
+        except Exception:
+            log.exception("alert_worker.lsr_link_failed")
+
+    async with factory() as session:
+        alert_summary = await generate_alerts_for_all_orgs(session)
+
+    return {
+        "screen": screen_summary,
+        "lsr_link": link_summary,
+        "alerts_per_org": alert_summary,
+    }
 
 
-def _flat_counts(per_org: dict) -> dict:
-    """Flatten per-org dicts into a single rollup for log readability."""
+def _flat_counts(result: dict) -> dict:
+    """Flatten the multi-job per-pass dict into a single rollup for
+    log readability. Accepts the result of `_one_pass()`."""
+    per_org = result.get("alerts_per_org", {}) or {}
+    screen = result.get("screen", {}) or {}
+    link = result.get("lsr_link", {}) or {}
+
     total = {
         "orgs": len(per_org),
         "orgs_with_new": 0,
@@ -72,8 +115,11 @@ def _flat_counts(per_org: dict) -> dict:
         "slack_sent": 0,
         "email_sent": 0,
         "errors": 0,
+        "screened": screen.get("scanned", 0),
+        "newly_suspect": screen.get("flagged_suspect", 0),
+        "lsr_confirmed_cells": link.get("cells_confirmed", 0),
     }
-    for org_id, s in per_org.items():
+    for _org_id, s in per_org.items():
         if "error" in s:
             total["errors"] += 1
             continue
@@ -96,8 +142,8 @@ async def _main_async() -> int:
 
     if run_once:
         started = time.monotonic()
-        per_org = await _one_pass()
-        rollup = _flat_counts(per_org)
+        pass_result = await _one_pass()
+        rollup = _flat_counts(pass_result)
         log.warning(
             "alert_worker.run_once_done elapsed_s=%.1f %s",
             time.monotonic() - started, rollup,
@@ -109,8 +155,8 @@ async def _main_async() -> int:
     while True:
         started = time.monotonic()
         try:
-            per_org = await _one_pass()
-            rollup = _flat_counts(per_org)
+            pass_result = await _one_pass()
+            rollup = _flat_counts(pass_result)
             log.warning(
                 "alert_worker.pass_done elapsed_s=%.1f %s",
                 time.monotonic() - started, rollup,

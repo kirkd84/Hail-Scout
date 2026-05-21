@@ -38,6 +38,12 @@ class StormResponse(BaseModel):
     lsr_confirmed: bool = False
     lsr_observed_size_in: float | None = None
     lsr_observed_at: datetime | None = None
+    # False-positive screening (Phase 23.5). `confidence` is in [0, 1];
+    # `suspect` is true when confidence < SUSPECT_THRESHOLD; reasons
+    # are explanatory tags ('implausibly_small_for_size', etc.).
+    confidence: float = 1.0
+    suspect: bool = False
+    suspect_reasons: list[str] = Field(default_factory=list)
     swaths: list["HailSwathResponse"] | None = None  # only when include=swaths
 
     model_config = {"from_attributes": True}
@@ -67,6 +73,9 @@ class StormDetailResponse(BaseModel):
     lsr_confirmed: bool = False
     lsr_observed_size_in: float | None = None
     lsr_observed_at: datetime | None = None
+    confidence: float = 1.0
+    suspect: bool = False
+    suspect_reasons: list[str] = Field(default_factory=list)
     swaths: list[HailSwathResponse] = Field(default_factory=list)
 
 

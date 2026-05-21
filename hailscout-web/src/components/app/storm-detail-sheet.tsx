@@ -157,6 +157,28 @@ export function StormDetailSheet({ storm, isOpen, onClose, address, map }: Storm
               }
             />
           )}
+          {storm.suspect && (
+            <Row
+              term="Quality"
+              def={
+                <div className="space-y-1.5">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-copper/10 px-2 py-0.5 text-[10px] font-mono uppercase tracking-wide-caps text-copper ring-1 ring-copper/30">
+                    <span className="h-1.5 w-1.5 rounded-full bg-copper" />
+                    Unverified · likely false positive
+                  </span>
+                  {storm.suspect_reasons && storm.suspect_reasons.length > 0 && (
+                    <ul className="text-xs text-foreground/60 list-none space-y-0.5">
+                      {storm.suspect_reasons.map((reason) => (
+                        <li key={reason} className="font-mono-num">
+                          · {humanizeReason(reason)}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              }
+            />
+          )}
         </dl>
 
         <div className="px-6 pb-6">
@@ -185,6 +207,30 @@ function Row({ term, def }: { term: string; def: React.ReactNode }) {
       <dd className="text-foreground">{def}</dd>
     </div>
   );
+}
+
+/** Map a screener tag (snake_case) to a one-line plain-English
+ *  explanation. The server-side tags are stable identifiers; this
+ *  function owns the user-facing copy so we can iterate on tone
+ *  without a re-deploy of the API. */
+function humanizeReason(tag: string): string {
+  switch (tag) {
+    case "implausibly_small_for_size":
+      return "Footprint too small for the claimed peak hail size";
+    case "no_cross_source_confirmation":
+      return "Neither MRMS nor NEXRAD corroborated this reading";
+    case "single_frame_no_persistence":
+      return "Detected in a single radar frame only";
+  }
+  if (tag.startsWith("no_lsr_near_")) {
+    const metro = tag
+      .replace("no_lsr_near_", "")
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+    return `No ground report filed near ${metro} within ±3 hours`;
+  }
+  // Fall back to the raw tag — easier to debug than a silent drop.
+  return tag.replace(/_/g, " ");
 }
 
 function ShareLinkButton({ storm, className }: { storm: Storm; className?: string }) {

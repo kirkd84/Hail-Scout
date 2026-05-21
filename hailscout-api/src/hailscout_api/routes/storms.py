@@ -78,6 +78,13 @@ async def list_storms(
         description="Sort order: 'recent' (start_time DESC, default) or "
                     "'peak' (max_hail_size_in DESC) for a top-events feed.",
     ),
+    include_unconfirmed: bool = Query(
+        False,
+        description="Include storms the false-positive screener has "
+                    "tagged as suspect. Default false — these rows are "
+                    "kept in the DB for forensics but hidden from the "
+                    "live map and reports.",
+    ),
     session: AsyncSession = Depends(get_db_session),
 ) -> StormsListResponse:
     """Storms whose bounding box intersects the query envelope."""
@@ -101,6 +108,7 @@ async def list_storms(
         source=source_filter,
         min_hail_size_in=min_size,
         order=order,
+        include_unconfirmed=include_unconfirmed,
     )
     return StormsListResponse(storms=storms, cursor=None, total=len(storms))
 

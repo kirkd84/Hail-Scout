@@ -42,6 +42,7 @@ async def query_storms_in_bbox(
     source: str | None = None,
     min_hail_size_in: float | None = None,
     order: str = "recent",
+    include_unconfirmed: bool = False,
 ) -> list[dict[str, Any]]:
     """Storms whose bbox intersects the query envelope, in date range.
 
@@ -71,6 +72,11 @@ async def query_storms_in_bbox(
         filters.append(Storm.source == source)
     if min_hail_size_in is not None and min_hail_size_in > 0:
         filters.append(Storm.max_hail_size_in >= min_hail_size_in)
+    # False-positive screening (Phase 23.5): default-hide rows the
+    # storm_screener has tagged as suspect. Callers asking for the
+    # full unfiltered set pass `include_unconfirmed=True`.
+    if not include_unconfirmed:
+        filters.append(Storm.suspect.is_(False))
 
     # Sort: "recent" (default) = by start_time DESC; "peak" = by
     # max_hail_size_in DESC for "biggest events" leaderboards.
@@ -89,6 +95,9 @@ async def query_storms_in_bbox(
             Storm.lsr_confirmed,
             Storm.lsr_observed_size_in,
             Storm.lsr_observed_at,
+            Storm.confidence,
+            Storm.suspect,
+            Storm.suspect_reasons,
             ST_AsGeoJSON(Storm.centroid_geom).label("centroid_json"),
             ST_AsGeoJSON(Storm.bbox_geom).label("bbox_json"),
         )
@@ -109,6 +118,12 @@ async def query_storms_in_bbox(
             "lsr_confirmed": bool(r.lsr_confirmed),
             "lsr_observed_size_in": r.lsr_observed_size_in,
             "lsr_observed_at": r.lsr_observed_at,
+            "confidence": float(r.confidence) if r.confidence is not None else 1.0,
+            "suspect": bool(r.suspect),
+            "suspect_reasons": (
+                [t for t in (r.suspect_reasons or "").split(",") if t]
+                if r.suspect_reasons else []
+            ),
             "centroid": json.loads(r.centroid_json) if r.centroid_json else None,
             "bbox": json.loads(r.bbox_json) if r.bbox_json else None,
         })
@@ -180,6 +195,9 @@ async def get_storm_with_swaths(
             Storm.lsr_confirmed,
             Storm.lsr_observed_size_in,
             Storm.lsr_observed_at,
+            Storm.confidence,
+            Storm.suspect,
+            Storm.suspect_reasons,
             ST_AsGeoJSON(Storm.centroid_geom).label("centroid_json"),
             ST_AsGeoJSON(Storm.bbox_geom).label("bbox_json"),
         )
@@ -219,6 +237,12 @@ async def get_storm_with_swaths(
         "lsr_confirmed": bool(row.lsr_confirmed),
         "lsr_observed_size_in": row.lsr_observed_size_in,
         "lsr_observed_at": row.lsr_observed_at,
+        "confidence": float(row.confidence) if row.confidence is not None else 1.0,
+        "suspect": bool(row.suspect),
+        "suspect_reasons": (
+            [t for t in (row.suspect_reasons or "").split(",") if t]
+            if row.suspect_reasons else []
+        ),
         "centroid": json.loads(row.centroid_json) if row.centroid_json else None,
         "bbox": json.loads(row.bbox_json) if row.bbox_json else None,
         "swaths": swaths,
@@ -248,6 +272,8 @@ async def query_hail_at_point(
             Storm.end_time,
             Storm.max_hail_size_in,
             Storm.source,
+            Storm.suspect,
+            Storm.confidence,
             HailSwath.hail_size_category,
         )
         .join(HailSwath, HailSwath.storm_id == Storm.id)
@@ -273,6 +299,8 @@ async def query_hail_at_point(
                 "end_time": r.end_time,
                 "max_hail_size_in": r.max_hail_size_in,
                 "source": r.source,
+                "suspect": bool(r.suspect),
+                "confidence": float(r.confidence) if r.confidence is not None else 1.0,
                 "category_at_point": cat,
             }
         else:

@@ -47,6 +47,24 @@ class Storm(Base):
     lsr_observed_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True,
     )
+    # Quality / false-positive screening (Phase 23.5). `confidence` is
+    # in [0, 1]; `suspect` is a cheap-to-index derivation
+    # (suspect = confidence < SUSPECT_THRESHOLD). `suspect_reasons`
+    # is a comma-separated tag list — bird_bloom, single_pixel,
+    # no_lsr_in_metro, no_cross_source, etc.
+    confidence: Mapped[float] = mapped_column(
+        Float, nullable=False, default=1.0, server_default="1.0",
+    )
+    suspect: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false",
+        index=True,
+    )
+    suspect_reasons: Mapped[Optional[str]] = mapped_column(
+        String(255), nullable=True,
+    )
+    screened_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+    )
     created_at: Mapped[datetime] = created_at_column()
     updated_at: Mapped[datetime] = updated_at_column()
 

@@ -93,6 +93,12 @@ async def generate_alerts_for_org(
         for storm in hits:
             if (storm.get("max_hail_size_in") or 0) < threshold:
                 continue
+            # Phase 23.5: never alert on a storm the screener flagged
+            # as a likely false positive. Worse than no alert is an
+            # alert that erodes trust — once a rep gets one bad
+            # "2.5″ hit Denver" email, they'll mute the channel.
+            if storm.get("suspect"):
+                continue
             new_matches.append({
                 "monitored_address_id": addr.id,
                 "storm_id": storm["id"],

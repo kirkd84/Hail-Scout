@@ -29,6 +29,7 @@ from hailscout_api.schemas.admin import (
     UserSummary,
 )
 from hailscout_api.services.lsr_linker import link_recent_lsrs
+from hailscout_api.services.storm_screener import screen_recent_storms
 
 router = APIRouter(prefix="/admin")
 
@@ -273,4 +274,30 @@ async def run_lsr_linker(
         raise HTTPException(status_code=422,
                             detail="lookback_days must be 1..365")
     summary = await link_recent_lsrs(session, lookback_days=lookback_days)
+    return {"ok": True, **summary}
+
+
+@router.post("/storms/screen")
+async def run_storm_screener(
+    lookback_days: int = 14,
+    only_unscreened: bool = False,
+    limit: int | None = None,
+    _: User = Depends(require_super_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Re-evaluate storm rows against the false-positive screener.
+
+    Stamps `confidence`, `suspect`, and `suspect_reasons` on every
+    Storm in the lookback window. Pass `only_unscreened=true` to
+    process just rows the live pipeline has added since the last run.
+    """
+    if lookback_days < 1 or lookback_days > 365:
+        raise HTTPException(status_code=422,
+                            detail="lookback_days must be 1..365")
+    summary = await screen_recent_storms(
+        session,
+        lookback_days=lookback_days,
+        only_unscreened=bool(only_unscreened),
+        limit=limit,
+    )
     return {"ok": True, **summary}

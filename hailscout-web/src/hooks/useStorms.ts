@@ -54,6 +54,10 @@ interface ApiStorm {
   lsr_confirmed?: boolean;
   lsr_observed_size_in?: number | null;
   lsr_observed_at?: string | null;
+  /** Phase 23.5 quality fields. */
+  confidence?: number;
+  suspect?: boolean;
+  suspect_reasons?: string[];
   /** Only populated when the request includes `include=swaths`. */
   swaths?: ApiHailSwath[];
 }
@@ -122,6 +126,9 @@ export function adaptApiStorm(s: ApiStorm): Storm {
     lsr_confirmed: s.lsr_confirmed ?? false,
     lsr_observed_size_in: s.lsr_observed_size_in ?? null,
     lsr_observed_at: s.lsr_observed_at ?? null,
+    confidence: s.confidence ?? 1,
+    suspect: s.suspect ?? false,
+    suspect_reasons: s.suspect_reasons ?? [],
   };
 }
 

@@ -20,6 +20,16 @@ export interface Storm {
   lsr_confirmed?: boolean;
   lsr_observed_size_in?: number | null;
   lsr_observed_at?: string | null;
+  /**
+   * False-positive screening (Phase 23.5). `confidence` is in [0, 1];
+   * the API default-hides rows with `suspect=true` unless the request
+   * passes `include_unconfirmed=1`. Reasons are explanatory tags from
+   * the screener (e.g. "implausibly_small_for_size",
+   * "no_lsr_near_denver").
+   */
+  confidence?: number;
+  suspect?: boolean;
+  suspect_reasons?: string[];
 }
 
 /** Per-storm hail observation at an address. */
