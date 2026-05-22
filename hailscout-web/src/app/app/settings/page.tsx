@@ -17,7 +17,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { UserButton } from "@clerk/nextjs";
+import { UserButton, UserProfile, useClerk } from "@clerk/nextjs";
 import { useMe } from "@/hooks/useMe";
 import { BrandingCard } from "@/components/app/branding-card";
 import { EmailAlertsCard } from "@/components/app/email-alerts-card";
@@ -138,31 +138,85 @@ function SettingsInner() {
 
 function ProfileTab() {
   const { me } = useMe();
+  const { signOut } = useClerk();
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    // Clerk's signOut clears the session + cookies. Redirect to root
+    // afterward so the marketing site picks up the unauthenticated
+    // user; the in-app routes would otherwise bounce through Clerk's
+    // sign-in screen.
+    await signOut(() => router.push("/"));
+  };
+
   return (
-    <SectionCard
-      eyebrow="Account"
-      title="Your profile"
-      description="Manage email, password, two-factor, and sign-out from the avatar menu."
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          {me?.user?.email && (
-            <p className="font-mono-num text-sm text-foreground">{me.user.email}</p>
-          )}
-          {me?.user?.role && (
-            <p className="text-[11px] font-mono uppercase tracking-wide-caps text-foreground/55">
-              Role: {me.user.role.replace("_", " ")}
-            </p>
-          )}
-          {me?.organization?.name && (
-            <p className="text-xs text-foreground/55">{me.organization.name}</p>
-          )}
+    <>
+      <SectionCard
+        eyebrow="Account"
+        title="Your profile"
+        description="Your sign-in identity and the workspace this account belongs to. Edit your name, email, password, and 2FA below; manage workspace roles under Workspace → Team."
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            {me?.user?.email && (
+              <p className="font-mono-num text-sm text-foreground">{me.user.email}</p>
+            )}
+            {me?.user?.role && (
+              <p className="text-[11px] font-mono uppercase tracking-wide-caps text-foreground/55">
+                Role: {me.user.role.replace("_", " ")}
+              </p>
+            )}
+            {me?.organization?.name && (
+              <p className="text-xs text-foreground/55">{me.organization.name}</p>
+            )}
+          </div>
+          <UserButton
+            appearance={{ elements: { avatarBox: "h-10 w-10 ring-1 ring-border" } }}
+          />
         </div>
-        <UserButton
-          appearance={{ elements: { avatarBox: "h-10 w-10 ring-1 ring-border" } }}
-        />
-      </div>
-    </SectionCard>
+
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive"
+          >
+            Sign out <span aria-hidden>↗</span>
+          </button>
+          <p className="text-xs text-muted-foreground">
+            Ends your session on this device. Use the avatar menu (top-right)
+            to switch accounts.
+          </p>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        eyebrow="Personal info"
+        title="Edit your account"
+        description="Name, email, password, two-factor authentication, and active sessions — all live here. Changes save instantly."
+      >
+        {/* Clerk-hosted account-management UI. `routing="hash"` keeps
+            nav inside the panel rather than triggering full-page
+            navigations from the embedded forms. `hideNavigation` drops
+            the left rail so the panel feels like one of our cards
+            instead of an entire sub-app. */}
+        <div className="-mx-2">
+          <UserProfile
+            routing="hash"
+            appearance={{
+              elements: {
+                rootBox: "w-full",
+                card: "shadow-none bg-transparent",
+                navbar: "hidden",
+                navbarMobileMenuButton: "hidden",
+                pageScrollBox: "px-0",
+                profilePage: "px-0",
+              },
+            }}
+          />
+        </div>
+      </SectionCard>
+    </>
   );
 }
 
