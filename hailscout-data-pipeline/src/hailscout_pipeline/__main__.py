@@ -209,7 +209,31 @@ def cmd_backfill(args: argparse.Namespace) -> int:
 
 
 def cmd_loop(args: argparse.Namespace) -> int:
-    """Run `live` forever on an interval (Railway worker mode)."""
+    """Run `live` forever on an interval (Railway worker mode).
+
+    Optional one-shot LSR backfill on container boot: if
+    `LSR_BACKFILL_SINCE` is set in the environment, run a single
+    `cmd_lsr` pass against SPC before entering the live MRMS loop.
+    Used to seed multi-year LSR data so the NEXRAD backfill can
+    pre-filter station-days that had no ground reports.
+    Companion env: `LSR_BACKFILL_UNTIL` (default = today).
+    Clear when done — re-runs on restart are idempotent but wasteful.
+    """
+    import os
+    lsr_since = os.environ.get("LSR_BACKFILL_SINCE", "").strip()
+    if lsr_since:
+        lsr_until = os.environ.get("LSR_BACKFILL_UNTIL", "").strip()
+        if not lsr_until:
+            lsr_until = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        log.info("loop_pre_lsr_backfill_start",
+                 since=lsr_since, until=lsr_until)
+        try:
+            fake = argparse.Namespace(since=lsr_since, until=lsr_until)
+            cmd_lsr(fake)
+        except Exception:
+            log.exception("loop_pre_lsr_backfill_failed")
+        log.info("loop_pre_lsr_backfill_done — entering live loop")
+
     interval = args.interval_seconds
     log.info("loop_start", interval_seconds=interval)
     while True:

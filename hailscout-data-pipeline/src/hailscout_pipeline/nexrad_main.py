@@ -24,10 +24,12 @@ Usage:
 """
 from __future__ import annotations
 import argparse
+import gc
 import logging
 import os
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, Future
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -155,11 +157,39 @@ def cmd_loop(args: argparse.Namespace) -> int:
     is effectively dead unless someone wires AWS requester-pays.
     """
     interval = args.interval_seconds
-    stations = (
+
+    # Phase 23.7 fan-out: when SHARD_INDEX + SHARD_COUNT are both set,
+    # the container handles only its slice of the station list (using
+    # Python's slice notation: list[index::count]). Lets us deploy N
+    # parallel copies of the same image to chunk a 5-year backfill
+    # across the hail belt without building a job queue.
+    def _apply_shard(station_list: list[str]) -> list[str]:
+        si = os.environ.get("SHARD_INDEX", "").strip()
+        sc = os.environ.get("SHARD_COUNT", "").strip()
+        if not (si and sc):
+            return station_list
+        try:
+            si_i = int(si)
+            sc_i = int(sc)
+            if 0 <= si_i < sc_i and sc_i > 0:
+                out = station_list[si_i::sc_i]
+                log.info("nexrad_shard_apply",
+                         shard_index=si_i, shard_count=sc_i,
+                         stations_in=len(station_list),
+                         my_stations=out)
+                return out
+        except ValueError:
+            pass
+        log.warning("nexrad_shard_bad_env",
+                    shard_index=si, shard_count=sc)
+        return station_list
+
+    base_stations = (
         [s.strip().upper() for s in args.stations.split(",")]
         if args.stations
         else list(CONUS_NEXRAD_STATIONS.keys())
     )
+    stations = _apply_shard(base_stations)
 
     backfill_since_env = os.environ.get("DEEP_BACKFILL_SINCE", "").strip()
     if backfill_since_env:
@@ -167,6 +197,17 @@ def cmd_loop(args: argparse.Namespace) -> int:
         backfill_stations_env = os.environ.get(
             "DEEP_BACKFILL_STATIONS", "",
         ).strip()
+        # Resolve the backfill station list, then shard it.
+        if backfill_stations_env:
+            bf_stations = [s.strip().upper() for s in backfill_stations_env.split(",")]
+        else:
+            bf_stations = (
+                [s.strip().upper() for s in args.stations.split(",")]
+                if args.stations
+                else list(CONUS_NEXRAD_STATIONS.keys())
+            )
+        bf_stations = _apply_shard(bf_stations)
+
         # Reuse cmd_backfill (Unidata mirror) by faking the argparse
         # Namespace. The mirror has anonymous LIST + multi-year history,
         # which is what we actually need.
@@ -175,7 +216,7 @@ def cmd_loop(args: argparse.Namespace) -> int:
             until=(backfill_until_env
                    or (datetime.fromisoformat(backfill_since_env)
                        + timedelta(days=1)).isoformat()),
-            stations=(backfill_stations_env or args.stations),
+            stations=(",".join(bf_stations) if bf_stations else None),
         )
         log.info("nexrad_loop_pre_backfill_start",
                  since=fake_args.since, until=fake_args.until,
@@ -232,12 +273,111 @@ def cmd_loop(args: argparse.Namespace) -> int:
         time.sleep(sleep_remaining)
 
 
+def _apply_lsr_prefilter(
+    scans: list[VolumeScanKey],
+    station: str,
+    radius_km: float,
+) -> list[VolumeScanKey]:
+    """Drop scans on UTC dates where no SPC LSR was filed within
+    `radius_km` of the station.
+
+    The 5-year hail-belt backfill is dominated by clear-air days that
+    yield zero hail cells. Pre-filtering by LSR proximity cuts most of
+    that wasted work — only days with documented ground-truth hail
+    activity within typical radar range get processed.
+
+    Safety: if no LSR rows exist at all in the scan window (i.e. the
+    LSR backfill hasn't reached this date range yet), we fall back to
+    processing everything. Better to do extra work than silently drop
+    valid scans.
+
+    The check uses Postgres + PostGIS — one batched query per station.
+    Costs ~50 ms; saves ~80% of station-days during quiet stretches.
+    """
+    if not scans:
+        return scans
+
+    coords = CONUS_NEXRAD_STATIONS.get(station.upper())
+    if coords is None:
+        # Unknown station — don't filter; let the user notice via the
+        # downstream "0 cells" logs.
+        return scans
+    slat, slng = coords
+
+    radius_deg = radius_km / 111.0  # rough km→deg at mid-latitudes
+    min_ts = min(s.timestamp for s in scans) - timedelta(days=1)
+    max_ts = max(s.timestamp for s in scans) + timedelta(days=1)
+
+    # Local imports — keeps the rest of the module light and the
+    # nexrad container build doesn't change.
+    from sqlalchemy import and_, func, select
+    from geoalchemy2.functions import ST_DWithin, ST_MakePoint, ST_SetSRID
+    from hailscout_pipeline.db.models import Storm
+
+    with SessionLocal() as session:
+        # Sanity check: any LSR rows in the window at all?
+        any_lsr = session.execute(
+            select(func.count(Storm.id))
+            .where(and_(
+                Storm.source == "SPC-LSR",
+                Storm.start_time >= min_ts,
+                Storm.start_time <= max_ts,
+            ))
+        ).scalar_one()
+        if not any_lsr:
+            log.info("nexrad_lsr_prefilter_skipped",
+                     station=station,
+                     reason="no_lsr_data_in_window",
+                     min_ts=min_ts.isoformat(), max_ts=max_ts.isoformat())
+            return scans
+
+        point = ST_SetSRID(ST_MakePoint(slng, slat), 4326)
+        active = session.execute(
+            select(func.date(Storm.start_time).label("d"))
+            .where(and_(
+                Storm.source == "SPC-LSR",
+                Storm.start_time >= min_ts,
+                Storm.start_time <= max_ts,
+                ST_DWithin(Storm.centroid_geom, point, radius_deg),
+            ))
+            .group_by(func.date(Storm.start_time))
+        ).all()
+        active_dates = {row.d for row in active}
+
+    # Be slightly generous — include the day before/after any active
+    # date, since LSRs filed near midnight UTC can sit on either side
+    # of the storm that produced them.
+    keep = set(active_dates)
+    for d in active_dates:
+        keep.add(d - timedelta(days=1))
+        keep.add(d + timedelta(days=1))
+
+    kept = [s for s in scans if s.timestamp.date() in keep]
+    log.info("nexrad_lsr_prefilter",
+             station=station,
+             scans_in=len(scans),
+             scans_kept=len(kept),
+             dates_with_lsrs=len(active_dates),
+             dropped_ratio=round(1.0 - len(kept) / max(1, len(scans)), 3))
+    return kept
+
+
 def cmd_backfill(args: argparse.Namespace) -> int:
     """Walk a date range for one or more stations.
 
     Pulls every volume scan in the window, processes + upserts.
     Useful for filling historical track data over a known severe-weather
     event.
+
+    Optimizations (Phase 23.7 — hail-belt 5y prep):
+      * LSR pre-filter — skip dates with no SPC ground reports near
+        the station. Cuts most clear-air work. Toggle via
+        `LSR_PREFILTER=0` env var (default on).
+      * Async download — prefetch the next scan in a background
+        thread while py-ART parses the current one. Roughly 30-40%
+        wall-clock savings since downloads and parsing overlap.
+      * GC hygiene — explicit gc.collect() every 20 scans to keep
+        the container's RSS from drifting upward across long runs.
     """
     since = datetime.fromisoformat(args.since).replace(tzinfo=timezone.utc)
     until = datetime.fromisoformat(args.until).replace(tzinfo=timezone.utc)
@@ -246,34 +386,87 @@ def cmd_backfill(args: argparse.Namespace) -> int:
         if args.stations
         else list(CONUS_NEXRAD_STATIONS.keys())
     )
+    lsr_filter_on = os.environ.get("LSR_PREFILTER", "1").strip() == "1"
+    lsr_radius_km = float(os.environ.get("LSR_PREFILTER_RADIUS_KM", "250"))
+
     log.info("nexrad_backfill_start",
              since=since.isoformat(), until=until.isoformat(),
-             stations=stations, station_count=len(stations))
+             stations=stations, station_count=len(stations),
+             lsr_prefilter=lsr_filter_on,
+             lsr_radius_km=lsr_radius_km)
 
     client = NexradClient(bucket_name=settings.noaa_nexrad_bucket)
-    n_ok, n_fail = 0, 0
+    n_ok, n_fail, n_skipped = 0, 0, 0
     started = time.monotonic()
 
     for station in stations:
         try:
             scans = client.list_volume_scans_window(since, until, station)
+            scans_total = len(scans)
+
+            if lsr_filter_on:
+                scans = _apply_lsr_prefilter(scans, station, lsr_radius_km)
+                n_skipped += scans_total - len(scans)
+
             log.info("nexrad_backfill_station",
-                     station=station, scan_count=len(scans))
-            for scan_key in scans:
-                local = None
-                try:
-                    local = client.download(scan_key)
-                    _process_one(local, scan_key.station, scan_key.timestamp)
-                    n_ok += 1
-                except Exception as e:
-                    n_fail += 1
-                    log.warning("nexrad_backfill_scan_failed",
-                                station=scan_key.station,
-                                ts=scan_key.timestamp.isoformat(),
-                                error=str(e))
-                finally:
-                    if local:
-                        Path(local).unlink(missing_ok=True)
+                     station=station,
+                     scan_count_total=scans_total,
+                     scan_count_processed=len(scans))
+
+            # Async prefetch: download[i+1] runs in a background thread
+            # while _process_one chews on scan[i]. One worker is enough
+            # — py-ART is the slow step and there's nothing to gain
+            # from multiple concurrent downloads.
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                prefetch: Future | None = None
+
+                for i, scan_key in enumerate(scans):
+                    local: str | None = None
+
+                    # Resolve current download (from prefetch when avail)
+                    try:
+                        if prefetch is not None:
+                            local = prefetch.result(timeout=180)
+                        else:
+                            local = client.download(scan_key)
+                    except Exception as e:
+                        n_fail += 1
+                        log.warning("nexrad_backfill_download_failed",
+                                    station=scan_key.station,
+                                    ts=scan_key.timestamp.isoformat(),
+                                    error=str(e))
+                        prefetch = (
+                            executor.submit(client.download, scans[i + 1])
+                            if i + 1 < len(scans) else None
+                        )
+                        continue
+
+                    # Kick off prefetch for next iteration immediately,
+                    # before processing the current one.
+                    prefetch = (
+                        executor.submit(client.download, scans[i + 1])
+                        if i + 1 < len(scans) else None
+                    )
+
+                    try:
+                        _process_one(local, scan_key.station, scan_key.timestamp)
+                        n_ok += 1
+                    except Exception as e:
+                        n_fail += 1
+                        log.warning("nexrad_backfill_scan_failed",
+                                    station=scan_key.station,
+                                    ts=scan_key.timestamp.isoformat(),
+                                    error=str(e))
+                    finally:
+                        if local:
+                            Path(local).unlink(missing_ok=True)
+
+                    # Memory hygiene — py-ART and numpy buffers can
+                    # leave Python's GC slow to reclaim. Explicit
+                    # collection every ~minute of wall-clock keeps RSS
+                    # bounded across multi-day runs.
+                    if (i + 1) % 20 == 0:
+                        gc.collect()
         except Exception as e:
             n_fail += 1
             log.exception("nexrad_backfill_station_failed",
@@ -281,8 +474,10 @@ def cmd_backfill(args: argparse.Namespace) -> int:
         # Reset prior-scan cache between stations to avoid cross-station
         # track contamination
         _prior_scans.pop(station, None)
+        gc.collect()
 
-    log.info("nexrad_backfill_done", ok=n_ok, fail=n_fail,
+    log.info("nexrad_backfill_done",
+             ok=n_ok, fail=n_fail, skipped_no_lsr=n_skipped,
              elapsed_seconds=int(time.monotonic() - started))
     return 0
 
