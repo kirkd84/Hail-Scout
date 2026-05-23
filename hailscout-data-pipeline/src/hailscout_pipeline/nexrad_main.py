@@ -191,6 +191,16 @@ def cmd_loop(args: argparse.Namespace) -> int:
     )
     stations = _apply_shard(base_stations)
 
+    # Phase 23.7 work-queue mode. When BACKFILL_QUEUE=1 is set, the
+    # replica enters a claim-and-process loop against the
+    # nexrad_backfill_shards table instead of the env-var dispatch.
+    # First boot seeds the queue from DEEP_BACKFILL_SINCE/UNTIL/STATIONS.
+    # All other replicas claim work and process it. When the queue is
+    # drained, the worker drops into the normal live loop.
+    if os.environ.get("BACKFILL_QUEUE", "").strip() == "1":
+        _run_queue_worker(args)
+        log.info("nexrad_loop_queue_done — entering live loop")
+
     backfill_since_env = os.environ.get("DEEP_BACKFILL_SINCE", "").strip()
     if backfill_since_env:
         backfill_until_env = os.environ.get("DEEP_BACKFILL_UNTIL", "").strip()
@@ -480,6 +490,116 @@ def cmd_backfill(args: argparse.Namespace) -> int:
              ok=n_ok, fail=n_fail, skipped_no_lsr=n_skipped,
              elapsed_seconds=int(time.monotonic() - started))
     return 0
+
+
+def _run_queue_worker(args: argparse.Namespace) -> None:
+    """Postgres-coordinated shard worker.
+
+    On first boot of any replica, seed the queue from the env-var
+    backfill range (DEEP_BACKFILL_SINCE / UNTIL / STATIONS). All
+    replicas then claim shards atomically from the table and process
+    them, in parallel, until the queue is drained. After that the
+    caller drops into the normal live loop.
+
+    Seeding is idempotent (UNIQUE on station+range, ON CONFLICT DO
+    NOTHING), so it's safe for every replica to call seed_shards()
+    at boot — only the first one actually inserts rows.
+    """
+    from hailscout_pipeline.db.shard_queue import (
+        Shard,
+        claim_next_shard,
+        complete_shard,
+        ensure_table_exists,
+        heartbeat,
+        queue_status,
+        seed_shards,
+    )
+
+    ensure_table_exists()
+
+    # Seed only when DEEP_BACKFILL_* is set on this replica. Multiple
+    # replicas calling this is fine — the unique constraint dedupes.
+    since_env = os.environ.get("DEEP_BACKFILL_SINCE", "").strip()
+    until_env = os.environ.get("DEEP_BACKFILL_UNTIL", "").strip()
+    stations_env = os.environ.get("DEEP_BACKFILL_STATIONS", "").strip()
+    if since_env and until_env:
+        seed_since = datetime.fromisoformat(since_env)
+        seed_until = datetime.fromisoformat(until_env)
+        if stations_env:
+            seed_stations = [s.strip().upper() for s in stations_env.split(",")]
+        else:
+            seed_stations = list(CONUS_NEXRAD_STATIONS.keys())
+        # Slice each station's 5y range into roughly 1-year chunks so
+        # multiple replicas can chew on the same station in parallel.
+        # 365-day slices give ~5 sub-shards per station for a 5-year
+        # range; 31 stations × 5 = ~155 work units, easily soaks up
+        # 8-50 replicas without starvation.
+        slice_days_env = os.environ.get("BACKFILL_SLICE_DAYS", "365").strip()
+        try:
+            slice_days = int(slice_days_env)
+        except ValueError:
+            slice_days = 365
+        new_rows = seed_shards(
+            seed_stations, seed_since, seed_until,
+            slice_days=slice_days,
+        )
+        status_now = queue_status()
+        log.info("nexrad_queue_seed_done",
+                 stations=len(seed_stations),
+                 slice_days=slice_days,
+                 newly_inserted=new_rows,
+                 **status_now)
+
+    # Claim-and-process loop. Each shard gets its own _process_loop
+    # call which handles LSR pre-filter + async download.
+    while True:
+        shard: Shard | None = claim_next_shard()
+        if shard is None:
+            log.info("nexrad_queue_drained — no more shards")
+            return
+        log.info("nexrad_queue_shard_start",
+                 shard_id=shard.id, station=shard.station,
+                 since=shard.since.isoformat(),
+                 until=shard.until.isoformat())
+
+        # Build a one-station argparse.Namespace and reuse cmd_backfill.
+        # cmd_backfill heartbeats on its per-scan granularity already
+        # (via the gc.collect cadence) — we add explicit heartbeats here
+        # at the per-shard level too via a wrapper.
+        shard_args = argparse.Namespace(
+            since=shard.since.isoformat(),
+            until=shard.until.isoformat(),
+            stations=shard.station,
+        )
+
+        # Heartbeat thread: re-stamps claimed_at every 10 min so
+        # other replicas don't reclaim this shard during long runs.
+        import threading
+        stop_hb = threading.Event()
+
+        def _heartbeat_loop():
+            while not stop_hb.wait(600):  # 10 min
+                try:
+                    heartbeat(shard.id)
+                except Exception:
+                    log.exception("nexrad_queue_heartbeat_failed",
+                                  shard_id=shard.id)
+
+        hb_thread = threading.Thread(target=_heartbeat_loop, daemon=True)
+        hb_thread.start()
+
+        try:
+            cmd_backfill(shard_args)
+            complete_shard(shard.id)
+            log.info("nexrad_queue_shard_done",
+                     shard_id=shard.id, station=shard.station)
+        except Exception:
+            log.exception("nexrad_queue_shard_failed",
+                          shard_id=shard.id, station=shard.station)
+            # Leave claimed_at as-is; stale-claim logic will let another
+            # worker pick it up after CLAIM_TIMEOUT_HOURS.
+        finally:
+            stop_hb.set()
 
 
 def cmd_deep_backfill(args: argparse.Namespace) -> int:
