@@ -69,6 +69,25 @@ def _day_window(ts: datetime) -> tuple[datetime, datetime]:
     return day_start, day_end
 
 
+def _hail_size_to_category(inches: float) -> str:
+    """Map hail diameter to the shared HailSwath category label.
+    Mirrors the same 8-bin palette as the MRMS pipeline.
+
+    Defined here (not in nexrad_scit) so the MRMS-only image — which
+    doesn't ship py-ART — can call this from the SPC LSR upsert
+    without paying the cost of importing the radar parser.
+    """
+    if inches >= 3.0:  return "3.0+"
+    if inches >= 2.75: return "2.75"
+    if inches >= 2.5:  return "2.5"
+    if inches >= 2.0:  return "2.0"
+    if inches >= 1.75: return "1.75"
+    if inches >= 1.5:  return "1.5"
+    if inches >= 1.25: return "1.25"
+    if inches >= 1.0:  return "1.0"
+    return "0.75"
+
+
 def _write_swaths(session: Session, storm_id: str,
                   swaths: list[HailSwathData],
                   track: bool = False) -> None:
@@ -303,11 +322,9 @@ def upsert_nexrad_cell(session: Session, cell) -> dict:  # noqa: ANN001
     """
     # Imported here to keep the MRMS path free of py-ART transitive
     # dependencies. nexrad_scit is the only place that imports py-ART
-    # at module load.
-    from hailscout_pipeline.extraction.nexrad_scit import (
-        NexradCell,
-        _hail_size_to_category,
-    )
+    # at module load. `_hail_size_to_category` is the local copy in
+    # this module — no py-ART needed.
+    from hailscout_pipeline.extraction.nexrad_scit import NexradCell
 
     if not isinstance(cell, NexradCell):
         raise TypeError(
@@ -438,9 +455,10 @@ def upsert_lsr_report(session: Session, report) -> dict:  # noqa: ANN001
     Downstream consumers can use ST_Contains against bbox_geom for
     "is this address inside a reported impact zone" queries.
     """
-    from hailscout_pipeline.extraction.nexrad_scit import (
-        _hail_size_to_category,
-    )
+    # No nexrad_scit / py-ART import — this function is called from
+    # the MRMS-only image during the SPC LSR backfill, which doesn't
+    # ship py-ART. `_hail_size_to_category` lives locally in this
+    # module.
     from hailscout_pipeline.ingestion.spc_lsr_client import StormReport
 
     if not isinstance(report, StormReport):
