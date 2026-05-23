@@ -136,16 +136,23 @@ def cmd_loop(args: argparse.Namespace) -> int:
     Stations come from the --stations arg (comma-separated) or from
     CONUS_NEXRAD_STATIONS (hail-belt subset, ~33 sites).
 
-    Optional one-shot deep-backfill on startup: if
-    `DEEP_BACKFILL_SINCE` is set in the environment, run a single
-    `deep-backfill` pass against the NCEI archive before entering
-    the normal live loop. Useful for seeding historical track data
-    without spinning up a separate Railway service. Companion env
-    vars: `DEEP_BACKFILL_UNTIL` (default = SINCE+1d) and
-    `DEEP_BACKFILL_STATIONS` (default = --stations or hail-belt).
+    Optional one-shot backfill on startup: if `DEEP_BACKFILL_SINCE`
+    is set in the environment, run a single `backfill` pass before
+    entering the normal live loop. Useful for seeding historical
+    track data without spinning up a separate Railway service.
+    Companion env vars: `DEEP_BACKFILL_UNTIL` (default = SINCE+1d)
+    and `DEEP_BACKFILL_STATIONS` (default = --stations or hail-belt).
     Upserts are idempotent by track_id, so re-runs on container
     restart are wasteful but not harmful — clear the env vars when
     finished.
+
+    Note: the env-var name retains "DEEP_" for backward compat with
+    instances already configured against it, but the actual backfill
+    now runs against the Unidata mirror via `cmd_backfill`. The
+    `noaa-nexrad-level2` bucket revoked anonymous LIST and direct
+    GET sometime in 2026; the Unidata mirror turned out to retain
+    multi-year history, so the NCEI client path (cmd_deep_backfill)
+    is effectively dead unless someone wires AWS requester-pays.
     """
     interval = args.interval_seconds
     stations = (
@@ -160,7 +167,9 @@ def cmd_loop(args: argparse.Namespace) -> int:
         backfill_stations_env = os.environ.get(
             "DEEP_BACKFILL_STATIONS", "",
         ).strip()
-        # Reuse cmd_deep_backfill by faking the argparse Namespace.
+        # Reuse cmd_backfill (Unidata mirror) by faking the argparse
+        # Namespace. The mirror has anonymous LIST + multi-year history,
+        # which is what we actually need.
         fake_args = argparse.Namespace(
             since=backfill_since_env,
             until=(backfill_until_env
@@ -170,9 +179,10 @@ def cmd_loop(args: argparse.Namespace) -> int:
         )
         log.info("nexrad_loop_pre_backfill_start",
                  since=fake_args.since, until=fake_args.until,
-                 stations=fake_args.stations or "(hail-belt default)")
+                 stations=fake_args.stations or "(hail-belt default)",
+                 source="unidata-nexrad-level2")
         try:
-            cmd_deep_backfill(fake_args)
+            cmd_backfill(fake_args)
         except Exception as e:
             log.exception("nexrad_loop_pre_backfill_failed", error=str(e))
         log.info("nexrad_loop_pre_backfill_done — entering live loop")
