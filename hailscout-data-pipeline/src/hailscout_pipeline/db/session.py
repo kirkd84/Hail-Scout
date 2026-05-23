@@ -16,8 +16,13 @@ elif db_url.startswith("postgres://"):
 engine = create_engine(
     db_url,
     echo=settings.db_echo,
-    pool_size=5,
-    max_overflow=10,
+    # Lean per-replica pool so we can scale to many replicas without
+    # blowing past Postgres `max_connections` (Railway's managed
+    # Postgres default is 100). With pool_size=2 + max_overflow=3 and,
+    # say, 16 replicas, peak connections is 16 × 5 = 80 — well inside
+    # the budget with headroom for the API service and ad-hoc psql.
+    pool_size=2,
+    max_overflow=3,
     pool_pre_ping=True,
 )
 
