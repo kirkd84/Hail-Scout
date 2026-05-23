@@ -197,11 +197,19 @@ def cmd_loop(args: argparse.Namespace) -> int:
     # First boot seeds the queue from DEEP_BACKFILL_SINCE/UNTIL/STATIONS.
     # All other replicas claim work and process it. When the queue is
     # drained, the worker drops into the normal live loop.
-    if os.environ.get("BACKFILL_QUEUE", "").strip() == "1":
+    queue_mode = os.environ.get("BACKFILL_QUEUE", "").strip() == "1"
+    if queue_mode:
         _run_queue_worker(args)
         log.info("nexrad_loop_queue_done — entering live loop")
 
-    backfill_since_env = os.environ.get("DEEP_BACKFILL_SINCE", "").strip()
+    # Env-var-dispatched backfill is mutually exclusive with queue mode —
+    # the queue worker already consumed DEEP_BACKFILL_SINCE/UNTIL when
+    # seeding, so re-running cmd_backfill on the same range would just
+    # double-process. Skip it when queue_mode is on.
+    backfill_since_env = (
+        os.environ.get("DEEP_BACKFILL_SINCE", "").strip()
+        if not queue_mode else ""
+    )
     if backfill_since_env:
         backfill_until_env = os.environ.get("DEEP_BACKFILL_UNTIL", "").strip()
         backfill_stations_env = os.environ.get(
