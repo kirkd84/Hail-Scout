@@ -371,12 +371,26 @@ def upsert_nexrad_cell(session: Session, cell) -> dict:  # noqa: ANN001
             .first()
         )
 
+    # Dual-pol signals from this scan (Phase 19). Across a track's
+    # lifetime we keep the STRONGEST evidence: max peak_dbz, max gate
+    # fraction, and hail_confirmed sticky-True (once any scan shows the
+    # polarimetric hail signature, that's a durable fact about the cell).
+    cell_confirmed = bool(getattr(cell, "hail_confirmed", False))
+    cell_gate_frac = float(getattr(cell, "hail_gate_fraction", 0.0) or 0.0)
+    cell_peak_dbz = float(cell.peak_dbz or 0.0)
+
     if existing:
         storm = existing
         if timestamp > storm.end_time:
             storm.end_time = timestamp
         if hail_size > (storm.max_hail_size_in or 0.0):
             storm.max_hail_size_in = hail_size
+        # Accumulate dual-pol evidence to the strongest seen.
+        storm.hail_confirmed = bool(storm.hail_confirmed) or cell_confirmed
+        if cell_gate_frac > (storm.hail_gate_fraction or 0.0):
+            storm.hail_gate_fraction = cell_gate_frac
+        if cell_peak_dbz > (storm.peak_dbz or 0.0):
+            storm.peak_dbz = cell_peak_dbz
         # Grow the bbox to enclose the track's full footprint
         existing_bbox_expr = text(
             "(SELECT bbox_geom FROM storms WHERE id = :sid)"
@@ -390,7 +404,8 @@ def upsert_nexrad_cell(session: Session, cell) -> dict:  # noqa: ANN001
         storm.updated_at = datetime.now(timezone.utc)
         session.flush()
         log.info("nexrad_cell_updated", id=storm.id, peak_dbz=cell.peak_dbz,
-                 hail_in=hail_size, station=cell.station)
+                 hail_in=hail_size, station=cell.station,
+                 hail_confirmed=storm.hail_confirmed)
     else:
         storm_id = cell.track_id or _new_id("storm")
         storm = Storm(
@@ -401,11 +416,15 @@ def upsert_nexrad_cell(session: Session, cell) -> dict:  # noqa: ANN001
             centroid_geom=_wkt_with_srid(centroid),
             bbox_geom=_wkt_with_srid(bbox_poly),
             source=source,
+            hail_confirmed=cell_confirmed,
+            hail_gate_fraction=cell_gate_frac,
+            peak_dbz=cell_peak_dbz,
         )
         session.add(storm)
         session.flush()
         log.info("nexrad_cell_created", id=storm.id, peak_dbz=cell.peak_dbz,
-                 hail_in=hail_size, station=cell.station)
+                 hail_in=hail_size, station=cell.station,
+                 hail_confirmed=cell_confirmed)
 
     # One HailSwath per cell, with the cell footprint as the polygon.
     # Track=True so cross-scan upserts UNION the geometry instead of

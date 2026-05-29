@@ -65,6 +65,21 @@ class Storm(Base):
     screened_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True,
     )
+    # Dual-pol hail confirmation (Phase 18/19, persisted in migration 015).
+    # `hail_confirmed` = polarimetric ZDR+RhoHV hail signature present;
+    # `hail_gate_fraction` = share of cell gates carrying that signature;
+    # `peak_dbz` = composite peak reflectivity. NEXRAD-only (MRMS/LSR
+    # rows leave these at default/null).
+    hail_confirmed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false",
+        index=True,
+    )
+    hail_gate_fraction: Mapped[Optional[float]] = mapped_column(
+        Float, nullable=True,
+    )
+    peak_dbz: Mapped[Optional[float]] = mapped_column(
+        Float, nullable=True,
+    )
     created_at: Mapped[datetime] = created_at_column()
     updated_at: Mapped[datetime] = updated_at_column()
 

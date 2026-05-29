@@ -5,11 +5,19 @@ The canonical schema lives in:
     hailscout-api/migrations/versions/001_initial_schema.py
     hailscout-api/src/hailscout_api/db/models/storm.py
     hailscout-api/migrations/versions/012_hail_swath_uniq.py
+    hailscout-api/migrations/versions/015_dualpol_persistence.py
+
+Note: this model only needs to declare the columns the PIPELINE
+reads or writes. The API has added several columns the pipeline
+doesn't touch (lsr_*, confidence, suspect, screened_at) — those are
+intentionally omitted here; SQLAlchemy simply leaves them at their
+DB defaults on insert. The dual-pol columns below ARE declared
+because the NEXRAD upsert writes them.
 """
 from __future__ import annotations
 from geoalchemy2 import Geometry
 from sqlalchemy import (
-    Column, DateTime, Float, ForeignKey, String, UniqueConstraint,
+    Boolean, Column, DateTime, Float, ForeignKey, String, UniqueConstraint,
 )
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
@@ -26,6 +34,11 @@ class Storm(Base):
     centroid_geom = Column(Geometry("POINT", srid=4326), nullable=False)
     bbox_geom = Column(Geometry("POLYGON", srid=4326), nullable=False)
     source = Column(String(50), nullable=False, default="MESH")
+    # Dual-pol hail confirmation (persisted via API migration 015).
+    # Written by upsert_nexrad_cell; MRMS/LSR paths leave them defaulted.
+    hail_confirmed = Column(Boolean, nullable=False, server_default="false")
+    hail_gate_fraction = Column(Float, nullable=True)
+    peak_dbz = Column(Float, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False,
                         server_default=func.now(), onupdate=func.now())
