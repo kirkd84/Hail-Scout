@@ -14,6 +14,8 @@ interface Props {
   /** When provided, captures a snapshot of the live map and embeds it. */
   map?: MapLibreMap | null;
   className?: string;
+  /** Compact inline variant for action rows (vs. the full-width CTA). */
+  compact?: boolean;
 }
 
 /**
@@ -24,7 +26,7 @@ interface Props {
  * embed a PNG snapshot of the swath in the PDF. Otherwise the report
  * still generates without a map image.
  */
-export function DownloadReportButton({ storm, address, map, className }: Props) {
+export function DownloadReportButton({ storm, address, map, className, compact = false }: Props) {
   const [busy, setBusy] = useState<"capture" | "render" | null>(null);
   const { save: saveReport } = useReports();
   const { branding } = useBranding();
@@ -102,7 +104,26 @@ export function DownloadReportButton({ storm, address, map, className }: Props) 
       ? "Capturing storm snapshot…"
       : busy === "render"
       ? "Generating report…"
+      : compact
+      ? "Download report"
       : "Download Hail Impact Report";
+
+  if (compact) {
+    return (
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={busy !== null}
+        className={cn(
+          "inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-wide-caps text-copper transition-colors hover:text-copper-700 disabled:opacity-60",
+          className,
+        )}
+      >
+        <IconReport className="h-3.5 w-3.5" />
+        <span>{label}</span>
+      </button>
+    );
+  }
 
   return (
     <button

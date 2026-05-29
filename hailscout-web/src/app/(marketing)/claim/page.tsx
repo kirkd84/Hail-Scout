@@ -11,6 +11,9 @@ import { timeAgo } from "@/lib/time-ago";
 import { IconSearch } from "@/components/icons";
 import { METROS } from "@/lib/metros";
 import type { Storm } from "@/lib/api-types";
+import { VerificationBadge, VerificationPanel } from "@/components/verification-badge";
+import { DownloadReportButton } from "@/components/reports/download-report-button";
+import { useAccuracyStat } from "@/hooks/useAccuracyStat";
 
 /**
  * Public claim lookup — homeowners and insurance adjusters can search
@@ -25,6 +28,7 @@ export default function ClaimLookupPage() {
   const [query, setQuery] = useState("");
   const [submitted, setSubmitted] = useState<string | undefined>(undefined);
   const { data, isLoading, error } = useStormsAtAddress(submitted);
+  const accuracy = useAccuracyStat();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,9 +65,14 @@ export default function ClaimLookupPage() {
             </h1>
             <p className="mt-5 text-lg text-muted-foreground">
               Search any U.S. address. We&apos;ll tell you exactly what hail size
-              fell there — pulled from the same NOAA MRMS &amp; NEXRAD data your
-              insurance carrier and roofing contractor use.
+              fell there — cross-checked against NOAA MRMS, NEXRAD dual-pol
+              radar, and National Weather Service ground reports.
             </p>
+            {accuracy?.headline && (
+              <p className="mx-auto mt-4 max-w-xl rounded-full border border-forest/30 bg-forest/5 px-4 py-2 text-sm text-forest">
+                {accuracy.headline}
+              </p>
+            )}
           </div>
 
           <form onSubmit={handleSubmit} className="mx-auto mt-10 max-w-xl">
@@ -147,7 +156,7 @@ export default function ClaimLookupPage() {
                     .slice()
                     .sort((a, b) => b.max_hail_size_in - a.max_hail_size_in)
                     .map((s) => (
-                      <StormResultCard key={s.id} storm={s} />
+                      <StormResultCard key={s.id} storm={s} address={data.address} />
                     ))}
                 </ul>
               </>
@@ -226,11 +235,12 @@ export default function ClaimLookupPage() {
   );
 }
 
-function StormResultCard({ storm }: { storm: Storm }) {
+function StormResultCard({ storm, address }: { storm: Storm; address?: string }) {
   const c = hailColor(storm.max_hail_size_in);
   const heavy = storm.max_hail_size_in >= 1.5;
   const badgeText = heavy ? "#FAF7F1" : c.text;
   const peak = storm.max_hail_size_in;
+  const [showEvidence, setShowEvidence] = useState(false);
   return (
     <li className="rounded-xl border border-border bg-background p-5 flex items-start gap-4">
       <span
@@ -245,29 +255,54 @@ function StormResultCard({ storm }: { storm: Storm }) {
         </span>
       </span>
       <div className="flex-1 min-w-0">
-        <p className="font-display text-lg font-medium tracking-tight-display text-foreground">
-          {new Date(storm.start_time).toLocaleDateString(undefined, {
-            month: "long",
-            day: "numeric",
-            year: "numeric",
-          })}
-        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="font-display text-lg font-medium tracking-tight-display text-foreground">
+            {new Date(storm.start_time).toLocaleDateString(undefined, {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })}
+          </p>
+          <VerificationBadge verification={storm.verification} />
+        </div>
         <p className="mt-1 text-xs font-mono-num text-foreground/55">
           {timeAgo(storm.start_time)} · {storm.source} · id {storm.id.slice(-8)}
         </p>
+        {/* Prefer the verification headline (tier-aware, honest) over the
+            old size-only blurb when verification is present. */}
         <p className="mt-2 text-sm text-foreground/85 leading-relaxed">
-          {peak >= 2.0
-            ? `Damaging ${c.object.toLowerCase()}-size hail (${peak.toFixed(2)}″) confirmed at this point.`
-            : peak >= 1.0
-              ? `${peak.toFixed(2)}″ hail at this point — claim-eligible damage likely on standard roofing materials.`
-              : `${peak.toFixed(2)}″ hail at this point. Minor surface impact possible.`}
+          {storm.verification
+            ? storm.verification.headline
+            : peak >= 2.0
+              ? `Damaging ${c.object.toLowerCase()}-size hail (${peak.toFixed(2)}″) at this point.`
+              : peak >= 1.0
+                ? `${peak.toFixed(2)}″ hail at this point — claim-eligible damage likely on standard roofing materials.`
+                : `${peak.toFixed(2)}″ hail at this point. Minor surface impact possible.`}
         </p>
-        <Link
-          href={`/storm/${storm.id}`}
-          className="mt-2 inline-flex items-center gap-1 text-xs font-mono uppercase tracking-wide-caps text-copper hover:text-copper-700"
-        >
-          Full storm record <span aria-hidden>→</span>
-        </Link>
+
+        {storm.verification && showEvidence && (
+          <VerificationPanel verification={storm.verification} className="mt-3" />
+        )}
+
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          {storm.verification && (
+            <button
+              type="button"
+              onClick={() => setShowEvidence((v) => !v)}
+              className="inline-flex items-center gap-1 text-xs font-mono uppercase tracking-wide-caps text-foreground/60 hover:text-foreground"
+            >
+              {showEvidence ? "Hide evidence" : "Why we're confident"}
+              <span aria-hidden>{showEvidence ? "↑" : "↓"}</span>
+            </button>
+          )}
+          <DownloadReportButton storm={storm} address={address} compact />
+          <Link
+            href={`/storm/${storm.id}`}
+            className="inline-flex items-center gap-1 text-xs font-mono uppercase tracking-wide-caps text-copper hover:text-copper-700"
+          >
+            Full record <span aria-hidden>→</span>
+          </Link>
+        </div>
       </div>
     </li>
   );

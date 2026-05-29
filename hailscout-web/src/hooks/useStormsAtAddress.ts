@@ -4,7 +4,7 @@ import { useAuth } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { apiClient } from "@/lib/api";
-import type { HailAtAddressResponse } from "@/lib/api-types";
+import type { HailAtAddressResponse, Verification } from "@/lib/api-types";
 import { fixturesAtPoint, STORM_FIXTURES } from "@/lib/storm-fixtures";
 
 /**
@@ -49,6 +49,13 @@ interface ApiHailAtPointHit {
   max_hail_size_in: number;
   source: string;
   category_at_point: string;
+  lsr_confirmed?: boolean;
+  lsr_observed_size_in?: number | null;
+  hail_confirmed?: boolean;
+  peak_dbz?: number | null;
+  confidence?: number;
+  suspect?: boolean;
+  verification?: Verification;
 }
 interface ApiHailAtPointListResponse {
   lat: number;
@@ -74,6 +81,14 @@ function hitToStormShape(hit: ApiHailAtPointHit, lat: number, lng: number) {
     centroid_lng: lng,
     bbox: { min_lat: lat - 0.01, min_lng: lng - 0.01, max_lat: lat + 0.01, max_lng: lng + 0.01 },
     source: hit.source,
+    // Carry the multi-source verification through to the result card +
+    // the report. Present on live API hits; absent on fixture fallback.
+    lsr_confirmed: hit.lsr_confirmed,
+    hail_confirmed: hit.hail_confirmed,
+    peak_dbz: hit.peak_dbz,
+    confidence: hit.confidence,
+    suspect: hit.suspect,
+    verification: hit.verification,
   };
 }
 

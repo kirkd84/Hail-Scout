@@ -139,7 +139,44 @@ const styles = StyleSheet.create({
     lineHeight: 1.5,
     marginTop: 8,
   },
+
+  /* Verification panel (Phase 24) */
+  verifyCard: {
+    marginTop: 14,
+    padding: 14,
+    borderRadius: 8,
+    borderWidth: 0.6,
+    backgroundColor: COLORS.creamLift,
+  },
+  verifyBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+    paddingVertical: 4,
+    paddingHorizontal: 9,
+    borderRadius: 4,
+    marginBottom: 8,
+  },
+  verifyBadgeDot: { width: 6, height: 6, borderRadius: 3 },
+  verifyBadgeText: { fontSize: 9, fontFamily: "Helvetica-Bold", letterSpacing: 0.6, textTransform: "uppercase" },
+  verifyBody: { fontSize: 9.5, color: COLORS.charcoal, lineHeight: 1.55, marginBottom: 10 },
+  signalRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 4, gap: 6 },
+  signalMark: { fontSize: 9, fontFamily: "Helvetica-Bold", width: 10 },
+  signalLabel: { fontSize: 9, fontFamily: "Helvetica-Bold", color: COLORS.charcoal },
+  signalDetail: { fontSize: 8.5, color: COLORS.textMuted },
 });
+
+/** Tier → display color. Mirrors the verification tier ranking. */
+function tierColor(tier: string): string {
+  switch (tier) {
+    case "ground_truth_confirmed": return "#2F7A4F"; // forest green — strongest
+    case "dual_pol_confirmed":     return "#0F4C5C"; // teal
+    case "multi_source":           return "#3B6EA5"; // blue
+    case "radar_indicated":        return "#B5792F"; // amber caution
+    default:                       return "#9A3B3B"; // unverified red
+  }
+}
 
 function fmtDateTime(iso: string): string {
   const d = new Date(iso);
@@ -157,6 +194,15 @@ function durationMin(start: string, end: string): number {
   const s = new Date(start).getTime();
   const e = new Date(end).getTime();
   return Math.max(1, Math.round((e - s) / 60000));
+}
+
+/** Friendly source label for the hero + narrative. */
+function sourceLabel(source?: string): string {
+  const s = (source || "").toUpperCase();
+  if (s.startsWith("NEXRAD")) return "NEXRAD Level II";
+  if (s.startsWith("MRMS") || s === "MESH") return "NOAA MRMS";
+  if (s === "SPC-LSR") return "NWS storm report";
+  return source || "Radar";
 }
 
 export function HailImpactReport({
@@ -237,9 +283,34 @@ export function HailImpactReport({
               {storm.max_hail_size_in.toFixed(2)}″
             </Text>
             <Text style={[styles.heroObject, { color: c.text }]}>{c.object}</Text>
-            <Text style={[styles.heroBin, { color: c.text }]}>MRMS · {c.label}</Text>
+            <Text style={[styles.heroBin, { color: c.text }]}>{sourceLabel(storm.source)} · {c.label}</Text>
           </View>
         </View>
+
+        {/* Verification panel (Phase 24) — the multi-source evidence
+            that distinguishes this from a single-source competitor report. */}
+        {storm.verification && (
+          <View style={[styles.verifyCard, { borderColor: tierColor(storm.verification.tier) }]}>
+            <View style={[styles.verifyBadge, { backgroundColor: `${tierColor(storm.verification.tier)}1A` }]}>
+              <View style={[styles.verifyBadgeDot, { backgroundColor: tierColor(storm.verification.tier) }]} />
+              <Text style={[styles.verifyBadgeText, { color: tierColor(storm.verification.tier) }]}>
+                {storm.verification.tier_label}
+              </Text>
+            </View>
+            <Text style={styles.verifyBody}>{storm.verification.defensibility}</Text>
+            {storm.verification.signals.map((s) => (
+              <View key={s.key} style={styles.signalRow}>
+                <Text style={[styles.signalMark, { color: s.present ? tierColor("ground_truth_confirmed") : COLORS.textMuted }]}>
+                  {s.present ? "✓" : "—"}
+                </Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.signalLabel}>{s.label}</Text>
+                  <Text style={styles.signalDetail}>{s.detail}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Meta grid */}
         <Text style={styles.eyebrow}>Storm details</Text>
@@ -283,7 +354,7 @@ export function HailImpactReport({
 
         <Text style={styles.sectionTitle}>What this means</Text>
         <Text style={styles.sectionBody}>
-          NOAA Multi-Radar Multi-Sensor (MRMS) data identified hail with a peak
+          {sourceLabel(storm.source)} data identified hail with a peak
           diameter of {storm.max_hail_size_in.toFixed(2)}″ ({c.object.toLowerCase()})
           across the affected area on {fmtDateTime(storm.start_time)}. Hail of
           this magnitude commonly causes shingle bruising, granule loss, and

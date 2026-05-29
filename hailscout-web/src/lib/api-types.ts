@@ -30,6 +30,34 @@ export interface Storm {
   confidence?: number;
   suspect?: boolean;
   suspect_reasons?: string[];
+  /** Phase 24 dual-pol persistence (NEXRAD only). */
+  hail_confirmed?: boolean;
+  peak_dbz?: number | null;
+  /** Phase 24 multi-source verification (present on at-point results). */
+  verification?: Verification;
+}
+
+/** One itemized piece of evidence in a verification breakdown. */
+export interface VerificationSignal {
+  key: string;
+  label: string;
+  present: boolean;
+  detail: string;
+}
+
+/**
+ * Multi-source verification (Phase 24) — the competitive differentiator.
+ * tier ∈ ground_truth_confirmed | dual_pol_confirmed | multi_source |
+ * radar_indicated | unverified.
+ */
+export interface Verification {
+  tier: string;
+  tier_label: string;
+  tier_rank: number;
+  confidence: number;
+  headline: string;
+  defensibility: string;
+  signals: VerificationSignal[];
 }
 
 /** Per-storm hail observation at an address. */
