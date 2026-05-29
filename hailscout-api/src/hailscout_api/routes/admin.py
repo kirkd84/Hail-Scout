@@ -28,6 +28,10 @@ from hailscout_api.schemas.admin import (
     SetSuperAdmin,
     UserSummary,
 )
+from hailscout_api.services.calibration import (
+    compute_calibration,
+    marketing_headline,
+)
 from hailscout_api.services.lsr_linker import link_recent_lsrs
 from hailscout_api.services.storm_screener import screen_recent_storms
 
@@ -269,10 +273,13 @@ async def run_lsr_linker(
     `lsr_confirmed=true`. Idempotent — re-running just refreshes
     flags. Will become a periodic worker job; this endpoint is the
     manual override for ad-hoc backfill confirmation.
+
+    Cap is 3650 days (10y) so a full historical backfill can be
+    confirmed in one pass after the LSR + NEXRAD backfills complete.
     """
-    if lookback_days < 1 or lookback_days > 365:
+    if lookback_days < 1 or lookback_days > 3650:
         raise HTTPException(status_code=422,
-                            detail="lookback_days must be 1..365")
+                            detail="lookback_days must be 1..3650")
     summary = await link_recent_lsrs(session, lookback_days=lookback_days)
     return {"ok": True, **summary}
 
@@ -301,3 +308,21 @@ async def run_storm_screener(
         limit=limit,
     )
     return {"ok": True, **summary}
+
+
+@router.get("/calibration")
+async def get_calibration(
+    min_size_in: float = 0.0,
+    _: User = Depends(require_super_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Radar-estimate vs. ground-truth accuracy across confirmed pairs.
+
+    Returns error metrics (MAE, bias, RMSE), tolerance-band hit rates,
+    a by-size breakdown, and — when the sample is large enough — a
+    publishable marketing headline. `min_size_in` restricts to
+    claim-relevant sizes.
+    """
+    calib = await compute_calibration(session, min_size_in=min_size_in)
+    headline = marketing_headline(calib)
+    return {"ok": True, "headline": headline, **calib}
