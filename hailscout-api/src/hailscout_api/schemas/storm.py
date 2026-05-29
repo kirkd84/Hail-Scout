@@ -79,6 +79,29 @@ class StormDetailResponse(BaseModel):
     swaths: list[HailSwathResponse] = Field(default_factory=list)
 
 
+class VerificationSignal(BaseModel):
+    key: str
+    label: str
+    present: bool
+    detail: str = ""
+
+
+class VerificationResponse(BaseModel):
+    """Multi-source verification: the competitive differentiator.
+
+    tier ∈ {ground_truth_confirmed, dual_pol_confirmed, multi_source,
+    radar_indicated, unverified}. `defensibility` is the adjuster-facing
+    paragraph; `signals` is the itemized evidence checklist.
+    """
+    tier: str
+    tier_label: str
+    tier_rank: int
+    confidence: float
+    headline: str
+    defensibility: str
+    signals: list[VerificationSignal] = Field(default_factory=list)
+
+
 class HailAtPointResponse(BaseModel):
     id: str
     start_time: datetime
@@ -88,6 +111,14 @@ class HailAtPointResponse(BaseModel):
     category_at_point: str = Field(
         ..., description="Largest hail-size category whose polygon contains the point"
     )
+    # Phase 24 multi-source verification (always present).
+    lsr_confirmed: bool = False
+    lsr_observed_size_in: float | None = None
+    hail_confirmed: bool = False
+    peak_dbz: float | None = None
+    confidence: float = 1.0
+    suspect: bool = False
+    verification: VerificationResponse | None = None
 
 
 class HailAtPointListResponse(BaseModel):

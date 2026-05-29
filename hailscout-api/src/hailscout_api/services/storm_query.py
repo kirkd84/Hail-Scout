@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from hailscout_api.core import get_logger
 from hailscout_api.db.models.storm import HailSwath, Storm
+from hailscout_api.services.verification import attach_verification
 
 logger = get_logger(__name__)
 
@@ -274,6 +275,12 @@ async def query_hail_at_point(
             Storm.source,
             Storm.suspect,
             Storm.confidence,
+            Storm.lsr_confirmed,
+            Storm.lsr_observed_size_in,
+            Storm.lsr_observed_at,
+            Storm.hail_confirmed,
+            Storm.hail_gate_fraction,
+            Storm.peak_dbz,
             HailSwath.hail_size_category,
         )
         .join(HailSwath, HailSwath.storm_id == Storm.id)
@@ -301,6 +308,12 @@ async def query_hail_at_point(
                 "source": r.source,
                 "suspect": bool(r.suspect),
                 "confidence": float(r.confidence) if r.confidence is not None else 1.0,
+                "lsr_confirmed": bool(r.lsr_confirmed),
+                "lsr_observed_size_in": r.lsr_observed_size_in,
+                "lsr_observed_at": r.lsr_observed_at,
+                "hail_confirmed": bool(r.hail_confirmed),
+                "hail_gate_fraction": r.hail_gate_fraction,
+                "peak_dbz": r.peak_dbz,
                 "category_at_point": cat,
             }
         else:
@@ -313,6 +326,12 @@ async def query_hail_at_point(
 
     out = list(by_storm.values())
     out.sort(key=lambda d: d["start_time"], reverse=True)
+
+    # Fuse the multi-source signals into a verification tier +
+    # adjuster-facing defensibility statement (cross-source agreement
+    # is computed across this result set).
+    attach_verification(out)
+
     logger.info("Hail at point", lat=lat, lng=lng, hits=len(out))
     return out
 
