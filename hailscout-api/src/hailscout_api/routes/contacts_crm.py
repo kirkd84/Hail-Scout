@@ -12,8 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hailscout_api.auth.clerk import ClerkVerifier
-from hailscout_api.config import get_settings
+from hailscout_api.auth.clerk import get_clerk_verifier
 from hailscout_api.core import AuthenticationError, get_logger
 from hailscout_api.db.models.customer import HsContact
 from hailscout_api.db.models.org import User
@@ -30,8 +29,7 @@ router = APIRouter()
 
 
 async def _resolve_user(request: Request, session: AsyncSession) -> User:
-    settings = get_settings()
-    verifier = ClerkVerifier(settings.clerk_jwks_endpoint, settings.clerk_secret_key)
+    verifier = get_clerk_verifier()
 
     auth_header = request.headers.get("Authorization")
     if not auth_header:

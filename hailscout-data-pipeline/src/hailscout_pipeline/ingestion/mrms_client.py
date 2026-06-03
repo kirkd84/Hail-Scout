@@ -26,6 +26,13 @@ from botocore.client import Config
 log = structlog.get_logger()
 
 
+# Network timeouts so a hung NOAA/Iowa connection can't block the worker
+# indefinitely. boto3 retries transient failures a few times with backoff.
+_S3_CONNECT_TIMEOUT = 10  # seconds to establish a connection
+_S3_READ_TIMEOUT = 60  # seconds to wait for a response/chunk
+_IOWA_DOWNLOAD_TIMEOUT = 120  # seconds for the full archive file download
+
+
 # Filename: MRMS_MESH_00.50_YYYYMMDD-HHMMSS.grib2[.gz]
 # Pattern matches both the instantaneous product (Phase 17) and the
 # legacy daily-max product (so a redeploy with the new config doesn't
@@ -43,10 +50,17 @@ class MRMSClient:
                  product: str = "MESH_00.50") -> None:
         self.bucket_name = bucket_name
         self.product = product
-        # Anonymous access — no creds needed for public bucket
+        # Anonymous access — no creds needed for public bucket. Bounded
+        # connect/read timeouts plus a small retry budget so a stalled S3
+        # connection fails fast instead of hanging the worker.
         self.s3 = boto3.client(
             "s3",
-            config=Config(signature_version=botocore.UNSIGNED),
+            config=Config(
+                signature_version=botocore.UNSIGNED,
+                connect_timeout=_S3_CONNECT_TIMEOUT,
+                read_timeout=_S3_READ_TIMEOUT,
+                retries={"max_attempts": 3, "mode": "standard"},
+            ),
         )
 
     def _list_prefix(self, prefix: str) -> list[str]:
@@ -115,6 +129,7 @@ class MRMSClient:
 
 # ---- Iowa State MtArchive (older history) ----
 
+import shutil
 import urllib.request
 from urllib.error import HTTPError, URLError
 
@@ -157,9 +172,16 @@ class IowaArchiveClient:
         name = url.rsplit("/", 1)[-1]
         local = Path(gettempdir()) / name
         log.info("iowa_download", url=url, local=str(local))
+        # urlretrieve has no timeout knob, so open the connection with an
+        # explicit timeout and stream the body to disk. The timeout applies to
+        # connection setup and to each blocking read, so a stalled archive
+        # connection raises instead of hanging the worker forever.
         try:
-            urllib.request.urlretrieve(url, str(local))
-        except (HTTPError, URLError) as e:
+            with urllib.request.urlopen(
+                url, timeout=_IOWA_DOWNLOAD_TIMEOUT
+            ) as resp, open(local, "wb") as fh:
+                shutil.copyfileobj(resp, fh)
+        except (HTTPError, URLError, TimeoutError) as e:
             raise RuntimeError(f"Iowa archive fetch failed: {url} ({e})") from e
         log.info("iowa_downloaded", url=url, size=local.stat().st_size)
         return str(local), url, ts

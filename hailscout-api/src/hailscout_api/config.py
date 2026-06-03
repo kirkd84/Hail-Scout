@@ -46,6 +46,21 @@ class Settings(BaseSettings):
     clerk_jwks_endpoint: str = (
         "https://your-instance.clerk.accounts.com/.well-known/jwks.json"
     )
+    # Expected JWT issuer (the Clerk Frontend API origin, e.g.
+    # "https://your-instance.clerk.accounts.com"). When set, JWT verification
+    # pins the `iss` claim per Clerk's backend verification guidance. Leave
+    # empty to skip the issuer check (NOT recommended in production).
+    clerk_issuer: str = ""
+    # Optional allow-list of authorized parties (the `azp` claim, typically
+    # your frontend origins). When set, a token whose `azp` is present but not
+    # in this list is rejected; empty = no azp check. Like ``cors_origins``,
+    # this is a list field, so the env var must be a JSON array, e.g.
+    # CLERK_AUTHORIZED_PARTIES='["http://localhost:3000","https://hail-scout.vercel.app"]'.
+    clerk_authorized_parties: list[str] = []
+    # JWKS cache TTL in seconds. The signing keys rarely rotate, so a single
+    # fetch is reused across requests for this long instead of re-fetching the
+    # JWKS endpoint on every authenticated call.
+    clerk_jwks_cache_ttl_seconds: int = 3600
 
     # Geocoding
     geocoder_provider: Literal["nominatim", "mapbox"] = "nominatim"

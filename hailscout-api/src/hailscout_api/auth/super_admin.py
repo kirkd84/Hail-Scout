@@ -10,6 +10,8 @@ from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from hailscout_api.auth.clerk import get_clerk_verifier
+from hailscout_api.core import AuthenticationError
 from hailscout_api.db.models.org import User
 from hailscout_api.db.session import get_db_session
 
@@ -20,27 +22,53 @@ async def require_super_admin(
 ) -> User:
     """Require the authenticated user to have ``is_super_admin = true``.
 
-    The Clerk middleware is expected to attach ``request.state.user_email``
-    (or ``request.state.clerk_user_id``) earlier in the request lifecycle.
-    Raises 401 if there's no authenticated user, 403 if not super-admin.
+    Resolves the caller directly from the Clerk JWT in the ``Authorization``
+    header — the same verify-and-lookup the working routes (``markers``,
+    ``me``, ``audit``) use — because no middleware populates
+    ``request.state``. Raises 401 if there's no valid authenticated user, 403
+    if the user is not a super-admin.
     """
-    clerk_user_id = getattr(request.state, "clerk_user_id", None)
-    user_email = getattr(request.state, "user_email", None)
+    verifier = get_clerk_verifier()
 
-    if not clerk_user_id and not user_email:
+    auth_header = request.headers.get("Authorization")
+    if not auth_header:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required.",
         )
+    try:
+        scheme, token = auth_header.split(" ", 1)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Authorization header format.",
+        ) from exc
+    if scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Only Bearer tokens supported.",
+        )
 
-    stmt = select(User)
-    if clerk_user_id:
-        stmt = stmt.where(User.clerk_user_id == clerk_user_id)
-    else:
-        stmt = stmt.where(User.email == user_email)
+    try:
+        claims = await verifier.verify_token(token)
+    except AuthenticationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc),
+        ) from exc
 
-    result = await session.execute(stmt)
-    user = result.scalar_one_or_none()
+    clerk_user_id = claims.get("sub")
+    if not clerk_user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="JWT missing sub claim.",
+        )
+
+    user = (
+        await session.execute(
+            select(User).where(User.clerk_user_id == clerk_user_id)
+        )
+    ).scalar_one_or_none()
 
     if user is None:
         raise HTTPException(
