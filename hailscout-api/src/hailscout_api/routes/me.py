@@ -16,9 +16,8 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hailscout_api.auth.clerk import ClerkVerifier
+from hailscout_api.auth.clerk import get_clerk_verifier
 from hailscout_api.auth.middleware import AuthContext, extract_auth_context
-from hailscout_api.config import get_settings
 from hailscout_api.core import AuthenticationError, get_logger
 from hailscout_api.db.models.org import Organization, Seat, User
 from hailscout_api.db.session import get_db_session
@@ -30,8 +29,7 @@ router = APIRouter()
 
 async def _extract_for_me(request: Request) -> AuthContext:
     """``extract_auth_context``-lite for /v1/me — does not require org_id."""
-    settings = get_settings()
-    verifier = ClerkVerifier(settings.clerk_jwks_endpoint, settings.clerk_secret_key)
+    verifier = get_clerk_verifier()
 
     auth_header = request.headers.get("Authorization")
     if not auth_header:
