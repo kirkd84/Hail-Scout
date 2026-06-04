@@ -12,10 +12,12 @@ from hailscout_api.db.session import get_db_session
 from hailscout_api.schemas.storm import (
     HailAtPointListResponse,
     StormDetailResponse,
+    StormRasterResponse,
     StormReplayResponse,
     StormsListResponse,
     StormsStatsResponse,
 )
+from hailscout_api.services.raster import render_storm_raster
 from hailscout_api.services.storm_query import (
     get_storm_with_swaths,
     get_storms_stats,
@@ -160,6 +162,47 @@ async def get_storm_detail(
     if data is None:
         raise HTTPException(status_code=404, detail="Storm not found")
     return data
+
+
+@router.get("/storms/{storm_id}/raster", response_model=StormRasterResponse)
+async def get_storm_raster(
+    storm_id: str,
+    session: AsyncSession = Depends(get_db_session),
+) -> StormRasterResponse:
+    """Smooth colorized hail raster for a storm (Phase 25 — beat the blobs).
+
+    Rasterizes the storm's swath bands, blurs them into a continuous
+    gradient, colorizes, and returns a base64 PNG + MapLibre image
+    coordinates. The web renders this as an image source with linear
+    resampling for an IHM-style smooth surface.
+    """
+    import base64
+
+    data = await get_storm_with_swaths(session, storm_id)
+    if data is None:
+        raise HTTPException(status_code=404, detail="Storm not found")
+
+    bbox_geo = data.get("bbox")
+    if not bbox_geo or not bbox_geo.get("coordinates"):
+        raise HTTPException(status_code=404, detail="Storm has no geometry")
+    ring = bbox_geo["coordinates"][0]
+    lngs = [p[0] for p in ring]
+    lats = [p[1] for p in ring]
+    bbox = (min(lngs), min(lats), max(lngs), max(lats))
+
+    raster = render_storm_raster(data.get("swaths", []), bbox)
+    if raster is None:
+        raise HTTPException(status_code=404, detail="No renderable swaths")
+
+    b64 = base64.b64encode(raster.png_bytes).decode("ascii")
+    return StormRasterResponse(
+        storm_id=storm_id,
+        image=f"data:image/png;base64,{b64}",
+        coordinates=raster.bounds_lnglat(),
+        width=raster.width,
+        height=raster.height,
+        peak_in=raster.peak_in,
+    )
 
 
 @router.get("/storms/{storm_id}/replay", response_model=StormReplayResponse)

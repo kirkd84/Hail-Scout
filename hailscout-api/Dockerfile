@@ -43,7 +43,8 @@ RUN pip install \
         'PyJWT>=2.8,<3.0' \
         'sentry-sdk>=1.40,<3.0' \
         'tenacity>=8.2,<9.0' \
-        'svix>=1.30,<2.0'
+        'svix>=1.30,<2.0' \
+        'Pillow>=10.2,<12.0'
 
 # Application code
 COPY src/ /app/src/

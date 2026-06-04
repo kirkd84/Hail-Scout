@@ -134,6 +134,22 @@ class HailAtPointListResponse(BaseModel):
     total: int
 
 
+class StormRasterResponse(BaseModel):
+    """Smooth colorized hail raster for a storm (Phase 25).
+
+    `image` is a base64 data URL (PNG, RGBA). `coordinates` is the
+    MapLibre image-source corner list [TL, TR, BR, BL] as [lng, lat],
+    so the web drops it straight into an image source with linear
+    resampling for a smooth, blob-free surface.
+    """
+    storm_id: str
+    image: str
+    coordinates: list[list[float]]
+    width: int
+    height: int
+    peak_in: float
+
+
 # ---- Hail Replay (M4 stub, kept for shape continuity) ----
 
 class NexradFrameResponse(BaseModel):
