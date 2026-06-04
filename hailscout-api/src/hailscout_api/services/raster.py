@@ -160,11 +160,19 @@ def _iter_polys(geometry: dict[str, Any]) -> Iterable[list[list[float]]]:
 def render_storm_raster(
     swaths: list[dict[str, Any]],
     bbox: tuple[float, float, float, float],
+    *,
+    pad: bool = True,
+    target_width: int = _TARGET_WIDTH,
 ) -> StormRaster | None:
-    """Render a smooth colorized PNG from a storm's swath bands.
+    """Render a smooth colorized PNG from swath bands.
 
     `swaths`: list of {hail_size_category, geometry(GeoJSON)} dicts.
-    `bbox`: (min_lng, min_lat, max_lng, max_lat) — the storm bounds.
+      Can be one storm's bands (storm raster) or every storm's bands in
+      a viewport (viewport raster) — they all burn into one surface.
+    `bbox`: (min_lng, min_lat, max_lng, max_lat).
+    `pad`: True for a single-storm raster (feathered margin); False for a
+      viewport raster, where the image must align exactly to the map
+      bounds passed in.
     Returns None if there's nothing renderable.
     """
     bands = [
@@ -180,21 +188,22 @@ def render_storm_raster(
     min_lng, min_lat, max_lng, max_lat = bbox
     span_lng = max(max_lng - min_lng, 1e-4)
     span_lat = max(max_lat - min_lat, 1e-4)
-    pad_lng = span_lng * _PAD_FRAC
-    pad_lat = span_lat * _PAD_FRAC
-    min_lng -= pad_lng
-    max_lng += pad_lng
-    min_lat -= pad_lat
-    max_lat += pad_lat
-    span_lng = max_lng - min_lng
-    span_lat = max_lat - min_lat
+    if pad:
+        pad_lng = span_lng * _PAD_FRAC
+        pad_lat = span_lat * _PAD_FRAC
+        min_lng -= pad_lng
+        max_lng += pad_lng
+        min_lat -= pad_lat
+        max_lat += pad_lat
+        span_lng = max_lng - min_lng
+        span_lat = max_lat - min_lat
 
     # Pixel dims from aspect (account for latitude compression so the
     # raster isn't stretched).
     mid_lat = (min_lat + max_lat) / 2.0
     aspect = (span_lng * math.cos(math.radians(mid_lat))) / span_lat
-    width = _TARGET_WIDTH
-    height = int(round(width / aspect)) if aspect > 0 else _TARGET_WIDTH
+    width = target_width
+    height = int(round(width / aspect)) if aspect > 0 else target_width
     width = max(_MIN_DIM, min(_MAX_DIM, width))
     height = max(_MIN_DIM, min(_MAX_DIM, height))
 

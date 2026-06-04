@@ -137,6 +137,74 @@ async def storms_at_point(
     )
 
 
+@router.get("/storms/raster", response_model=StormRasterResponse)
+async def get_viewport_raster(
+    bbox: str = Query(..., description="minlon,minlat,maxlon,maxlat"),
+    from_date: str = Query(..., alias="from"),
+    to_date: str = Query(..., alias="to"),
+    min_size: float | None = Query(None, ge=0.0),
+    source: str | None = Query(None),
+    session: AsyncSession = Depends(get_db_session),
+) -> StormRasterResponse:
+    """One smooth hail raster for every storm in the viewport (Phase 25).
+
+    Replaces the discrete polygon "blob" bands on the browse map with a
+    single continuous interpolated surface — all swaths in the bbox are
+    burned into one image, blurred, and colorized. The web renders it as
+    one image source aligned to the map bounds; refetch on pan/zoom.
+    """
+    import base64
+
+    try:
+        parts = [float(x) for x in bbox.split(",")]
+        if len(parts) != 4:
+            raise ValueError("bbox needs 4 values")
+        min_lon, min_lat, max_lon, max_lat = parts
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Bad bbox: {e}")
+
+    from_dt = _parse_iso_dt(from_date, "from")
+    to_dt = _parse_iso_dt(to_date, "to")
+
+    storms = await query_storms_in_bbox(
+        session, min_lon, min_lat, max_lon, max_lat, from_dt, to_dt,
+        limit=200, include_swaths=True, swath_simplify_tolerance=0.0,
+        source=source.strip() if source and source.strip() else None,
+        min_hail_size_in=min_size,
+    )
+    all_swaths: list[dict] = []
+    for st in storms:
+        all_swaths.extend(st.get("swaths") or [])
+
+    raster = render_storm_raster(
+        all_swaths, (min_lon, min_lat, max_lon, max_lat),
+        pad=False, target_width=1024,
+    )
+    if raster is None:
+        # Nothing in view — return a 1x1 transparent pixel so the client
+        # can still place (and clear) the layer without special-casing.
+        import base64 as _b64
+        empty = (
+            "data:image/png;base64,"
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk"
+            "+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+        )
+        return StormRasterResponse(
+            storm_id="viewport", image=empty,
+            coordinates=[[min_lon, max_lat], [max_lon, max_lat],
+                         [max_lon, min_lat], [min_lon, min_lat]],
+            width=1, height=1, peak_in=0.0,
+        )
+
+    b64 = base64.b64encode(raster.png_bytes).decode("ascii")
+    return StormRasterResponse(
+        storm_id="viewport",
+        image=f"data:image/png;base64,{b64}",
+        coordinates=raster.bounds_lnglat(),
+        width=raster.width, height=raster.height, peak_in=raster.peak_in,
+    )
+
+
 @router.get("/storms/stats", response_model=StormsStatsResponse)
 async def storms_stats(
     session: AsyncSession = Depends(get_db_session),
