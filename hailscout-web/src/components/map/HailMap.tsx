@@ -89,6 +89,15 @@ export function HailMap({ basemap = "atlas", dropMode = false, onMapReady, onMar
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
 
+  // The map's click handler is registered ONCE on init, so it would
+  // capture the first onMarkerDrop closure forever (which sees the
+  // initial dropMode=false → never drops). Keep the latest callback in a
+  // ref so the handler always invokes the current one.
+  const onMarkerDropRef = useRef(onMarkerDrop);
+  useEffect(() => {
+    onMarkerDropRef.current = onMarkerDrop;
+  }, [onMarkerDrop]);
+
   // Initialize the map once.
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -126,7 +135,7 @@ export function HailMap({ basemap = "atlas", dropMode = false, onMapReady, onMar
       onMapReady?.(map);
     });
 
-    map.on("click", (e) => onMarkerDrop?.(e.lngLat.lat, e.lngLat.lng));
+    map.on("click", (e) => onMarkerDropRef.current?.(e.lngLat.lat, e.lngLat.lng));
 
     return () => {
       map.remove();

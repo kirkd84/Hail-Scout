@@ -30,6 +30,11 @@ const SOURCE_CENTROIDS = "hs-live-centroids";
 const LAYER_GLOW = "hs-live-glow";       // soft halo under fills
 const LAYER_FILL = "hs-live-fill";
 const LAYER_LINE = "hs-live-line";
+// Always-present, fully-transparent fill used only for hover/click
+// hit-testing. Stays queryable in every view mode (incl. smooth, where
+// the visible bands are hidden under the raster), so we can read the
+// hail size AT the cursor anywhere over a swath — like IHM.
+const LAYER_PROBE = "hs-live-probe";
 const LAYER_CENTROID = "hs-live-centroid";
 const LAYER_CENTROID_RING = "hs-live-centroid-ring";
 const LAYER_DATE_LABEL = "hs-live-date-label";
@@ -147,6 +152,17 @@ export function StormsLayer({
       map.addSource(SOURCE_BANDS, {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
+      });
+
+      // Invisible probe fill — always rendered (opacity 0) so hover/click
+      // hit-testing works in every view mode, including smooth where the
+      // visible bands are hidden. Added first so it sits beneath the
+      // visible layers.
+      map.addLayer({
+        id: LAYER_PROBE,
+        type: "fill",
+        source: SOURCE_BANDS,
+        paint: { "fill-opacity": 0 },
       });
 
       // Polish notes:
@@ -409,7 +425,11 @@ export function StormsLayer({
     // centroid/interaction layers stay visible + clickable.
     const bandV = visible && !bandsHidden ? "visible" : "none";
     const bandLayers = [LAYER_GLOW, LAYER_FILL, LAYER_LINE];
-    const pointLayers = [LAYER_CENTROID, LAYER_CENTROID_RING, LAYER_DATE_LABEL];
+    // PROBE + centroids track overall visibility (on in cells AND smooth)
+    // so hover hit-testing survives smooth mode where the bands are hidden.
+    const pointLayers = [
+      LAYER_PROBE, LAYER_CENTROID, LAYER_CENTROID_RING, LAYER_DATE_LABEL,
+    ];
     for (const id of bandLayers) {
       if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", bandV);
     }
@@ -425,7 +445,9 @@ export function StormsLayer({
   // band (swath) features carry `storm_id`.
   useEffect(() => {
     if (!map) return;
-    const clickableLayers = [LAYER_CENTROID, LAYER_CENTROID_RING, LAYER_FILL];
+    // Use the always-queryable PROBE for swath hit-testing so the local
+    // size readout works in every view mode (incl. smooth).
+    const clickableLayers = [LAYER_CENTROID, LAYER_CENTROID_RING, LAYER_PROBE];
 
     // Tooltip popup — reused across hovers so we don't churn DOM.
     // closeButton: false so it disappears on mouseleave instead of
@@ -450,15 +472,29 @@ export function StormsLayer({
       if (!stormId) return;
       const s = stormById.get(stormId);
       if (!s) return;
-      const c = hailColor(s.max_hail_size_in);
+      // LOCAL size at the cursor: when hovering a swath band, the band's
+      // min_size_in is the hail size that fell HERE — what a roofer needs
+      // to target a neighborhood. Fall back to the storm peak only when
+      // hovering a centroid (no band under the cursor).
+      const bandSize = feat.properties?.min_size_in;
+      const localSize =
+        typeof bandSize === "number" ? bandSize : s.max_hail_size_in;
+      const c = hailColor(localSize);
       const where = nearestMetro(s.centroid_lat, s.centroid_lng);
-      const heavy = s.max_hail_size_in >= 1.5;
+      const heavy = localSize >= 1.5;
       const badgeFg = heavy ? "#FAF7F1" : c.text;
       const dateStr = new Date(s.start_time).toLocaleDateString(undefined, {
         month: "short",
         day: "2-digit",
         year: "numeric",
       });
+      // Show the storm's peak as context only when it's bigger than the
+      // local size — so the user knows this neighborhood saw less than
+      // the storm's worst.
+      const peakNote =
+        s.max_hail_size_in > localSize + 0.01
+          ? `<div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;opacity:0.55;margin-top:2px;">Storm peak: ${s.max_hail_size_in.toFixed(2)}″ elsewhere</div>`
+          : "";
       // Inline HTML kept tight; styling matches the picker card.
       // The LSR-confirmed pill appears only when an SPC ground-truth
       // report fell inside this cell within ±30 min — it's a quiet
@@ -476,12 +512,13 @@ export function StormsLayer({
       const html = `
         <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 10px;min-width:200px;">
           <span style="display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:42px;height:38px;border-radius:6px;background:${c.solid};color:${badgeFg};box-shadow:0 1px 3px rgba(0,0,0,0.15);">
-            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:500;line-height:1;">${s.max_hail_size_in.toFixed(2)}″</span>
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:500;line-height:1;">${localSize.toFixed(2)}″</span>
             <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:8px;text-transform:uppercase;letter-spacing:0.08em;line-height:1;margin-top:2px;opacity:0.9;">${c.object}</span>
           </span>
           <div style="min-width:0;">
             <div style="font-family:Fraunces,Cambria,serif;font-size:15px;font-weight:500;letter-spacing:-0.01em;line-height:1.2;">${where?.label ?? "United States"}${confirmedPill}</div>
             <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;opacity:0.65;margin-top:3px;">${dateStr} · ${s.source}</div>
+            ${peakNote}
             ${lsrSizeNote}
           </div>
         </div>`;

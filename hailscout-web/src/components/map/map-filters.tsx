@@ -52,18 +52,34 @@ interface Props {
   date: DateFilter;
   size: SizeFilter;
   source: SourceFilter;
+  /** Specific day to view (YYYY-MM-DD). When set, overrides the relative
+   *  date range — the map scopes to just that storm day. */
+  specificDate: string | null;
   onDateChange: (next: DateFilter) => void;
   onSizeChange: (next: SizeFilter) => void;
   onSourceChange: (next: SourceFilter) => void;
+  onSpecificDateChange: (next: string | null) => void;
 }
 
-export function MapFilters({ date, size, source, onDateChange, onSizeChange, onSourceChange }: Props) {
+export function MapFilters({
+  date,
+  size,
+  source,
+  specificDate,
+  onDateChange,
+  onSizeChange,
+  onSourceChange,
+  onSpecificDateChange,
+}: Props) {
   const [open, setOpen] = useState(false);
 
   const activeDate = DATE_OPTIONS.find((o) => o.id === date)!;
   const activeSize = SIZE_OPTIONS.find((o) => o.id === size)!;
   const activeSource = SOURCE_OPTIONS.find((o) => o.id === source)!;
-  const filtersActive = date !== "all" || size !== "any" || source !== "all";
+  const filtersActive =
+    date !== "all" || size !== "any" || source !== "all" || !!specificDate;
+  // Max selectable day = today (no future storms).
+  const todayStr = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="pointer-events-auto absolute top-24 left-4 z-20">
@@ -82,7 +98,7 @@ export function MapFilters({ date, size, source, onDateChange, onSizeChange, onS
         <span className="text-xs font-medium text-foreground/85">Filter</span>
         {filtersActive && (
           <span className="font-mono text-[10px] uppercase tracking-wide-caps text-copper">
-            {activeDate.id !== "all" ? activeDate.id : ""}
+            {specificDate ? specificDate : activeDate.id !== "all" ? activeDate.id : ""}
             {activeSize.id !== "any" ? ` · ${activeSize.label.replace("≥ ", "")}` : ""}
             {activeSource.id !== "all" ? ` · ${activeSource.id}` : ""}
           </span>
@@ -106,10 +122,14 @@ export function MapFilters({ date, size, source, onDateChange, onSizeChange, onS
                 <button
                   key={o.id}
                   type="button"
-                  onClick={() => onDateChange(o.id)}
+                  onClick={() => {
+                    // Picking a relative range clears any specific day.
+                    onSpecificDateChange(null);
+                    onDateChange(o.id);
+                  }}
                   className={cn(
                     "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                    date === o.id
+                    !specificDate && date === o.id
                       ? "bg-primary text-primary-foreground"
                       : "text-foreground/75 hover:bg-foreground/5",
                   )}
@@ -118,6 +138,37 @@ export function MapFilters({ date, size, source, onDateChange, onSizeChange, onS
                 </button>
               ))}
             </div>
+            {/* Specific storm day — overrides the relative range above. */}
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                type="date"
+                value={specificDate ?? ""}
+                max={todayStr}
+                onChange={(e) =>
+                  onSpecificDateChange(e.target.value || null)
+                }
+                className={cn(
+                  "flex-1 rounded-md border bg-background px-2.5 py-1.5 text-xs font-mono-num text-foreground/85 outline-none transition-colors",
+                  specificDate ? "border-copper" : "border-border hover:border-copper/40",
+                )}
+                aria-label="Specific storm date"
+              />
+              {specificDate && (
+                <button
+                  type="button"
+                  onClick={() => onSpecificDateChange(null)}
+                  className="text-[10px] font-mono uppercase tracking-wide-caps text-foreground/55 hover:text-copper"
+                  aria-label="Clear specific date"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            {specificDate && (
+              <p className="mt-1 text-[10px] text-foreground/55">
+                Showing storms on {specificDate} only.
+              </p>
+            )}
           </div>
 
           <div>
@@ -173,6 +224,7 @@ export function MapFilters({ date, size, source, onDateChange, onSizeChange, onS
                 onDateChange("all");
                 onSizeChange("any");
                 onSourceChange("all");
+                onSpecificDateChange(null);
               }}
               className="w-full text-center text-[11px] font-mono uppercase tracking-wide-caps text-copper hover:text-copper-700 pt-2 border-t border-border"
             >

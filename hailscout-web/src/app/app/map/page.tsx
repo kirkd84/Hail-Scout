@@ -99,7 +99,12 @@ export default function MapPage() {
     };
   }, [map]);
 
+  // A specific storm day chosen in the filter overrides the zoom-derived
+  // range — the map then scopes to exactly that UTC day.
+  const [specificDate, setSpecificDate] = useState<string | null>(null);
+
   const fromDate = useMemo(() => {
+    if (specificDate) return specificDate;
     const d = new Date();
     if (viewportZoom > 7) {
       d.setUTCFullYear(d.getUTCFullYear() - 5);
@@ -109,13 +114,19 @@ export default function MapPage() {
       d.setUTCDate(d.getUTCDate() - 30);
     }
     return d.toISOString().slice(0, 10);
-  }, [viewportZoom]);
+  }, [viewportZoom, specificDate]);
 
   const toDate = useMemo(() => {
+    if (specificDate) {
+      // The day after the picked date → captures the full UTC day.
+      const d = new Date(specificDate + "T00:00:00Z");
+      d.setUTCDate(d.getUTCDate() + 1);
+      return d.toISOString().slice(0, 10);
+    }
     const d = new Date();
     d.setUTCDate(d.getUTCDate() + 1); // include today
     return d.toISOString().slice(0, 10);
-  }, []);
+  }, [specificDate]);
 
   // Source filter goes server-side via /v1/storms?source= so we don't
   // pull rows just to drop them client-side.
@@ -222,10 +233,13 @@ export default function MapPage() {
         storms={storms}
         visible={viewMode === "cells" || viewMode === "smooth"}
         bandsHidden={viewMode === "smooth"}
-        startTimeMin={dateFilterToCutoff(date)}
+        startTimeMin={specificDate ? null : dateFilterToCutoff(date)}
         minSizeIn={sizeFilterToMin(size)}
         startTimeMax={scrubberMs}
         onStormClick={(stormId) => {
+          // While dropping a pin, a click should place the marker — not
+          // hijack into the storm detail sheet.
+          if (dropMode) return;
           const hit = storms.find((s) => s.id === stormId);
           if (hit) {
             setSelectedStorm(hit);
@@ -271,9 +285,11 @@ export default function MapPage() {
         date={date}
         size={size}
         source={source}
+        specificDate={specificDate}
         onDateChange={setDate}
         onSizeChange={setSize}
         onSourceChange={setSource}
+        onSpecificDateChange={setSpecificDate}
       />
       <SwathLegend />
 

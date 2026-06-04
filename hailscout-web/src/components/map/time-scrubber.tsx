@@ -47,19 +47,22 @@ export function TimeScrubber({
       rafRef.current = null;
       return;
     }
+    // Accumulate position in a LOCAL variable held by the loop's closure.
+    // Reading `cursorMs` each frame would use the stale value captured when
+    // this effect ran (deps are [playing, speed]), so the cursor never
+    // progressed — that was the "playback broken" bug. `pos` persists
+    // across rAF ticks and advances correctly.
+    let pos = cursorMs ?? startMs;
+    const baseDur = 30_000; // 1× sweeps the full range in ~30s
     const step = (now: number) => {
       const dt = lastTickRef.current ? now - lastTickRef.current : 16;
       lastTickRef.current = now;
-      // Advance the cursor proportionally — a base "1×" speed sweeps the
-      // full week in ~30 seconds. 4× and 16× scale that down to ~7s/~2s.
-      const baseDur = 30_000;
-      const cur = cursorMs ?? startMs;
-      const next = cur + (dt / baseDur) * span * speed;
-      if (next >= endMs) {
+      pos = pos + (dt / baseDur) * span * speed;
+      if (pos >= endMs) {
         onCursorChange(endMs);
         setPlaying(false);
       } else {
-        onCursorChange(next);
+        onCursorChange(pos);
         rafRef.current = requestAnimationFrame(step);
       }
     };
