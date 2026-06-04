@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from hailscout_api.core import get_logger
 from hailscout_api.db.models.storm import HailSwath, Storm
+from hailscout_api.services.impact import bbox_area_km2, storm_impact
 from hailscout_api.services.verification import attach_verification
 
 logger = get_logger(__name__)
@@ -130,6 +131,17 @@ async def query_storms_in_bbox(
         })
         storm_ids.append(r.id)
 
+    # Impact Score (1-5) — the rep's triage number (size + footprint +
+    # confirmation). Attached to every storm in the list (powers the map
+    # picker + storm cards).
+    for s in out:
+        s["impact"] = storm_impact(
+            s["max_hail_size_in"],
+            bbox_area_km2(s.get("bbox")),
+            lsr_confirmed=s.get("lsr_confirmed", False),
+            suspect=s.get("suspect", False),
+        )
+
     if include_swaths and storm_ids:
         # Single batched query for every swath belonging to the matched
         # storms — N+1 would be brutal across 200 storms.
@@ -229,6 +241,7 @@ async def get_storm_with_swaths(
         for s in swath_rows
     ]
 
+    bbox_geo = json.loads(row.bbox_json) if row.bbox_json else None
     return {
         "id": row.id,
         "start_time": row.start_time,
@@ -245,7 +258,13 @@ async def get_storm_with_swaths(
             if row.suspect_reasons else []
         ),
         "centroid": json.loads(row.centroid_json) if row.centroid_json else None,
-        "bbox": json.loads(row.bbox_json) if row.bbox_json else None,
+        "bbox": bbox_geo,
+        "impact": storm_impact(
+            row.max_hail_size_in,
+            bbox_area_km2(bbox_geo),
+            lsr_confirmed=bool(row.lsr_confirmed),
+            suspect=bool(row.suspect),
+        ),
         "swaths": swaths,
     }
 

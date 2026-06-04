@@ -23,6 +23,13 @@ class GeoMultiPolygon(BaseModel):
     coordinates: list[list[list[list[float]]]]
 
 
+class ImpactScore(BaseModel):
+    """Storm triage score (1-5) — size + footprint + confirmation."""
+    score: int
+    label: str
+    factors: dict[str, Any] = Field(default_factory=dict)
+
+
 class StormResponse(BaseModel):
     id: str
     start_time: datetime
@@ -44,6 +51,7 @@ class StormResponse(BaseModel):
     confidence: float = 1.0
     suspect: bool = False
     suspect_reasons: list[str] = Field(default_factory=list)
+    impact: ImpactScore | None = None
     swaths: list["HailSwathResponse"] | None = None  # only when include=swaths
 
     model_config = {"from_attributes": True}
@@ -76,6 +84,7 @@ class StormDetailResponse(BaseModel):
     confidence: float = 1.0
     suspect: bool = False
     suspect_reasons: list[str] = Field(default_factory=list)
+    impact: ImpactScore | None = None
     swaths: list[HailSwathResponse] = Field(default_factory=list)
 
 

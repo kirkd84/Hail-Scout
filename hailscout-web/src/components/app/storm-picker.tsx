@@ -35,6 +35,12 @@ interface Props {
   onStormClick?: (storm: Storm) => void;
 }
 
+/** Impact 1-5 → severity color (forest → amber → copper → brick → plum). */
+function impactColor(score: number): string {
+  const colors = ["#2F7A4F", "#C19A2E", "#D88A3D", "#A8412D", "#7C2794"];
+  return colors[Math.max(0, Math.min(4, score - 1))];
+}
+
 export function StormPicker({ map, storms, limit = 10, scopeLabel, onStormClick }: Props) {
   const [open, setOpen] = useState(true);
 
@@ -120,11 +126,23 @@ export function StormPicker({ map, storms, limit = 10, scopeLabel, onStormClick 
                     </span>
                   </span>
                   <span className="flex-1 min-w-0">
-                    <span className="block truncate text-sm font-medium text-foreground">
-                      {cityLabel}
+                    <span className="flex items-center gap-1.5 truncate text-sm font-medium text-foreground">
+                      <span className="truncate">{cityLabel}</span>
                       <span className="text-muted-foreground/70 font-mono-num text-xs font-normal">
                         {distanceLabel}
                       </span>
+                      {s.impact && (
+                        <span
+                          className="ml-auto shrink-0 rounded-sm px-1.5 py-0.5 font-mono-num text-[10px] font-medium"
+                          style={{
+                            background: `${impactColor(s.impact.score)}22`,
+                            color: impactColor(s.impact.score),
+                          }}
+                          title={`Impact ${s.impact.label}`}
+                        >
+                          IMPACT {s.impact.score}
+                        </span>
+                      )}
                     </span>
                     <span className="block truncate text-xs text-muted-foreground font-mono-num">
                       {timeAgo(s.start_time)} ·{" "}

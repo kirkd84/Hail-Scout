@@ -90,6 +90,14 @@ export function StormDetailSheet({ storm, isOpen, onClose, address, map }: Storm
           </div>
         </div>
 
+        {/* Impact Score — the rep's triage number (size + footprint +
+            ground-truth confirmation). */}
+        {storm.impact && (
+          <div className="px-6 pb-2">
+            <ImpactMeter score={storm.impact.score} label={storm.impact.label} />
+          </div>
+        )}
+
         {/* AI insight */}
         <div className="px-6 pb-2">
           <AiInsightPanel storm={storm} />
@@ -197,6 +205,38 @@ export function StormDetailSheet({ storm, isOpen, onClose, address, map }: Storm
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+function ImpactMeter({ score, label }: { score: number; label: string }) {
+  // Color climbs with severity: forest → amber → copper → brick → plum.
+  const colors = ["#2F7A4F", "#C19A2E", "#D88A3D", "#A8412D", "#7C2794"];
+  const c = colors[Math.max(0, Math.min(4, score - 1))];
+  return (
+    <div className="rounded-lg border border-border bg-secondary/30 p-4">
+      <div className="flex items-baseline justify-between">
+        <span className="text-[10px] font-mono uppercase tracking-wide-caps text-foreground/55">
+          Impact score
+        </span>
+        <span className="text-sm font-medium" style={{ color: c }}>
+          {label}
+        </span>
+      </div>
+      <div className="mt-2 flex items-center gap-2">
+        <div className="flex gap-1">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <span
+              key={n}
+              className="h-2.5 w-7 rounded-sm"
+              style={{ background: n <= score ? c : "hsl(var(--border))" }}
+            />
+          ))}
+        </div>
+        <span className="font-mono-num text-sm font-medium text-foreground">
+          {score}/5
+        </span>
+      </div>
+    </div>
   );
 }
 

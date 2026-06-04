@@ -58,6 +58,8 @@ interface ApiStorm {
   confidence?: number;
   suspect?: boolean;
   suspect_reasons?: string[];
+  /** Phase 31 Impact Score. */
+  impact?: { score: number; label: string };
   /** Only populated when the request includes `include=swaths`. */
   swaths?: ApiHailSwath[];
 }
@@ -129,6 +131,7 @@ export function adaptApiStorm(s: ApiStorm): Storm {
     confidence: s.confidence ?? 1,
     suspect: s.suspect ?? false,
     suspect_reasons: s.suspect_reasons ?? [],
+    impact: s.impact,
   };
 }
 

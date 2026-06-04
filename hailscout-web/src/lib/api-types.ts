@@ -30,6 +30,8 @@ export interface Storm {
   confidence?: number;
   suspect?: boolean;
   suspect_reasons?: string[];
+  /** Phase 31 Impact Score (1-5) — the rep's triage number. */
+  impact?: { score: number; label: string };
   /** Phase 24 dual-pol persistence (NEXRAD only). */
   hail_confirmed?: boolean;
   peak_dbz?: number | null;
