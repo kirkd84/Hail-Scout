@@ -29,6 +29,9 @@ class PublicStats(BaseModel):
     addresses_monitored: int
     alerts_this_week: int
     organizations: int
+    # Live-data freshness for a user-facing "current as of" signal.
+    live_as_of: str | None = None
+    data_fresh: bool = False
 
 
 class AccuracyStat(BaseModel):
@@ -51,11 +54,46 @@ class AccuracyStat(BaseModel):
 async def public_stats(
     session: AsyncSession = Depends(get_db_session),
 ) -> PublicStats:
-    """Aggregate counts. Cached at the CDN edge so this can be polled cheaply."""
+    """Aggregate counts. Cached at the CDN edge so this can be polled cheaply.
 
-    fixtures = all_fixtures()
-    storms_live = sum(1 for s in fixtures if s.is_live)
-    storms_tracked = len(fixtures)
+    Real DB counts (not fixtures) so the marketing ticker shows our
+    actual coverage, plus a live-data freshness signal.
+    """
+    now = datetime.now(timezone.utc)
+    two_hours_ago = now - timedelta(hours=2)
+
+    # Total real storms tracked, and how many are "live" (last 2h).
+    storms_tracked = int(
+        (await session.execute(select(func.count(Storm.id)))).scalar_one() or 0
+    )
+    storms_live = int(
+        (await session.execute(
+            select(func.count(Storm.id)).where(Storm.start_time >= two_hours_ago)
+        )).scalar_one() or 0
+    )
+    # Newest live (MRMS) storm → freshness signal.
+    latest = (
+        await session.execute(
+            select(Storm.start_time)
+            .where(Storm.source == "MRMS")
+            .order_by(Storm.start_time.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    live_as_of: str | None = None
+    data_fresh = False
+    if latest is not None:
+        if latest.tzinfo is None:
+            latest = latest.replace(tzinfo=timezone.utc)
+        live_as_of = latest.isoformat()
+        data_fresh = (now - latest).total_seconds() <= 180 * 60
+
+    # If the DB is somehow empty (fresh env), fall back to fixtures so the
+    # marketing site never shows a bare zero.
+    if storms_tracked == 0:
+        fixtures = all_fixtures()
+        storms_tracked = len(fixtures)
+        storms_live = sum(1 for s in fixtures if s.is_live)
 
     address_count = (
         await session.execute(select(func.count(MonitoredAddress.id)))
@@ -64,7 +102,7 @@ async def public_stats(
         await session.execute(select(func.count(Organization.id)))
     ).scalar_one()
 
-    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    week_ago = now - timedelta(days=7)
     alerts_count = (
         await session.execute(
             select(func.count(StormAlert.id)).where(StormAlert.created_at >= week_ago),
@@ -77,6 +115,8 @@ async def public_stats(
         addresses_monitored=int(address_count or 0),
         alerts_this_week=int(alerts_count or 0),
         organizations=int(org_count or 0),
+        live_as_of=live_as_of,
+        data_fresh=data_fresh,
     )
 
 

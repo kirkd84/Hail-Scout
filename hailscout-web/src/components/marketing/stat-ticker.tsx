@@ -9,6 +9,18 @@ interface PublicStats {
   addresses_monitored: number;
   alerts_this_week: number;
   organizations: number;
+  live_as_of?: string | null;
+  data_fresh?: boolean;
+}
+
+/** "3m ago" style relative time for the freshness pill. */
+function freshnessLabel(iso?: string | null): string | null {
+  if (!iso) return null;
+  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 48) return `${hrs}h ago`;
+  return `${Math.round(hrs / 24)}d ago`;
 }
 
 const API_BASE =
@@ -55,6 +67,8 @@ export function StatTicker() {
     { label: "ALERTS · 7 DAYS", value: stats.alerts_this_week },
   ];
 
+  const fresh = freshnessLabel(stats.live_as_of);
+
   return (
     <div className="border-b border-border bg-card/80 backdrop-blur">
       <div className="container flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-2 text-[11px] font-mono uppercase tracking-wide-caps text-foreground/65">
@@ -76,6 +90,14 @@ export function StatTicker() {
             </span>
           </span>
         ))}
+        {fresh && (
+          <span className="inline-flex items-center gap-2">
+            <span className={stats.data_fresh ? "text-forest" : "text-foreground/45"}>
+              {stats.data_fresh ? "LIVE DATA" : "DATA"} · UPDATED
+            </span>
+            <span className="font-mono-num font-medium text-foreground">{fresh}</span>
+          </span>
+        )}
       </div>
     </div>
   );
