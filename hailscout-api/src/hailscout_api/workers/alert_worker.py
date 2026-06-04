@@ -51,40 +51,83 @@ def _run_once_mode() -> bool:
     return os.environ.get("ALERT_WORKER_RUN_ONCE", "").strip() == "1"
 
 
+# Full-history sweep state. The backfill inserts storms with historical
+# start_times (2021-2026), which fall OUTSIDE a short recency window — so a
+# 2-day link/screen would never touch them and verification + calibration
+# would stay empty. We therefore run a FULL-RANGE pass on a slow cadence
+# (first tick immediate) so every backfilled cell gets ground-truth-linked
+# and screened. `time.monotonic()` baseline 0 → runs on the first pass.
+_last_full_sweep_at: float = 0.0
+
+
+def _full_sweep_interval_s() -> int:
+    raw = os.environ.get("LSR_FULL_SWEEP_INTERVAL_S", "10800")  # 3h default
+    try:
+        return max(0, int(raw))
+    except ValueError:
+        return 10800
+
+
+def _full_sweep_days() -> int:
+    raw = os.environ.get("LSR_FULL_SWEEP_DAYS", "2200")  # ~6y covers the 5y backfill
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        return 2200
+
+
 async def _one_pass() -> dict:
-    """One worker tick. Runs three jobs in order against fresh sessions:
+    """One worker tick. Runs against fresh sessions:
 
-      1. Screen recent storms (incremental — only unscreened rows). New
-         pipeline arrivals get tagged before any user-facing surface
-         (or alert) sees them.
-      2. Link new SPC LSRs to nearby radar cells.
-      3. Generate + fan out alerts for every org.
+      1. Screen unscreened storms across the FULL history (cheap — the
+         only_unscreened filter means only new/backfilled rows are
+         touched), so historical backfill arrivals get tagged.
+      2. Link recent SPC LSRs to nearby radar cells (live storms).
+      3. Periodically (slow cadence, first tick immediate) run a
+         FULL-RANGE LSR link so backfilled historical cells get
+         ground-truth-confirmed — this is what lights up verification
+         tiers + the accuracy calibration across all 5 years.
+      4. Generate + fan out alerts for every org.
 
-    Order matters: screening before alert-gen means suspect cells get
-    rejected at the alert layer. Linking before alert-gen means a
-    confirmed cell shows up as such in any email that triggers.
+    Order matters: link before screen/alerts so a freshly-confirmed cell
+    screens correctly and shows confirmed in any email that fires.
     """
+    global _last_full_sweep_at
+
     factory = db_session._async_session_factory  # noqa: SLF001
     if factory is None:
-        # First-time init in this process. The web app initializes this
-        # on FastAPI startup; the worker initializes it here so we can
-        # share the same module-global without coupling to FastAPI.
         db_session.init_db(get_settings())
         factory = db_session._async_session_factory  # noqa: SLF001
         assert factory is not None
 
     screen_summary: dict = {}
     link_summary: dict = {}
+    full_sweep_summary: dict = {}
     alert_summary: dict = {}
 
-    async with factory() as session:
-        try:
-            screen_summary = await screen_recent_storms(
-                session, lookback_days=2, only_unscreened=True,
-            )
-        except Exception:
-            log.exception("alert_worker.screen_failed")
+    # ── Periodic full-history sweep (the data light-up) ──
+    interval = _full_sweep_interval_s()
+    now = time.monotonic()
+    due = interval > 0 and (now - _last_full_sweep_at) >= interval
+    if due or _last_full_sweep_at == 0.0:
+        days = _full_sweep_days()
+        async with factory() as session:
+            try:
+                full_link = await link_recent_lsrs(session, lookback_days=days)
+                full_screen = await screen_recent_storms(
+                    session, lookback_days=days, only_unscreened=False,
+                )
+                full_sweep_summary = {
+                    "lookback_days": days,
+                    "lsr": full_link,
+                    "screen": full_screen,
+                }
+                log.warning("alert_worker.full_sweep_done %s", full_sweep_summary)
+            except Exception:
+                log.exception("alert_worker.full_sweep_failed")
+        _last_full_sweep_at = now
 
+    # ── Per-tick incremental ──
     async with factory() as session:
         try:
             link_summary = await link_recent_lsrs(session, lookback_days=2)
@@ -92,9 +135,18 @@ async def _one_pass() -> dict:
             log.exception("alert_worker.lsr_link_failed")
 
     async with factory() as session:
+        try:
+            screen_summary = await screen_recent_storms(
+                session, lookback_days=_full_sweep_days(), only_unscreened=True,
+            )
+        except Exception:
+            log.exception("alert_worker.screen_failed")
+
+    async with factory() as session:
         alert_summary = await generate_alerts_for_all_orgs(session)
 
     return {
+        "full_sweep": full_sweep_summary,
         "screen": screen_summary,
         "lsr_link": link_summary,
         "alerts_per_org": alert_summary,
@@ -176,6 +228,30 @@ async def _main_async() -> int:
             )
             rest = 0
         await asyncio.sleep(rest)
+
+
+async def run_worker_loop() -> None:
+    """In-process worker loop, callable from an already-running event loop
+    (i.e. the FastAPI app). Lets the API host the alert/screen/link/sweep
+    work without a separate Railway service — gated by RUN_ALERT_WORKER_INPROC.
+
+    Identical pass to the standalone worker, but never exits and swallows
+    its own errors so a bad pass can't take the API down.
+    """
+    interval = _interval_seconds()
+    log.warning("alert_worker.inproc_start interval_s=%s", interval)
+    while True:
+        started = time.monotonic()
+        try:
+            pass_result = await _one_pass()
+            log.warning(
+                "alert_worker.inproc_pass_done elapsed_s=%.1f %s",
+                time.monotonic() - started, _flat_counts(pass_result),
+            )
+        except Exception:  # pragma: no cover
+            log.exception("alert_worker.inproc_pass_failed")
+        elapsed = time.monotonic() - started
+        await asyncio.sleep(max(1.0, interval - elapsed))
 
 
 def main() -> int:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -116,6 +117,23 @@ def create_app() -> FastAPI:
             status_code=500,
             content={"error": "internal_server_error", "detail": str(exc)},
         )
+
+    # Optional in-process alert/screen/link/sweep worker. When
+    # RUN_ALERT_WORKER_INPROC=1, the API hosts the worker loop itself —
+    # screening + LSR-linking + a periodic full-history sweep (which
+    # lights up verification tiers + accuracy calibration across the
+    # whole backfill) + alert fan-out — so we don't need a separate
+    # Railway service. Single-replica deployments only; the work is
+    # idempotent so duplicate runs across replicas are wasteful, not
+    # incorrect.
+    if os.environ.get("RUN_ALERT_WORKER_INPROC", "").strip() == "1":
+        @app.on_event("startup")
+        async def _start_inproc_worker() -> None:
+            import asyncio
+            from hailscout_api.workers.alert_worker import run_worker_loop
+
+            log.warning("hailscout.boot.inproc_worker_starting")
+            asyncio.create_task(run_worker_loop())
 
     log.info("hailscout.boot.app_ready")
     return app
