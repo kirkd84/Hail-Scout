@@ -14,12 +14,12 @@ from hailscout_api.core import setup_logging
 from hailscout_api.db import init_db
 from hailscout_api.routes import (
     audit,
+    auth,
     contacts_crm,
     public,
     territories,
     integrations,
     team,
-    webhooks,
     admin,
     ai,
     contacts,
@@ -42,6 +42,15 @@ def create_app() -> FastAPI:
 
     setup_logging(settings.log_level)
     log.info("hailscout.boot.create_app env=%s", settings.env)
+
+    # Auth requires a signing secret. Warn loudly in production rather than
+    # crash the boot (so /healthz still answers), but every auth call will
+    # 401 until SESSION_JWT_SECRET is set.
+    if settings.env == "production" and not settings.session_jwt_secret:
+        log.error(
+            "hailscout.boot.missing_session_jwt_secret — set SESSION_JWT_SECRET "
+            "or all authentication will fail"
+        )
 
     # Production error monitoring. Gated on SENTRY_DSN so local/dev runs
     # without a DSN are unaffected. Captures unhandled exceptions across
@@ -98,6 +107,7 @@ def create_app() -> FastAPI:
 
     v1 = APIRouter(prefix="/v1")
     v1.include_router(health.router, tags=["health"])
+    v1.include_router(auth.router, tags=["auth"])
     v1.include_router(me.router, tags=["user"])
     v1.include_router(storms.router, tags=["storms"])
     v1.include_router(hail.router, tags=["hail"])
@@ -114,8 +124,6 @@ def create_app() -> FastAPI:
     v1.include_router(territories.router, tags=["territories"])
     v1.include_router(public.router, tags=["public"])
     v1.include_router(contacts_crm.router, tags=["customers"])
-    # Webhooks — externally-called endpoints, signature-verified, no auth dep.
-    v1.include_router(webhooks.router, tags=["webhooks"])
 
     app.include_router(v1)
 

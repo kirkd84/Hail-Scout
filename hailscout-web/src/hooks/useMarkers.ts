@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/hooks/useAuth";
 import useSWR from "swr";
 import { apiClient } from "@/lib/api";
 import { markersStore, type Marker, type MarkerStatus } from "@/lib/markers";

@@ -11,7 +11,7 @@ class ApiError extends Error {
 }
 
 interface FetchOpts extends RequestInit {
-  /** Optional Clerk JWT string. If omitted, the request goes out unauthenticated. */
+  /** Optional access-token string. If omitted, the request goes out unauthenticated. */
   token?: string | null;
 }
 

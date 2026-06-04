@@ -10,7 +10,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hailscout_api.auth.clerk import get_clerk_verifier
+from hailscout_api.auth.session import verify_access_token
 from hailscout_api.core import AuthenticationError, get_logger
 from hailscout_api.db.models.canvass import MonitoredAddress
 from hailscout_api.db.models.org import User
@@ -35,8 +35,6 @@ router = APIRouter()
 
 
 async def _resolve_user(request: Request, session: AsyncSession) -> User:
-    verifier = get_clerk_verifier()
-
     # Prefer Authorization header; fall back to ?token= query param so
     # EventSource (which can't set headers) can authenticate too.
     auth_header = request.headers.get("Authorization")
@@ -56,13 +54,13 @@ async def _resolve_user(request: Request, session: AsyncSession) -> User:
     if not token:
         raise AuthenticationError("Missing Authorization header")
 
-    claims = await verifier.verify_token(token)
-    clerk_user_id = claims.get("sub")
-    if not clerk_user_id:
+    claims = verify_access_token(token)
+    user_id = claims.get("sub")
+    if not user_id:
         raise AuthenticationError("JWT missing sub claim")
 
     user = (
-        await session.execute(select(User).where(User.clerk_user_id == clerk_user_id))
+        await session.execute(select(User).where(User.id == user_id))
     ).scalars().first()
     if not user:
         raise AuthenticationError("User not found — webhook may not have reconciled yet")

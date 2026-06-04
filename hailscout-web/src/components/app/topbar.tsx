@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { UserButton } from "@clerk/nextjs";
+import { UserMenu } from "@/components/app/user-menu";
 import { NotificationBell } from "@/components/app/notification-bell";
 import { usePathname } from "next/navigation";
 import { IconCommand, IconSearch } from "@/components/icons";
@@ -87,14 +87,7 @@ export function Topbar({ onSearchClick }: { onSearchClick?: () => void } = {}) {
 
           <NotificationBell />
 
-          <UserButton
-            afterSignOutUrl="/"
-            appearance={{
-              elements: {
-                avatarBox: "h-8 w-8 ring-1 ring-border",
-              },
-            }}
-          />
+          <UserMenu />
         </div>
       </div>
     </header>

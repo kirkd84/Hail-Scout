@@ -3,11 +3,10 @@
 GET /v1/me returns the signed-in user's profile, their org, and any seats.
 
 Implementation notes:
-* Auth: validates the Clerk JWT via ``ClerkVerifier``. The JWT's ``sub`` claim
-  is Clerk's user ID — we look up our DB row via ``User.clerk_user_id``.
-* Org context: derived from the user row (``user.org_id``). We do NOT require
-  ``org_id`` in the JWT claims — Clerk's default dev JWTs don't include it
-  unless a custom JWT template is configured.
+* Auth: validates HailScout's own access token. The ``sub`` claim is our
+  internal user id (we mint the token), so we look up by ``User.id``.
+* Org context: the token carries ``org_id`` (minted from ``user.org_id``),
+  but /me derives it from the user row regardless.
 """
 
 from __future__ import annotations
@@ -16,8 +15,7 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hailscout_api.auth.clerk import get_clerk_verifier
-from hailscout_api.auth.middleware import AuthContext, extract_auth_context
+from hailscout_api.auth.middleware import extract_auth_context
 from hailscout_api.core import AuthenticationError, get_logger
 from hailscout_api.db.models.org import Organization, Seat, User
 from hailscout_api.db.session import get_db_session
@@ -27,31 +25,6 @@ logger = get_logger(__name__)
 router = APIRouter()
 
 
-async def _extract_for_me(request: Request) -> AuthContext:
-    """``extract_auth_context``-lite for /v1/me — does not require org_id."""
-    verifier = get_clerk_verifier()
-
-    auth_header = request.headers.get("Authorization")
-    if not auth_header:
-        raise AuthenticationError("Missing Authorization header")
-
-    try:
-        scheme, token = auth_header.split(" ", 1)
-    except ValueError as exc:
-        raise AuthenticationError("Invalid Authorization header format") from exc
-
-    if scheme.lower() != "bearer":
-        raise AuthenticationError("Only Bearer token authentication is supported")
-
-    claims = await verifier.verify_token(token)
-    user_id = claims.get("sub")
-    email = claims.get("email") or ""
-    if not user_id:
-        raise AuthenticationError("JWT missing sub claim")
-
-    return AuthContext(user_id=user_id, email=email, org_id="", claims=claims)
-
-
 @router.get("/me", response_model=MeResponse)
 async def get_current_user(
     request: Request,
@@ -59,22 +32,20 @@ async def get_current_user(
 ) -> MeResponse:
     """Get current user, organization, and seats.
 
-    Requires: ``Authorization: Bearer <clerk_jwt>``.
+    Requires: ``Authorization: Bearer <access_token>``.
     """
-    auth_context = await _extract_for_me(request)
+    auth_context = await extract_auth_context(request)
 
-    # Look up by clerk_user_id (NOT internal id — they're different)
+    # `sub` is our internal user id.
     user = (
         await session.execute(
-            select(User).where(User.clerk_user_id == auth_context.user_id)
+            select(User).where(User.id == auth_context.user_id)
         )
     ).scalars().first()
 
     if not user:
-        logger.warning(
-            "me.user_not_found_for_clerk_id", clerk_user_id=auth_context.user_id
-        )
-        raise AuthenticationError("User not found — webhook may not have reconciled yet")
+        logger.warning("me.user_not_found", user_id=auth_context.user_id)
+        raise AuthenticationError("User not found")
 
     org = (
         await session.execute(select(Organization).where(Organization.id == user.org_id))

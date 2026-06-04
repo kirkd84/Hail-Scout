@@ -196,8 +196,8 @@ export default function ApiDocsPage() {
             <li>
               <strong className="font-medium">Auth:</strong> none for the
               endpoints above. Customer-data endpoints (alerts, markers,
-              contacts) require a Clerk-issued JWT and are not documented
-              here.
+              contacts) require an authenticated session token and are not
+              documented here.
             </li>
           </ul>
         </div>
@@ -209,7 +209,7 @@ export default function ApiDocsPage() {
             Need authenticated endpoints, webhooks, or higher quotas?
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-primary-foreground/80">
-            Sign up for an account — you&apos;ll get a Clerk-issued token
+            Sign up for an account — you&apos;ll get an access token
             that unlocks the customer-data endpoints (alerts, monitored
             addresses, exports).
           </p>

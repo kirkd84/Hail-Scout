@@ -44,8 +44,8 @@ SUPER_ADMIN_EMAIL: Final = "kirk@copayee.com"
 ROOF_TECH_ADMIN_EMAIL: Final = "kirk@rooftechnologies.com"
 
 
-def _placeholder_clerk_id(label: str) -> str:
-    """Placeholder clerk_user_id reconciled when the user signs in for real."""
+def _placeholder_subject(label: str) -> str:
+    """Placeholder auth_subject, linked to a real OAuth subject on first sign-in."""
     return f"pending_{label}_{secrets.token_urlsafe(6)}"
 
 
@@ -98,7 +98,7 @@ async def _ensure_user(
         org_id=org_id,
         role=role,
         is_super_admin=is_super_admin,
-        clerk_user_id=_placeholder_clerk_id(email.split("@")[0]),
+        auth_subject=_placeholder_subject(email.split("@")[0]),
     )
     session.add(user)
     await session.flush()

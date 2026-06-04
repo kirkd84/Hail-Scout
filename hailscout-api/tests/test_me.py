@@ -8,6 +8,6 @@ import pytest
 @pytest.mark.asyncio
 async def test_me_endpoint_requires_auth() -> None:
     """Test that /me endpoint requires authentication."""
-    # TODO(Week 1): Test auth middleware with mocked Clerk JWT
-    # This requires setting up a mock Clerk verifier
-    pytest.skip("Auth tests require Clerk mock setup")
+    # TODO: integration test /me with a minted access token + seeded user.
+    # The token core itself is covered in test_auth_session.py.
+    pytest.skip("Integration auth test pending DB fixtures")

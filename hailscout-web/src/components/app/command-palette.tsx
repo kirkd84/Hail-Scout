@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { Command } from "cmdk";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { useClerk } from "@clerk/nextjs";
+import { useClerk } from "@/hooks/useAuth";
 import { useMe } from "@/hooks/useMe";
 import { useStorms } from "@/hooks/useStorms";
 import { nearestMetro } from "@/lib/metros";
@@ -200,7 +200,7 @@ export function CommandPalette({ open, setOpen }: PaletteContextProps) {
             <Command.Group heading="Account">
               <Item
                 icon={<IconClose className="h-4 w-4 text-destructive" />}
-                onSelect={async () => { setOpen(false); await signOut({ redirectUrl: "/" }); }}
+                onSelect={async () => { setOpen(false); await signOut(); }}
               >
                 Sign out
               </Item>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { auth } from "@clerk/nextjs/server";
+import { cookies } from "next/headers";
 import { Wordmark } from "@/components/brand/wordmark";
 import { IconUsers, IconReport } from "@/components/icons";
 
@@ -16,8 +16,10 @@ export default async function SuperAdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { userId } = await auth();
-  if (!userId) redirect("/sign-in?redirect_url=/super-admin/orgs");
+  // Coarse gate: require a session cookie. Real super-admin enforcement lives
+  // in the API (require_super_admin) and the client pages (useMe.is_super_admin).
+  const hasSession = (await cookies()).get("hs_refresh");
+  if (!hasSession) redirect("/sign-in?redirect_url=/super-admin/orgs");
 
   return (
     <div className="min-h-screen bg-background">

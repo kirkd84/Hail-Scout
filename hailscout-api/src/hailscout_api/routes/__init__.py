@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from hailscout_api.routes import (
     audit,
+    auth,
     contacts_crm,
     public,
     territories,
     integrations,
     team,
-    webhooks,
     admin,
     ai,
     contacts,
@@ -25,6 +25,7 @@ from hailscout_api.routes import (
 
 __all__ = [
     "health",
+    "auth",
     "me",
     "storms",
     "hail",
@@ -41,5 +42,4 @@ __all__ = [
     "territories",
     "integrations",
     "team",
-    "webhooks",
 ]

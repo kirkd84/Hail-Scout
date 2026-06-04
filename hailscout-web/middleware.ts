@@ -1,27 +1,20 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-const isPublicRoute = createRouteMatcher([
-  "/",
-  "/sign-in(.*)",
-  "/sign-up(.*)",
-  "/pricing",
-  "/compare",
-]);
+/**
+ * Coarse auth gate for the app + super-admin sections. Only checks for the
+ * presence of the session (refresh) cookie — real verification happens at the
+ * API on every call, and pages further check is_super_admin via /v1/me. This
+ * just keeps unauthenticated users from landing on a blank app shell.
+ */
+export function middleware(req: NextRequest) {
+  const hasSession = req.cookies.get("hs_refresh");
+  if (hasSession) return NextResponse.next();
 
-export default clerkMiddleware(async (auth, req) => {
-  // Allow public routes to pass through without auth
-  if (!isPublicRoute(req)) {
-    await auth().protect();
-  }
-  return NextResponse.next();
-});
+  const url = new URL("/sign-in", req.url);
+  url.searchParams.set("redirect_url", req.nextUrl.pathname);
+  return NextResponse.redirect(url);
+}
 
 export const config = {
-  matcher: [
-    // Skip Next.js internals and static files
-    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-    // Always run for API routes
-    "/(api|trpc)(.*)",
-  ],
+  matcher: ["/app/:path*", "/super-admin/:path*"],
 };

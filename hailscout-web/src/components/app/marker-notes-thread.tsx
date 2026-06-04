@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/hooks/useAuth";
 import { apiClient } from "@/lib/api";
 import { timeAgo } from "@/lib/time-ago";
 import { useMe } from "@/hooks/useMe";

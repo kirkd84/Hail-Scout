@@ -89,8 +89,8 @@ async def create_org(
 
     Creates the row in ``organizations``. If ``admin_email`` is provided, a
     ``users`` row is pre-staged with role=admin and a placeholder
-    ``clerk_user_id`` — the row is reconciled to a real Clerk user the first
-    time that email signs in.
+    ``auth_subject`` — the row is linked to a real OAuth identity the first
+    time that email signs in with Google/Microsoft.
     """
     # Reject duplicate org names — cheap collision guard at the application
     # layer. The DB has no unique constraint on name, but UX is much nicer
@@ -115,21 +115,21 @@ async def create_org(
     await session.flush()  # populate org.id / org.created_at
 
     if payload.admin_email:
-        # Pre-stage the admin user row. We can't create a Clerk identity from
-        # this side; instead, we stash a placeholder clerk_user_id that the
-        # Clerk webhook upsert path will replace on first real sign-in.
+        # Pre-stage the admin user row with a placeholder auth_subject. It gets
+        # linked to the real OAuth identity (matched by email) the first time
+        # that address signs in with Google/Microsoft.
         admin = User(
             id=f"usr_{secrets.token_urlsafe(16)}",
             email=str(payload.admin_email).lower(),
             org_id=org.id,
             role="admin",
             is_super_admin=False,
-            clerk_user_id=f"pending_{secrets.token_urlsafe(8)}",
+            auth_subject=f"pending_{secrets.token_urlsafe(8)}",
         )
         session.add(admin)
         await session.flush()
         # Allocate a seat so the user can immediately access the workspace
-        # once their Clerk identity is reconciled.
+        # once their OAuth identity is linked on first sign-in.
         session.add(Seat(org_id=org.id, user_id=admin.id))
 
     await session.commit()

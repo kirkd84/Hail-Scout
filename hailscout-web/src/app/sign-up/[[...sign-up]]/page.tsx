@@ -1,7 +1,7 @@
-import { SignUp } from "@clerk/nextjs";
+import { Suspense } from "react";
 import { ContourBg } from "@/components/brand/contour-bg";
 import { Wordmark } from "@/components/brand/wordmark";
-import { clerkAppearance } from "@/lib/clerk-appearance";
+import { OAuthButtons } from "@/components/auth/oauth-buttons";
 
 export default function SignUpPage() {
   return (
@@ -13,8 +13,11 @@ export default function SignUpPage() {
         </div>
         <p className="mb-6 text-center text-sm text-muted-foreground max-w-sm">
           Welcome to HailScout. The field guide your crew opens every morning.
+          Sign in with the work account your administrator added.
         </p>
-        <SignUp appearance={clerkAppearance} />
+        <Suspense fallback={null}>
+          <OAuthButtons />
+        </Suspense>
       </div>
     </div>
   );

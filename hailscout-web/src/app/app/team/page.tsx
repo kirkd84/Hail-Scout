@@ -126,7 +126,7 @@ export default function TeamPage() {
               </button>
             </div>
             <p className="text-xs text-foreground/55">
-              The invitee gets an email link to join your workspace. Email delivery is queued in this preview — production will integrate with Clerk invites.
+              The invitee gets an email link to join your workspace. Email delivery is queued in this preview — production will send invite emails.
             </p>
           </div>
         )}

@@ -38,29 +38,34 @@ class Settings(BaseSettings):
     database_pool_size: int = 20
     database_pool_recycle: int = 3600
 
-    # Clerk Authentication
-    clerk_secret_key: str = ""
-    # Svix-signed Clerk webhook secret (from Clerk dashboard → Webhooks).
-    # Used by /v1/webhooks/clerk to verify event payloads.
-    clerk_webhook_secret: str = ""
-    clerk_jwks_endpoint: str = (
-        "https://your-instance.clerk.accounts.com/.well-known/jwks.json"
-    )
-    # Expected JWT issuer (the Clerk Frontend API origin, e.g.
-    # "https://your-instance.clerk.accounts.com"). When set, JWT verification
-    # pins the `iss` claim per Clerk's backend verification guidance. Leave
-    # empty to skip the issuer check (NOT recommended in production).
-    clerk_issuer: str = ""
-    # Optional allow-list of authorized parties (the `azp` claim, typically
-    # your frontend origins). When set, a token whose `azp` is present but not
-    # in this list is rejected; empty = no azp check. Like ``cors_origins``,
-    # this is a list field, so the env var must be a JSON array, e.g.
-    # CLERK_AUTHORIZED_PARTIES='["http://localhost:3000","https://hail-scout.vercel.app"]'.
-    clerk_authorized_parties: list[str] = []
-    # JWKS cache TTL in seconds. The signing keys rarely rotate, so a single
-    # fetch is reused across requests for this long instead of re-fetching the
-    # JWKS endpoint on every authenticated call.
-    clerk_jwks_cache_ttl_seconds: int = 3600
+    # ------------------------------------------------------------------
+    # Authentication — HailScout is its own identity authority.
+    #
+    # The browser runs the Google/Microsoft OAuth code-exchange in the web
+    # tier (Arctic) and hands us the provider-signed OIDC id_token. We verify
+    # that token, resolve the user by email, and mint our OWN session tokens.
+    # ------------------------------------------------------------------
+
+    # HS256 signing secret for our access tokens. MUST be set in production
+    # (a startup check rejects the default empty value when env=production).
+    session_jwt_secret: str = ""
+    session_jwt_issuer: str = "hailscout"
+    # Short-lived bearer the browser attaches to API calls.
+    session_access_ttl_seconds: int = 3600  # 1 hour
+    # Long-lived, server-stored, revocable refresh/session lifetime.
+    session_refresh_ttl_days: int = 30
+
+    # OAuth provider PUBLIC client IDs only. The client *secrets* live in the
+    # web tier (Arctic does the token exchange) — never here. We only need the
+    # client IDs to validate the `aud` claim of the provider id_token.
+    google_oauth_client_id: str = ""
+    microsoft_oauth_client_id: str = ""
+    # Microsoft tenant: "common" (work + personal), "organizations",
+    # "consumers", or a specific tenant GUID. Controls the accepted issuer.
+    microsoft_oauth_tenant: str = "common"
+    # JWKS cache TTL (seconds) for provider signing keys. They rotate rarely,
+    # so one fetch is reused across requests for this long.
+    oidc_jwks_cache_ttl_seconds: int = 3600
 
     # Geocoding
     geocoder_provider: Literal["nominatim", "mapbox"] = "nominatim"

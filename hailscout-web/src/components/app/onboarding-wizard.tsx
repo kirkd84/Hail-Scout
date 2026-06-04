@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
 import { useSavedAddresses } from "@/hooks/useSavedAddresses";
+import { useMe } from "@/hooks/useMe";
 import { searchAddress } from "@/lib/geocode";
 import { apiClient } from "@/lib/api";
 import { fixturesAtPoint, STORM_FIXTURES, type StormFixture } from "@/lib/storm-fixtures";
@@ -73,8 +73,8 @@ interface Props {
 
 export function OnboardingWizard({ forceOpen }: Props) {
   const router = useRouter();
-  const { user } = useUser();
   const { save, addresses } = useSavedAddresses();
+  const { me } = useMe();
 
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>("welcome");
@@ -188,7 +188,7 @@ export function OnboardingWizard({ forceOpen }: Props) {
           {step === "welcome" && (
             <Welcome
               onNext={() => setStep("address")}
-              firstName={user?.firstName ?? user?.emailAddresses[0]?.emailAddress.split("@")[0]}
+              firstName={me?.user?.email?.split("@")[0]}
             />
           )}
           {step === "address" && (

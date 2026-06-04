@@ -1,4 +1,8 @@
-"""Authentication middleware for extracting user and org context."""
+"""Authentication middleware for extracting user and org context.
+
+Verifies HailScout's own access token (HS256) — minted by ``/v1/auth`` after
+Google/Microsoft sign-in — and returns the per-request :class:`AuthContext`.
+"""
 
 from __future__ import annotations
 
@@ -6,7 +10,7 @@ from typing import Any
 
 from fastapi import Request
 
-from hailscout_api.auth.clerk import ClerkVerifier
+from hailscout_api.auth.session import verify_access_token
 from hailscout_api.core import AuthenticationError, get_logger
 
 logger = get_logger(__name__)
@@ -32,43 +36,37 @@ class AuthContext:
         return f"<AuthContext(user_id={self.user_id}, org_id={self.org_id})>"
 
 
-async def extract_auth_context(
-    request: Request, verifier: ClerkVerifier
-) -> AuthContext:
-    """Extract and verify authentication from request."""
-    # Get token from Authorization header
+def bearer_token(request: Request) -> str:
+    """Extract the Bearer token from the Authorization header (or raise)."""
     auth_header = request.headers.get("Authorization")
     if not auth_header:
         raise AuthenticationError("Missing Authorization header")
-
     try:
         scheme, token = auth_header.split(" ", 1)
-    except ValueError:
-        raise AuthenticationError("Invalid Authorization header format")
-
+    except ValueError as exc:
+        raise AuthenticationError("Invalid Authorization header format") from exc
     if scheme.lower() != "bearer":
         raise AuthenticationError("Only Bearer token authentication is supported")
+    return token
 
-    # Verify token and get claims
-    claims = await verifier.verify_token(token)
 
-    # Extract user info from JWT claims
+async def extract_auth_context(request: Request) -> AuthContext:
+    """Verify the access token and build the request's auth context.
+
+    ``sub`` is our internal user id; ``org_id`` rides in the token (we mint it
+    from ``user.org_id``), with an ``X-Org-Id`` header fallback retained for
+    future multi-org switching.
+    """
+    token = bearer_token(request)
+    claims = verify_access_token(token)
+
     user_id = claims.get("sub")
-    email = claims.get("email")
+    email = claims.get("email") or ""
+    if not user_id:
+        logger.warning("auth.token_missing_sub")
+        raise AuthenticationError("Token missing required fields")
 
-    if not user_id or not email:
-        logger.warning("JWT missing required fields", claims=claims)
-        raise AuthenticationError("JWT missing required fields")
-
-    # Get org_id from claims or X-Org-Id header (for multi-org users)
-    org_id = claims.get("org_id")
-    if not org_id:
-        # Check X-Org-Id header for explicit org selection
-        org_id = request.headers.get("X-Org-Id")
-
-    if not org_id:
-        logger.warning("No org_id found in claims or headers", user_id=user_id)
-        raise AuthenticationError("No organization context found")
+    org_id = claims.get("org_id") or request.headers.get("X-Org-Id") or ""
 
     return AuthContext(
         user_id=user_id,

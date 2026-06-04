@@ -15,7 +15,7 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hailscout_api.auth.clerk import get_clerk_verifier
+from hailscout_api.auth.session import verify_access_token
 from hailscout_api.core import AuthenticationError, AuthorizationError, get_logger
 from hailscout_api.db.models.org import User
 from hailscout_api.db.session import get_db_session
@@ -48,8 +48,6 @@ VALID_ROLES = {"owner", "admin", "member"}
 
 
 async def _resolve_user(request: Request, session: AsyncSession) -> User:
-    verifier = get_clerk_verifier()
-
     auth_header = request.headers.get("Authorization")
     if not auth_header:
         raise AuthenticationError("Missing Authorization header")
@@ -60,13 +58,13 @@ async def _resolve_user(request: Request, session: AsyncSession) -> User:
     if scheme.lower() != "bearer":
         raise AuthenticationError("Only Bearer tokens supported")
 
-    claims = await verifier.verify_token(token)
-    clerk_user_id = claims.get("sub")
-    if not clerk_user_id:
+    claims = verify_access_token(token)
+    user_id = claims.get("sub")
+    if not user_id:
         raise AuthenticationError("JWT missing sub claim")
 
     user = (
-        await session.execute(select(User).where(User.clerk_user_id == clerk_user_id))
+        await session.execute(select(User).where(User.id == user_id))
     ).scalars().first()
     if not user:
         raise AuthenticationError("User not found")
@@ -206,10 +204,9 @@ async def invite_team_member(
 ) -> dict:
     """Invite a teammate by email.
 
-    Stub: in production this triggers a Clerk invite and writes a
-    pending-invite row. For the demo, we just accept the request and
-    return 202 with a stub invite id, so the UI can show the invite as
-    'sent'.
+    Stub: in production this sends an invite email and writes a
+    pending-invite row. For now we just accept the request and return
+    202, so the UI can show the invite as 'sent'.
     """
     me = await _resolve_user(request, session)
     _require_admin(me)
@@ -228,5 +225,5 @@ async def invite_team_member(
         "email": body.email,
         "role": body.role,
         "org_id": me.org_id,
-        "message": "Invite recorded. Email delivery will land when the Clerk integration ships.",
+        "message": "Invite recorded. Email delivery will land when email sending ships.",
     }

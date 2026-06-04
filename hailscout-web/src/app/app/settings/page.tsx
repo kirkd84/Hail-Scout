@@ -4,7 +4,7 @@
  * /app/settings — tabbed settings shell.
  *
  * Sections:
- *   • Profile      — Clerk UserButton, account info
+ *   • Profile      — account info + sign out
  *   • Workspace    — branding card, default territory (future)
  *   • Integrations — Slack, future webhooks
  *   • Notifications— alert thresholds, tour resets
@@ -17,7 +17,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { UserButton, UserProfile, useClerk } from "@clerk/nextjs";
+import { useAuth } from "@/hooks/useAuth";
 import { useMe } from "@/hooks/useMe";
 import { BrandingCard } from "@/components/app/branding-card";
 import { EmailAlertsCard } from "@/components/app/email-alerts-card";
@@ -138,14 +138,11 @@ function SettingsInner() {
 
 function ProfileTab() {
   const { me } = useMe();
-  const { signOut } = useClerk();
+  const { signOut } = useAuth();
   const router = useRouter();
 
   const handleSignOut = async () => {
-    // Clerk's signOut clears the session + cookies. Redirect to root
-    // afterward so the marketing site picks up the unauthenticated
-    // user; the in-app routes would otherwise bounce through Clerk's
-    // sign-in screen.
+    // Clears the session + cookies, then returns to the marketing site.
     await signOut(() => router.push("/"));
   };
 
@@ -170,9 +167,6 @@ function ProfileTab() {
               <p className="text-xs text-foreground/55">{me.organization.name}</p>
             )}
           </div>
-          <UserButton
-            appearance={{ elements: { avatarBox: "h-10 w-10 ring-1 ring-border" } }}
-          />
         </div>
 
         <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -192,29 +186,43 @@ function ProfileTab() {
 
       <SectionCard
         eyebrow="Personal info"
-        title="Edit your account"
-        description="Name, email, password, two-factor authentication, and active sessions — all live here. Changes save instantly."
+        title="Account details"
+        description="Your identity is managed by your Google or Microsoft account. To change your name, password, or two-factor settings, update them with your provider."
       >
-        {/* Clerk-hosted account-management UI. `routing="hash"` keeps
-            nav inside the panel rather than triggering full-page
-            navigations from the embedded forms. `hideNavigation` drops
-            the left rail so the panel feels like one of our cards
-            instead of an entire sub-app. */}
-        <div className="-mx-2">
-          <UserProfile
-            routing="hash"
-            appearance={{
-              elements: {
-                rootBox: "w-full",
-                card: "shadow-none bg-transparent",
-                navbar: "hidden",
-                navbarMobileMenuButton: "hidden",
-                pageScrollBox: "px-0",
-                profilePage: "px-0",
-              },
-            }}
-          />
-        </div>
+        <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <dt className="text-[11px] font-mono uppercase tracking-wide-caps text-foreground/55">
+              Email
+            </dt>
+            <dd className="font-mono-num text-sm text-foreground">
+              {me?.user?.email ?? "—"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[11px] font-mono uppercase tracking-wide-caps text-foreground/55">
+              Role
+            </dt>
+            <dd className="text-sm text-foreground">
+              {me?.user?.role?.replace("_", " ") ?? "—"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[11px] font-mono uppercase tracking-wide-caps text-foreground/55">
+              Workspace
+            </dt>
+            <dd className="text-sm text-foreground">
+              {me?.organization?.name ?? "—"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[11px] font-mono uppercase tracking-wide-caps text-foreground/55">
+              Plan
+            </dt>
+            <dd className="text-sm text-foreground">
+              {me?.organization?.plan_tier ?? "—"}
+            </dd>
+          </div>
+        </dl>
       </SectionCard>
     </>
   );

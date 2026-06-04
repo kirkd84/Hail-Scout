@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Float, ForeignKey, String
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from hailscout_api.db.base import Base, created_at_column, id_column, updated_at_column
@@ -57,7 +57,7 @@ class Organization(Base):
 
 
 class User(Base):
-    """User (Clerk-synced)."""
+    """User. Identity comes from Google/Microsoft OAuth; we mint our own tokens."""
 
     __tablename__ = "users"
 
@@ -72,16 +72,57 @@ class User(Base):
     is_super_admin: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False, server_default="false"
     )
-    clerk_user_id: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    # Stable per-identity subject. Holds a ``pending_*`` placeholder (seed) until
+    # the first OAuth sign-in links the real provider subject — same reconcile
+    # model the Clerk webhook used, now done inline at token exchange.
+    auth_subject: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    # Which provider linked the subject: 'google' | 'microsoft' | None.
+    auth_provider: Mapped[str | None] = mapped_column(String(32))
     created_at: Mapped[datetime] = created_at_column()
     updated_at: Mapped[datetime] = updated_at_column()
 
     # Relationships
     organization: Mapped[Organization] = relationship(back_populates="users")
     seats: Mapped[list[Seat]] = relationship(back_populates="user")
+    sessions: Mapped[list[UserSession]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<User(id={self.id}, email={self.email}, org_id={self.org_id})>"
+
+
+class UserSession(Base):
+    """A server-stored, revocable refresh session.
+
+    The raw refresh token is returned to the browser (httpOnly cookie) exactly
+    once; we persist only its SHA-256 hash. Sign-out / rotation flip
+    ``revoked_at`` so a stolen or logged-out token stops working immediately —
+    something a stateless JWT alone can't give us.
+    """
+
+    __tablename__ = "user_sessions"
+
+    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    refresh_token_hash: Mapped[str] = mapped_column(
+        String(128), unique=True, nullable=False
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = created_at_column()
+    user_agent: Mapped[str | None] = mapped_column(String(512))
+    ip: Mapped[str | None] = mapped_column(String(64))
+
+    # Relationships
+    user: Mapped[User] = relationship(back_populates="sessions")
+
+    def __repr__(self) -> str:
+        return f"<UserSession(id={self.id}, user_id={self.user_id})>"
 
 
 class Seat(Base):

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/hooks/useAuth";
 import { apiClient } from "@/lib/api";
 import { timeAgo } from "@/lib/time-ago";
 import { cn } from "@/lib/utils";

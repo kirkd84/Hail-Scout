@@ -6,7 +6,7 @@
  * pinging the API on every render.
  */
 import { useEffect, useState } from "react";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/hooks/useAuth";
 
 // Fall back to the live Railway API (matches lib/env's default) rather
 // than the never-deployed api.hailscout.com subdomain.

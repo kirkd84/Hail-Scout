@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ClerkProvider } from "@clerk/nextjs";
+import { AuthProvider } from "@/hooks/useAuth";
 import { Inter, Fraunces, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { APP_NAME, APP_DESCRIPTION } from "@/lib/constants";
@@ -41,29 +41,16 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ClerkProvider
-      appearance={{
-        variables: {
-          colorPrimary: "#0F4C5C",
-          colorBackground: "#F5F1EA",
-          colorText: "#2B2620",
-          colorInputBackground: "#FAF7F1",
-          colorInputText: "#2B2620",
-          colorTextOnPrimaryBackground: "#F5F1EA",
-          borderRadius: "0.625rem",
-          fontFamily: "var(--font-sans), Inter, system-ui, sans-serif",
-        },
-      }}
+    <html
+      lang="en"
+      className={`${sans.variable} ${display.variable} ${mono.variable}`}
+      suppressHydrationWarning
     >
-      <html
-        lang="en"
-        className={`${sans.variable} ${display.variable} ${mono.variable}`}
-        suppressHydrationWarning
-      >
-        <body className="bg-background text-foreground antialiased">
-          <ThemeProvider>{children}</ThemeProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+      <body className="bg-background text-foreground antialiased">
+        <ThemeProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </ThemeProvider>
+      </body>
+    </html>
   );
 }

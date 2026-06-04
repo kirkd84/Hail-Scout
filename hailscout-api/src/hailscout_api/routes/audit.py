@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hailscout_api.auth.clerk import get_clerk_verifier
+from hailscout_api.auth.session import verify_access_token
 from hailscout_api.core import AuthenticationError, AuthorizationError, get_logger
 from hailscout_api.db.models.audit import AuditEvent
 from hailscout_api.db.models.org import User
@@ -34,7 +34,6 @@ class AuditEventResponse(BaseModel):
 
 
 async def _resolve_user(request: Request, session: AsyncSession) -> User:
-    verifier = get_clerk_verifier()
     auth_header = request.headers.get("Authorization")
     if not auth_header:
         raise AuthenticationError("Missing Authorization header")
@@ -44,12 +43,12 @@ async def _resolve_user(request: Request, session: AsyncSession) -> User:
         raise AuthenticationError("Invalid Authorization header format") from exc
     if scheme.lower() != "bearer":
         raise AuthenticationError("Only Bearer tokens supported")
-    claims = await verifier.verify_token(token)
-    clerk_user_id = claims.get("sub")
-    if not clerk_user_id:
+    claims = verify_access_token(token)
+    user_id = claims.get("sub")
+    if not user_id:
         raise AuthenticationError("JWT missing sub claim")
     user = (
-        await session.execute(select(User).where(User.clerk_user_id == clerk_user_id))
+        await session.execute(select(User).where(User.id == user_id))
     ).scalars().first()
     if not user:
         raise AuthenticationError("User not found")
