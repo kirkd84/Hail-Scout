@@ -68,7 +68,7 @@ def render_alert_email(
     peak_size_in: float,
     started_at: datetime,
     lsr_confirmed: bool = False,
-    app_url: str = "https://app.hailscout.com",
+    app_url: str = "https://hailscout.net",
 ) -> tuple[str, str, str]:
     """Return (subject, text_body, html_body).
 
@@ -206,7 +206,7 @@ async def send_alert_email(
 
 async def send_test_email(
     to_addresses: Iterable[str],
-    app_url: str = "https://app.hailscout.com",
+    app_url: str = "https://hailscout.net",
 ) -> bool:
     """Send a 'hello from HailScout' ping. Used by the Settings UI to
     verify a fresh recipient list."""

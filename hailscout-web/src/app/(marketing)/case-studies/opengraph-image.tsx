@@ -81,7 +81,7 @@ export default function OG() {
             fontSize: 18,
           }}
         >
-          <span>hail-scout.vercel.app/case-studies</span>
+          <span>hailscout.net/case-studies</span>
           <span style={{ fontFamily: "monospace", fontSize: 14 }}>PLATE 09 · CUSTOMER STORIES</span>
         </div>
       </div>

@@ -83,7 +83,7 @@ export default function OpenGraphImage() {
             fontSize: 18,
           }}
         >
-          <span>hail-scout.vercel.app</span>
+          <span>hailscout.net</span>
           <span style={{ fontFamily: "monospace", fontSize: 14 }}>PLATE 03 · DFW–OKC–ICT</span>
         </div>
       </div>

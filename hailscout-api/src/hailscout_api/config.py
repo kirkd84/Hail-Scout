@@ -81,7 +81,10 @@ class Settings(BaseSettings):
     cors_origins: list[str] = [
         "http://localhost:3000",
         "http://localhost:3001",
-        # Production web app on Vercel.
+        # Production custom domain (Vercel).
+        "https://hailscout.net",
+        "https://www.hailscout.net",
+        # Legacy Vercel domain (still resolves; kept for previews/links).
         "https://hail-scout.vercel.app",
     ]
 

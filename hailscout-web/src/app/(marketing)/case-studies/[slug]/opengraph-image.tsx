@@ -120,7 +120,7 @@ export default async function OG({
             fontSize: 18,
           }}
         >
-          <span>hail-scout.vercel.app/case-studies/{slug}</span>
+          <span>hailscout.net/case-studies/{slug}</span>
           <span style={{ fontFamily: "monospace", fontSize: 14 }}>PLATE 09 · STORY {slug.toUpperCase()}</span>
         </div>
       </div>

@@ -387,7 +387,7 @@ export function HailImpactReport({
             Report ID: {reportId} · Prepared by {preparedBy}
           </Text>
           <Text style={styles.footerText}>
-            HailScout · hail-scout.vercel.app · Data: NOAA MRMS
+            HailScout · hailscout.net · Data: NOAA MRMS
           </Text>
         </View>
       </Page>

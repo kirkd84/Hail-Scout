@@ -8,7 +8,9 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.hailscout.com";
+// Fall back to the live Railway API (matches lib/env's default) rather
+// than the never-deployed api.hailscout.com subdomain.
+const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://hail-scout-production.up.railway.app";
 
 export type MeUser = {
   id: string;

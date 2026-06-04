@@ -207,7 +207,7 @@ export default async function StormOG({
             fontSize: 18,
           }}
         >
-          <span>hail-scout.vercel.app/storm/{id.slice(0, 24)}</span>
+          <span>hailscout.net/storm/{id.slice(0, 24)}</span>
           <span style={{ fontFamily: "monospace", fontSize: 14 }}>
             HAILSCOUT · STORM PLATE
           </span>

@@ -31,7 +31,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://hail-scout.vercel.app",
+    url: "https://hailscout.net",
     siteName: APP_NAME,
     title: APP_NAME,
     description: APP_DESCRIPTION,
