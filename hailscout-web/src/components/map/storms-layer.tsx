@@ -54,6 +54,9 @@ interface Props {
    *  raster surface replaces the bands but we still want clickable
    *  storm points. */
   bandsHidden?: boolean;
+  /** When set, the map isolates this single storm — bands + centroids
+   *  filter to it. Used when a storm is selected from the picker/detail. */
+  focusStormId?: string | null;
   /** Called when the user clicks a centroid or swath on the map.
    *  Parent typically opens a detail sheet. */
   onStormClick?: (stormId: string) => void;
@@ -122,6 +125,7 @@ export function StormsLayer({
   minSizeIn = 0,
   startTimeMax = null,
   bandsHidden = false,
+  focusStormId = null,
   onStormClick,
 }: Props) {
   // Filtered storms (applied to both centroids and bands).
@@ -400,22 +404,36 @@ export function StormsLayer({
     (bsrc as any).setData(buildBandsFC(filtered));
   }, [map, filtered, styleEpoch]);
 
-  // ── Band-size filter (applied via setFilter on the layers) ───────
+  // ── Band-size + focus filter (applied via setFilter on the layers) ──
+  // When focusStormId is set (a storm is selected), the map isolates
+  // that one storm — bands/probe filter by storm_id, centroids by id —
+  // so "click a date → see just that swath" works.
   useEffect(() => {
     if (!map) return;
-    const bandFilter =
-      minSizeIn > 0
-        ? ["all", [">=", ["get", "min_size_in"], minSizeIn]]
-        : null;
-    if (map.getLayer(LAYER_FILL)) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sizeClause: any[] | null =
+      minSizeIn > 0 ? [">=", ["get", "min_size_in"], minSizeIn] : null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const focusBandClause: any[] | null =
+      focusStormId ? ["==", ["get", "storm_id"], focusStormId] : null;
+    const bandClauses = [sizeClause, focusBandClause].filter(Boolean);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const bandFilter: any =
+      bandClauses.length === 0 ? null : ["all", ...bandClauses];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const centroidFilter: any = focusStormId
+      ? ["==", ["get", "id"], focusStormId]
+      : null;
+
+    for (const id of [LAYER_GLOW, LAYER_FILL, LAYER_LINE, LAYER_PROBE]) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      map.setFilter(LAYER_GLOW, bandFilter as any);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      map.setFilter(LAYER_FILL, bandFilter as any);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      map.setFilter(LAYER_LINE, bandFilter as any);
+      if (map.getLayer(id)) map.setFilter(id, bandFilter as any);
     }
-  }, [map, minSizeIn]);
+    for (const id of [LAYER_CENTROID, LAYER_CENTROID_RING, LAYER_DATE_LABEL]) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (map.getLayer(id)) map.setFilter(id, centroidFilter as any);
+    }
+  }, [map, minSizeIn, focusStormId]);
 
   // ── Visibility toggle ────────────────────────────────────────────
   useEffect(() => {

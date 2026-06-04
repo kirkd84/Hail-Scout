@@ -13,6 +13,7 @@ import { NexradStationsLayer } from "@/components/map/nexrad-stations-layer";
 import { TimeScrubber } from "@/components/map/time-scrubber";
 import { useStorms } from "@/hooks/useStorms";
 import { useViewportRaster } from "@/hooks/useViewportRaster";
+import { useStormRaster } from "@/hooks/useStormRaster";
 import { StormPicker } from "@/components/app/storm-picker";
 import {
   MapFilters,
@@ -152,6 +153,33 @@ export default function MapPage() {
     enabled: viewMode === "smooth",
   });
 
+  // When a storm is selected, isolate it: fetch just its raster and
+  // filter the layers to it, so "click a date → see only that swath".
+  const focusStormId = showStormDetail ? (selectedStorm?.id ?? null) : null;
+  const focusedRaster = useStormRaster(
+    viewMode === "smooth" ? focusStormId : null,
+  );
+  // In smooth mode, show the focused storm's raster when one is selected,
+  // otherwise the full viewport mosaic.
+  const activeRaster = focusStormId && focusedRaster ? focusedRaster : viewportRaster;
+
+  // Fly to the selected storm so the isolated swath is actually in view.
+  useEffect(() => {
+    if (!map || !showStormDetail || !selectedStorm?.bbox) return;
+    const b = selectedStorm.bbox;
+    try {
+      map.fitBounds(
+        [
+          [b.min_lng, b.min_lat],
+          [b.max_lng, b.max_lat],
+        ],
+        { padding: 80, duration: 900, maxZoom: 10 },
+      );
+    } catch {
+      /* degenerate bbox — ignore */
+    }
+  }, [map, showStormDetail, selectedStorm]);
+
   // Canvassing markers
   const { markers, add, update, remove } = useMarkers();
   const [dropMode, setDropMode] = useState(false);
@@ -233,6 +261,7 @@ export default function MapPage() {
         storms={storms}
         visible={viewMode === "cells" || viewMode === "smooth"}
         bandsHidden={viewMode === "smooth"}
+        focusStormId={focusStormId}
         startTimeMin={specificDate ? null : dateFilterToCutoff(date)}
         minSizeIn={sizeFilterToMin(size)}
         startTimeMax={scrubberMs}
@@ -249,7 +278,7 @@ export default function MapPage() {
       />
       <StormsRasterLayer
         map={map}
-        raster={viewportRaster}
+        raster={activeRaster}
         visible={viewMode === "smooth"}
       />
       <StormsHeatmapLayer
