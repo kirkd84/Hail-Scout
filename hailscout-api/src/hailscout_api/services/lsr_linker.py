@@ -55,6 +55,26 @@ async def link_recent_lsrs(
     radar cell and stamp it as confirmed. Returns a summary dict.
     """
     cutoff = datetime.now(timezone.utc) - timedelta(days=lookback_days)
+
+    # Make this run authoritative: clear prior confirmations in the
+    # window first, then re-link with swath-containment. Otherwise a
+    # stale bbox-only confirmation from the old logic would keep showing
+    # a false "ground-truth confirmed" badge. Reset + re-link commit in
+    # one transaction so there's no window of wiped confirmations.
+    await session.execute(
+        update(Storm)
+        .where(and_(
+            Storm.source != "SPC-LSR",
+            Storm.start_time >= cutoff,
+        ))
+        .values(
+            lsr_confirmed=False,
+            lsr_observed_size_in=None,
+            lsr_observed_at=None,
+            radar_size_at_lsr_in=None,
+        )
+    )
+
     lsrs = (
         await session.execute(
             select(Storm)
@@ -70,38 +90,41 @@ async def link_recent_lsrs(
     scanned = 0
     for lsr in lsrs:
         scanned += 1
-        # Candidate radar cells whose bbox contains the LSR centroid
-        # and whose start_time is within ±30 min. We use
-        # ST_Contains(bbox_geom, centroid_geom) — both already in 4326,
-        # both sides PostGIS-typed, so this is a single indexed lookup.
+        # Confirm ONLY when the report point falls inside an actual swath
+        # band (not merely the storm's bounding box). This makes a
+        # confirmation mean "radar showed hail at the reported location"
+        # — precise enough to back a verification badge — and guarantees
+        # radar_size_at_lsr_in is a real detected size, so the sizing
+        # calibration isn't polluted by bbox-only near-misses.
+        #
+        # One indexed join: candidate = (storm, band) pairs in the time
+        # window whose band polygon contains the LSR point. We keep the
+        # largest band size at the point as the radar estimate, and tag
+        # that band's storm.
         window_lo = lsr.start_time - _TIME_WINDOW
         window_hi = lsr.start_time + _TIME_WINDOW
-        candidate_stmt = (
-            select(Storm)
-            .where(and_(
-                Storm.source != "SPC-LSR",
-                Storm.start_time >= window_lo,
-                Storm.start_time <= window_hi,
-                ST_Contains(Storm.bbox_geom, lsr.centroid_geom),
-            ))
-            # Prefer the LARGEST-hail candidate. When KFWS and KTLX both
-            # see the same supercell (Phase 20 merge can also leave two
-            # nearby cells), tagging the biggest one gives the best
-            # downstream signal for alerts and leaderboards.
-            .order_by(Storm.max_hail_size_in.desc())
-            .limit(1)
-        )
-        match = (await session.execute(candidate_stmt)).scalars().first()
-        if match is None:
+        match_row = (
+            await session.execute(
+                select(Storm, HailSwath.hail_size_category)
+                .join(HailSwath, HailSwath.storm_id == Storm.id)
+                .where(and_(
+                    Storm.source != "SPC-LSR",
+                    Storm.start_time >= window_lo,
+                    Storm.start_time <= window_hi,
+                    ST_Contains(HailSwath.geom_multipolygon, lsr.centroid_geom),
+                ))
+                # Largest band at the point wins (handles overlapping cells
+                # and multiple bands containing the point).
+                .order_by(Storm.max_hail_size_in.desc())
+            )
+        ).first()
+        if match_row is None:
             continue
+        match, _cat = match_row
 
-        # Radar size AT the LSR's location = the largest swath band of
-        # the matched storm whose polygon actually contains the report
-        # point (0 if the point is inside the bbox but outside every
-        # band — i.e. radar showed no hail there). This is the
-        # like-for-like value to calibrate against the report size,
-        # NOT the storm's global peak.
-        point_band = (
+        # Best (largest) band size at the point across all bands of the
+        # matched storm that contain it — the radar's size estimate HERE.
+        point_bands = (
             await session.execute(
                 select(HailSwath.hail_size_category)
                 .where(and_(
@@ -111,28 +134,28 @@ async def link_recent_lsrs(
             )
         ).scalars().all()
         radar_at_point = max(
-            (_cat_to_inches(c) for c in point_band), default=0.0
+            (_cat_to_inches(c) for c in point_bands), default=0.0
         )
+        if radar_at_point <= 0.0:
+            continue  # defensive: no real band at the point → not a confirm
 
-        # Record the pair. If already confirmed by a different LSR, keep
-        # whichever observed size is larger and pair the radar-at-point
-        # for THAT same report so the calibration pair stays matched.
+        # Record the pair. If already confirmed by a different (larger)
+        # report, keep that pairing so the calibration pair stays matched.
         new_size = lsr.max_hail_size_in
-        if (
+        if not (
             match.lsr_confirmed
             and match.lsr_observed_size_in is not None
             and match.lsr_observed_size_in >= new_size
         ):
-            pass  # keep existing (larger) pairing
-        else:
             match.lsr_observed_size_in = new_size
             match.radar_size_at_lsr_in = radar_at_point
             match.lsr_observed_at = lsr.start_time
         match.lsr_confirmed = True
         confirmed += 1
 
-    if confirmed:
-        await session.commit()
+    # Always commit — the reset above must persist even when nothing
+    # re-confirms in this window.
+    await session.commit()
 
     log.info("lsr_linker.done",
              extra={"scanned": scanned, "confirmed": confirmed,
