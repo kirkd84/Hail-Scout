@@ -17,6 +17,7 @@ from hailscout_api.db.models.org import Organization
 from hailscout_api.db.session import get_db_session
 from hailscout_api.data.storm_fixtures import all_fixtures
 from hailscout_api.services.calibration import compute_calibration, marketing_headline
+from hailscout_api.services.exposure import get_area_exposure
 
 router = APIRouter()
 
@@ -72,6 +73,42 @@ async def public_stats(
         addresses_monitored=int(address_count or 0),
         alerts_this_week=int(alerts_count or 0),
         organizations=int(org_count or 0),
+    )
+
+
+class ExposureResponse(BaseModel):
+    """Area demographics for lead prospecting (Phase 28).
+
+    Always returns the area name (keyless geocoder); population/housing/
+    home-value/income require a free CENSUS_API_KEY and are null until
+    it's set (see `note`).
+    """
+    available: bool
+    area_name: str | None = None
+    county_name: str | None = None
+    population: int | None = None
+    housing_units: int | None = None
+    median_home_value: int | None = None
+    median_household_income: int | None = None
+    note: str | None = None
+
+
+@router.get("/public/exposure", response_model=ExposureResponse)
+async def public_exposure(lat: float, lng: float) -> ExposureResponse:
+    """Area economics for a point — population, households, home value,
+    income — so a contractor can size up a hit neighborhood. Free Census
+    data, cached. No auth."""
+    exp = await get_area_exposure(lat, lng)
+    d = exp.as_dict()
+    return ExposureResponse(
+        available=d["available"],
+        area_name=d.get("area_name"),
+        county_name=d.get("county_name"),
+        population=d.get("population"),
+        housing_units=d.get("housing_units"),
+        median_home_value=d.get("median_home_value"),
+        median_household_income=d.get("median_household_income"),
+        note=d.get("note"),
     )
 
 

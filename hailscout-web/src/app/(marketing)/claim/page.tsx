@@ -14,6 +14,7 @@ import type { Storm } from "@/lib/api-types";
 import { VerificationBadge, VerificationPanel } from "@/components/verification-badge";
 import { DownloadReportButton } from "@/components/reports/download-report-button";
 import { useAccuracyStat } from "@/hooks/useAccuracyStat";
+import { useExposure } from "@/hooks/useExposure";
 
 /**
  * Public claim lookup — homeowners and insurance adjusters can search
@@ -151,6 +152,8 @@ export default function ClaimLookupPage() {
                   </p>
                 </div>
 
+                <ExposurePanel lat={data.lat} lng={data.lng} />
+
                 <ul className="space-y-3">
                   {data.storms
                     .slice()
@@ -232,6 +235,57 @@ export default function ClaimLookupPage() {
       <FinalCta />
       <SiteFooter />
     </main>
+  );
+}
+
+function ExposurePanel({ lat, lng }: { lat: number; lng: number }) {
+  const exposure = useExposure(lat, lng);
+  // Hide entirely until we have at least an area name.
+  if (!exposure?.available || !exposure.area_name) return null;
+
+  const fmtMoney = (n: number | null) =>
+    n == null ? "—" : `$${Math.round(n).toLocaleString()}`;
+  const fmtNum = (n: number | null) =>
+    n == null ? "—" : Math.round(n).toLocaleString();
+  const hasDemo =
+    exposure.population != null ||
+    exposure.housing_units != null ||
+    exposure.median_home_value != null;
+
+  return (
+    <div className="mb-6 rounded-xl border border-border bg-background p-5">
+      <p className="font-mono-num text-[11px] uppercase tracking-wide-caps text-copper">
+        Area exposure
+      </p>
+      <p className="mt-1 text-sm text-foreground/85">
+        {exposure.area_name}
+      </p>
+      {hasDemo ? (
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Stat label="Households" value={fmtNum(exposure.housing_units)} />
+          <Stat label="Population" value={fmtNum(exposure.population)} />
+          <Stat label="Median home" value={fmtMoney(exposure.median_home_value)} />
+          <Stat label="Median income" value={fmtMoney(exposure.median_household_income)} />
+        </div>
+      ) : (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {exposure.note ?? "Demographics unavailable for this area."}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="font-display text-lg font-medium tracking-tight-display text-foreground">
+        {value}
+      </p>
+      <p className="text-[10px] font-mono uppercase tracking-wide-caps text-foreground/55">
+        {label}
+      </p>
+    </div>
   );
 }
 
