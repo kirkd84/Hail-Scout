@@ -327,10 +327,23 @@ async def query_hail_at_point(
     out = list(by_storm.values())
     out.sort(key=lambda d: d["start_time"], reverse=True)
 
+    # CRITICAL for address lookups: the size that matters at an address
+    # is the size AT THE POINT (the largest band containing it), NOT the
+    # storm's global peak. A storm can span 50+ km with a 3"+ core miles
+    # away while only 1.25" fell at this exact address. `size_at_point`
+    # is that location-specific number; `max_hail_size_in` is kept as
+    # the storm's peak-anywhere for context.
+    for s in out:
+        try:
+            s["size_at_point"] = _cat_min(s["category_at_point"])
+        except (ValueError, KeyError):
+            s["size_at_point"] = s.get("max_hail_size_in")
+
     # Fuse the multi-source signals into a verification tier +
-    # adjuster-facing defensibility statement (cross-source agreement
-    # is computed across this result set).
-    attach_verification(out)
+    # adjuster-facing defensibility statement. Scored on the at-point
+    # size so the defensibility statement quotes the size that actually
+    # fell here, not the storm's peak miles away.
+    attach_verification(out, size_key="size_at_point")
 
     logger.info("Hail at point", lat=lat, lng=lng, hits=len(out))
     return out

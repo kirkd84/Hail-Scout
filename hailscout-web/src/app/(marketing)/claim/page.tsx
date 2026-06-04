@@ -280,6 +280,16 @@ function StormResultCard({ storm, address }: { storm: Storm; address?: string })
                 : `${peak.toFixed(2)}″ hail at this point. Minor surface impact possible.`}
         </p>
 
+        {/* Transparency: if the storm peaked larger elsewhere, say so —
+            but the headline number is what fell at THIS address. */}
+        {typeof storm.storm_peak_size_in === "number" &&
+          storm.storm_peak_size_in > peak + 0.2 && (
+            <p className="mt-1 text-xs text-foreground/55">
+              This storm peaked at {storm.storm_peak_size_in.toFixed(2)}″ elsewhere
+              in its path — {peak.toFixed(2)}″ is the size at this address.
+            </p>
+          )}
+
         {storm.verification && showEvidence && (
           <VerificationPanel verification={storm.verification} className="mt-3" />
         )}

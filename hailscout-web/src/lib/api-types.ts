@@ -35,6 +35,14 @@ export interface Storm {
   peak_dbz?: number | null;
   /** Phase 24 multi-source verification (present on at-point results). */
   verification?: Verification;
+  /**
+   * Address-lookup context (present on at-point results). `size_at_point`
+   * is the size that fell at the queried point; `storm_peak_size_in` is
+   * the storm's peak anywhere in its footprint. For address surfaces
+   * `max_hail_size_in` is set to the at-point size.
+   */
+  size_at_point?: number | null;
+  storm_peak_size_in?: number;
 }
 
 /** One itemized piece of evidence in a verification breakdown. */

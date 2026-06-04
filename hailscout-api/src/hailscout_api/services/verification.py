@@ -107,6 +107,7 @@ def score_storm(
     *,
     cross_source: bool = False,
     cross_source_detail: str = "",
+    size_override: Optional[float] = None,
 ) -> Verification:
     """Compute the verification for one storm dict.
 
@@ -118,8 +119,12 @@ def score_storm(
     `cross_source` is supplied by the caller when it has seen the same
     point hit by a different-source storm in the same window (computed
     across the result set in `attach_verification`).
+
+    `size_override` lets address lookups score on the size AT THE POINT
+    rather than the storm's global peak — so the defensibility statement
+    quotes what actually fell at the address, not a 3" core miles away.
     """
-    size = storm.get("max_hail_size_in")
+    size = size_override if size_override is not None else storm.get("max_hail_size_in")
     confidence = float(storm.get("confidence", 1.0) or 1.0)
     suspect = bool(storm.get("suspect", False))
     lsr_confirmed = bool(storm.get("lsr_confirmed", False))
@@ -288,13 +293,19 @@ def _narrate(
     return head, body
 
 
-def attach_verification(storms: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def attach_verification(
+    storms: list[dict[str, Any]],
+    size_key: str | None = None,
+) -> list[dict[str, Any]]:
     """Compute cross-source agreement across a result set, then attach a
     `verification` dict to each storm.
 
     Cross-source = the same point was hit by both an MRMS-family and a
     NEXRAD storm within a 6-hour window of each other. We pair them and
     mark both as cross-source confirmed.
+
+    `size_key`: when set (e.g. "size_at_point"), each storm is scored on
+    that field instead of its global max — for address lookups.
     """
     def family(src: str) -> str:
         s = (src or "").upper()
@@ -324,7 +335,13 @@ def attach_verification(storms: list[dict[str, Any]]) -> list[dict[str, Any]]:
                         cross = True
                         detail = f"Detected by both {fam} and {ofam}"
                         break
+        size_override = None
+        if size_key is not None:
+            v = storm.get(size_key)
+            if v is not None:
+                size_override = float(v)
         storm["verification"] = score_storm(
             storm, cross_source=cross, cross_source_detail=detail,
+            size_override=size_override,
         ).as_dict()
     return storms

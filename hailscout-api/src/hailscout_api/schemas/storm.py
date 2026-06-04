@@ -111,6 +111,12 @@ class HailAtPointResponse(BaseModel):
     category_at_point: str = Field(
         ..., description="Largest hail-size category whose polygon contains the point"
     )
+    size_at_point: float | None = Field(
+        None,
+        description="Numeric hail size AT this point (inches) — the size "
+                    "that actually fell here, not the storm's global peak. "
+                    "This is the number to show for an address lookup.",
+    )
     # Phase 24 multi-source verification (always present).
     lsr_confirmed: bool = False
     lsr_observed_size_in: float | None = None

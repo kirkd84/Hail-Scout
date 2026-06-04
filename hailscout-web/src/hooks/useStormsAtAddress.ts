@@ -49,6 +49,7 @@ interface ApiHailAtPointHit {
   max_hail_size_in: number;
   source: string;
   category_at_point: string;
+  size_at_point?: number | null;
   lsr_confirmed?: boolean;
   lsr_observed_size_in?: number | null;
   hail_confirmed?: boolean;
@@ -72,11 +73,18 @@ interface ApiHailAtPointListResponse {
  * geometry should call useStormDetail(id) instead.
  */
 function hitToStormShape(hit: ApiHailAtPointHit, lat: number, lng: number) {
+  // For an address lookup, the Storm object represents "this storm AT
+  // this point", so its headline size is the size that fell HERE
+  // (size_at_point), not the storm's peak miles away. We keep the
+  // global peak in `storm_peak_size_in` for optional context.
+  const atPoint = hit.size_at_point ?? hit.max_hail_size_in;
   return {
     id: hit.id,
     start_time: hit.start_time,
     end_time: hit.end_time,
-    max_hail_size_in: hit.max_hail_size_in,
+    max_hail_size_in: atPoint,
+    storm_peak_size_in: hit.max_hail_size_in,
+    size_at_point: hit.size_at_point ?? null,
     centroid_lat: lat,
     centroid_lng: lng,
     bbox: { min_lat: lat - 0.01, min_lng: lng - 0.01, max_lat: lat + 0.01, max_lng: lng + 0.01 },
