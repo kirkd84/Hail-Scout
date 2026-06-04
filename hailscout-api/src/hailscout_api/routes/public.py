@@ -14,9 +14,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from hailscout_api.db.models.canvass import MonitoredAddress, StormAlert
 from hailscout_api.db.models.org import Organization
+from hailscout_api.db.models.storm import Storm
 from hailscout_api.db.session import get_db_session
 from hailscout_api.data.storm_fixtures import all_fixtures
-from hailscout_api.services.calibration import compute_calibration, marketing_headline
+from hailscout_api.services.calibration import compute_calibration
 from hailscout_api.services.exposure import get_area_exposure
 
 router = APIRouter()
@@ -31,14 +32,17 @@ class PublicStats(BaseModel):
 
 
 class AccuracyStat(BaseModel):
-    """Public, aggregate accuracy stat for the marketing site.
+    """Public credibility stat for the marketing site.
 
-    Exposes ONLY the headline + sample size + the ±0.25" hit rate —
-    no per-storm data, no internal error metrics. `headline` is null
-    until the verified-pair sample is large enough to be credible
-    (≥100), so we never publish a flimsy number.
+    Leads with the CONFIRMATION story — how many of our detections are
+    independently corroborated by NWS ground reports — which is our
+    real, defensible differentiator. (Raw size-accuracy % is mediocre
+    for every radar product, so we don't headline it; `within_quarter_inch`
+    is exposed for reference only.) `headline` is null until the
+    confirmation count is large enough to be credible.
     """
     headline: str | None
+    confirmed_events: int
     sample_size: int
     within_quarter_inch: float | None
 
@@ -112,19 +116,41 @@ async def public_exposure(lat: float, lng: float) -> ExposureResponse:
     )
 
 
+# Below this many independent confirmations, we don't publish the stat —
+# a small number reads worse than none.
+_CONFIRM_HEADLINE_MIN = 100
+
+
 @router.get("/public/accuracy", response_model=AccuracyStat)
 async def public_accuracy(
     session: AsyncSession = Depends(get_db_session),
 ) -> AccuracyStat:
-    """Measured accuracy vs. ground truth — the credibility stat.
-
-    Restricts to claim-relevant sizes (≥1.0") and returns only the
-    publishable headline. Safe to poll / CDN-cache. Returns a null
-    headline (which the UI hides) until the sample is credible.
+    """Public credibility stat — leads with the count of radar detections
+    independently confirmed by NWS ground reports. Safe to poll /
+    CDN-cache. Headline is null until the confirmation count is credible.
     """
+    confirmed_events = (
+        await session.execute(
+            select(func.count(Storm.id)).where(
+                Storm.source != "SPC-LSR",
+                Storm.lsr_confirmed.is_(True),
+            )
+        )
+    ).scalar_one() or 0
+
+    headline = None
+    if confirmed_events >= _CONFIRM_HEADLINE_MIN:
+        headline = (
+            f"{confirmed_events:,} hail events on HailScout are independently "
+            "confirmed by National Weather Service ground reports."
+        )
+
+    # Sizing accuracy kept for reference (not headlined — radar size is
+    # inherently scattered vs. spotter reports for every product).
     calib = await compute_calibration(session, min_size_in=1.0)
     return AccuracyStat(
-        headline=marketing_headline(calib),
+        headline=headline,
+        confirmed_events=int(confirmed_events),
         sample_size=int(calib.get("sample_size", 0)),
         within_quarter_inch=calib.get("within_0_25in"),
     )

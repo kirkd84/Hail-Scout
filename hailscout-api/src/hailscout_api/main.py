@@ -43,6 +43,26 @@ def create_app() -> FastAPI:
     setup_logging(settings.log_level)
     log.info("hailscout.boot.create_app env=%s", settings.env)
 
+    # Production error monitoring. Gated on SENTRY_DSN so local/dev runs
+    # without a DSN are unaffected. Captures unhandled exceptions across
+    # the API AND the in-process worker. traces_sample_rate is low to
+    # keep performance overhead negligible.
+    if settings.sentry_dsn:
+        try:
+            import sentry_sdk
+
+            sentry_sdk.init(
+                dsn=settings.sentry_dsn,
+                environment=settings.sentry_environment,
+                traces_sample_rate=0.1,
+                # Don't ship PII (addresses, emails) to Sentry by default.
+                send_default_pii=False,
+            )
+            log.info("hailscout.boot.sentry_initialized env=%s",
+                     settings.sentry_environment)
+        except Exception as exc:  # pragma: no cover
+            log.warning("hailscout.boot.sentry_init_failed: %s", exc)
+
     # Initialize DB engine. Don't crash the whole API if it fails — /healthz
     # at the root will keep responding 200 so Railway's edge can register the
     # service while we debug.
