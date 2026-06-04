@@ -51,33 +51,42 @@ async def compute_calibration(
     Returns sample size, error metrics, tolerance-band hit rates, and a
     by-size-bucket breakdown.
     """
-    # Compare the radar size AT THE LSR POINT against the reported size —
-    # like-for-like. Falls back to nothing if radar_size_at_lsr_in is
-    # null (un-relinked rows); those are excluded so we never silently
-    # mix max-vs-point into the stat.
-    filters = [
+    # Two distinct questions, measured separately so neither distorts
+    # the other:
+    #   * SIZING accuracy — when radar shows hail at the report point, how
+    #     close is the size? Computed on pairs with radar_size_at_lsr > 0.
+    #   * DETECTION coverage — of confirmed reports, what share had radar
+    #     hail at the exact point (vs the point sitting in the cell's
+    #     bbox but outside the swath). radar_size_at_lsr == 0 = a miss.
+    base = [
         Storm.source != "SPC-LSR",
         Storm.lsr_confirmed.is_(True),
         Storm.lsr_observed_size_in.isnot(None),
         Storm.radar_size_at_lsr_in.isnot(None),
     ]
     if min_size_in > 0:
-        filters.append(Storm.lsr_observed_size_in >= min_size_in)
+        base.append(Storm.lsr_observed_size_in >= min_size_in)
 
-    rows = (await session.execute(
+    all_rows = (await session.execute(
         select(
             Storm.radar_size_at_lsr_in.label("est"),
             Storm.lsr_observed_size_in.label("truth"),
-        ).where(and_(*filters))
+        ).where(and_(*base))
     )).all()
+
+    confirmed_n = len(all_rows)
+    rows = [r for r in all_rows if float(r.est) > 0.0]
+    detection_rate = round(len(rows) / confirmed_n, 4) if confirmed_n else 0.0
 
     n = len(rows)
     if n == 0:
         return {
             "sample_size": 0,
-            "note": ("No verified radar↔ground-truth pairs yet. This "
-                     "populates as the LSR linker matches reports to "
-                     "radar cells over the backfill."),
+            "confirmed_pairs": confirmed_n,
+            "detection_rate": detection_rate,
+            "note": ("No detected radar↔ground-truth size pairs yet. This "
+                     "populates as the LSR linker matches reports to radar "
+                     "cells over the backfill."),
         }
 
     # Error metrics. error = estimate - truth (positive = we over-estimated).
@@ -104,7 +113,9 @@ async def compute_calibration(
     buckets = _by_size_buckets(rows)
 
     out = {
-        "sample_size": n,
+        "sample_size": n,                    # detected size pairs
+        "confirmed_pairs": confirmed_n,      # all confirmed (incl. misses)
+        "detection_rate": detection_rate,    # share with radar hail at point
         "min_size_in": min_size_in,
         "mae_in": round(mae, 4),
         "bias_in": round(bias, 4),          # + = over-estimate, - = under
@@ -114,7 +125,8 @@ async def compute_calibration(
         "by_size_bucket": buckets,
     }
     logger.info("Calibration computed", sample_size=n,
-                mae_in=out["mae_in"], bias_in=out["bias_in"])
+                mae_in=out["mae_in"], bias_in=out["bias_in"],
+                detection_rate=detection_rate)
     return out
 
 
