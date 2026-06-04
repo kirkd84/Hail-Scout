@@ -226,6 +226,18 @@ def render_storm_raster(
             if len(pts) >= 3:
                 draw.polygon(pts, fill=fill_val)
 
+    # 1b. Morphological CLOSE (dilate then erode) to fill the small
+    #     transparent pinholes the raw swath polygons leave inside a
+    #     severe core (cone-of-silence, beam blockage, inter-cell gaps).
+    #     Without this the core shows basemap-colored pockets; IHM fills
+    #     them, so we do too. Iterated 3×3 max/min gives a controllable
+    #     close radius without a slow large-kernel rank filter.
+    close_r = max(4, min(18, int(min(width, height) * 0.018)))
+    for _ in range(close_r):
+        value_img = value_img.filter(ImageFilter.MaxFilter(3))
+    for _ in range(close_r):
+        value_img = value_img.filter(ImageFilter.MinFilter(3))
+
     # 2. Gaussian blur to melt the band steps into a gradient.
     blur_px = max(_BLUR_MIN_PX, min(width, height) * _BLUR_FRAC)
     value_img = value_img.filter(ImageFilter.GaussianBlur(radius=blur_px))
