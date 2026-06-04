@@ -47,6 +47,13 @@ class Storm(Base):
     lsr_observed_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True,
     )
+    # Radar-estimated hail size AT the matched LSR's location (largest
+    # swath band containing the report point). Paired with
+    # lsr_observed_size_in for like-for-like accuracy calibration —
+    # NOT the storm's global peak (migration 016).
+    radar_size_at_lsr_in: Mapped[Optional[float]] = mapped_column(
+        Float, nullable=True,
+    )
     # Quality / false-positive screening (Phase 23.5). `confidence` is
     # in [0, 1]; `suspect` is a cheap-to-index derivation
     # (suspect = confidence < SUSPECT_THRESHOLD). `suspect_reasons`

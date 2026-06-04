@@ -27,7 +27,14 @@ from geoalchemy2.functions import ST_Contains
 from sqlalchemy import and_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hailscout_api.db.models.storm import Storm
+from hailscout_api.db.models.storm import HailSwath, Storm
+
+
+def _cat_to_inches(label: str) -> float:
+    try:
+        return float(str(label).rstrip("+"))
+    except (ValueError, AttributeError):
+        return 0.0
 
 log = logging.getLogger(__name__)
 
@@ -88,15 +95,40 @@ async def link_recent_lsrs(
         if match is None:
             continue
 
-        # Stamp the radar cell. If already confirmed by a different
-        # LSR, keep whichever observed size is larger — same event,
-        # multiple reporters, take the worst-case.
+        # Radar size AT the LSR's location = the largest swath band of
+        # the matched storm whose polygon actually contains the report
+        # point (0 if the point is inside the bbox but outside every
+        # band — i.e. radar showed no hail there). This is the
+        # like-for-like value to calibrate against the report size,
+        # NOT the storm's global peak.
+        point_band = (
+            await session.execute(
+                select(HailSwath.hail_size_category)
+                .where(and_(
+                    HailSwath.storm_id == match.id,
+                    ST_Contains(HailSwath.geom_multipolygon, lsr.centroid_geom),
+                ))
+            )
+        ).scalars().all()
+        radar_at_point = max(
+            (_cat_to_inches(c) for c in point_band), default=0.0
+        )
+
+        # Record the pair. If already confirmed by a different LSR, keep
+        # whichever observed size is larger and pair the radar-at-point
+        # for THAT same report so the calibration pair stays matched.
         new_size = lsr.max_hail_size_in
-        if match.lsr_confirmed and match.lsr_observed_size_in is not None:
-            new_size = max(new_size, match.lsr_observed_size_in)
+        if (
+            match.lsr_confirmed
+            and match.lsr_observed_size_in is not None
+            and match.lsr_observed_size_in >= new_size
+        ):
+            pass  # keep existing (larger) pairing
+        else:
+            match.lsr_observed_size_in = new_size
+            match.radar_size_at_lsr_in = radar_at_point
+            match.lsr_observed_at = lsr.start_time
         match.lsr_confirmed = True
-        match.lsr_observed_size_in = new_size
-        match.lsr_observed_at = lsr.start_time
         confirmed += 1
 
     if confirmed:

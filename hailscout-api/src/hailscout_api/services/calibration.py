@@ -51,18 +51,22 @@ async def compute_calibration(
     Returns sample size, error metrics, tolerance-band hit rates, and a
     by-size-bucket breakdown.
     """
+    # Compare the radar size AT THE LSR POINT against the reported size —
+    # like-for-like. Falls back to nothing if radar_size_at_lsr_in is
+    # null (un-relinked rows); those are excluded so we never silently
+    # mix max-vs-point into the stat.
     filters = [
         Storm.source != "SPC-LSR",
         Storm.lsr_confirmed.is_(True),
         Storm.lsr_observed_size_in.isnot(None),
-        Storm.max_hail_size_in.isnot(None),
+        Storm.radar_size_at_lsr_in.isnot(None),
     ]
     if min_size_in > 0:
         filters.append(Storm.lsr_observed_size_in >= min_size_in)
 
     rows = (await session.execute(
         select(
-            Storm.max_hail_size_in.label("est"),
+            Storm.radar_size_at_lsr_in.label("est"),
             Storm.lsr_observed_size_in.label("truth"),
         ).where(and_(*filters))
     )).all()
