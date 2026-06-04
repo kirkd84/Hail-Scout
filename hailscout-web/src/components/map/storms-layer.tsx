@@ -44,6 +44,11 @@ interface Props {
   minSizeIn?: number;
   /** Time scrubber cursor. Storms started after this are hidden. */
   startTimeMax?: number | null;
+  /** Hide the polygon bands (glow/fill/line) but keep centroids +
+   *  click/hover interactivity. Used in "smooth" view mode where the
+   *  raster surface replaces the bands but we still want clickable
+   *  storm points. */
+  bandsHidden?: boolean;
   /** Called when the user clicks a centroid or swath on the map.
    *  Parent typically opens a detail sheet. */
   onStormClick?: (stormId: string) => void;
@@ -111,6 +116,7 @@ export function StormsLayer({
   startTimeMin = null,
   minSizeIn = 0,
   startTimeMax = null,
+  bandsHidden = false,
   onStormClick,
 }: Props) {
   // Filtered storms (applied to both centroids and bands).
@@ -399,10 +405,18 @@ export function StormsLayer({
   useEffect(() => {
     if (!map) return;
     const v = visible ? "visible" : "none";
-    for (const id of [LAYER_GLOW, LAYER_FILL, LAYER_LINE, LAYER_CENTROID, LAYER_CENTROID_RING, LAYER_DATE_LABEL]) {
+    // Band layers can be independently hidden (smooth mode) while the
+    // centroid/interaction layers stay visible + clickable.
+    const bandV = visible && !bandsHidden ? "visible" : "none";
+    const bandLayers = [LAYER_GLOW, LAYER_FILL, LAYER_LINE];
+    const pointLayers = [LAYER_CENTROID, LAYER_CENTROID_RING, LAYER_DATE_LABEL];
+    for (const id of bandLayers) {
+      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", bandV);
+    }
+    for (const id of pointLayers) {
       if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", v);
     }
-  }, [map, visible]);
+  }, [map, visible, bandsHidden]);
 
   // ── Pointer cursor + hover popup + click → open detail ──────────
   // Hovering shows a small popup card with date + size + metro.

@@ -8,9 +8,11 @@ import { HailMap } from "@/components/map/HailMap";
 import { BasemapToggle, type BasemapId } from "@/components/map/basemap-toggle";
 import { StormsLayer } from "@/components/map/storms-layer";
 import { StormsHeatmapLayer } from "@/components/map/storms-heatmap-layer";
+import { StormsRasterLayer } from "@/components/map/storms-raster-layer";
 import { NexradStationsLayer } from "@/components/map/nexrad-stations-layer";
 import { TimeScrubber } from "@/components/map/time-scrubber";
 import { useStorms } from "@/hooks/useStorms";
+import { useViewportRaster } from "@/hooks/useViewportRaster";
 import { StormPicker } from "@/components/app/storm-picker";
 import {
   MapFilters,
@@ -56,7 +58,7 @@ export default function MapPage() {
   // (density overlay). Visual A/B for showing the same data set in
   // different ways. Heatmap is more compelling at low zoom; cells
   // are more useful zoomed in.
-  const [viewMode, setViewMode] = useState<"cells" | "heatmap">("cells");
+  const [viewMode, setViewMode] = useState<"cells" | "smooth" | "heatmap">("smooth");
   // NEXRAD stations overlay — show by default when "NEXRAD" or "all"
   // is selected, hide for "MRMS only" to reduce visual noise.
   const showNexradStations = source !== "MRMS";
@@ -126,6 +128,17 @@ export default function MapPage() {
     swathSimplify: 0.02,
     fallbackToFixtures: true,
     source: source === "all" ? null : source,
+  });
+
+  // Smooth raster surface (Phase 25) — one colorized image of every
+  // swath in view, fetched only when the smooth view mode is active.
+  const { raster: viewportRaster } = useViewportRaster({
+    bbox: viewportBbox,
+    from: fromDate,
+    to: toDate,
+    source: source === "all" ? null : source,
+    minSize: size === "any" ? null : parseFloat(size),
+    enabled: viewMode === "smooth",
   });
 
   // Canvassing markers
@@ -207,7 +220,8 @@ export default function MapPage() {
       <StormsLayer
         map={map}
         storms={storms}
-        visible={viewMode === "cells"}
+        visible={viewMode === "cells" || viewMode === "smooth"}
+        bandsHidden={viewMode === "smooth"}
         startTimeMin={dateFilterToCutoff(date)}
         minSizeIn={sizeFilterToMin(size)}
         startTimeMax={scrubberMs}
@@ -218,6 +232,11 @@ export default function MapPage() {
             setShowStormDetail(true);
           }
         }}
+      />
+      <StormsRasterLayer
+        map={map}
+        raster={viewportRaster}
+        visible={viewMode === "smooth"}
       />
       <StormsHeatmapLayer
         map={map}
@@ -374,35 +393,31 @@ function ViewModeToggle({
   value,
   onChange,
 }: {
-  value: "cells" | "heatmap";
-  onChange: (next: "cells" | "heatmap") => void;
+  value: "cells" | "smooth" | "heatmap";
+  onChange: (next: "cells" | "smooth" | "heatmap") => void;
 }) {
+  const opts: Array<{ id: "cells" | "smooth" | "heatmap"; label: string }> = [
+    { id: "smooth", label: "Smooth" },
+    { id: "cells", label: "Cells" },
+    { id: "heatmap", label: "Heatmap" },
+  ];
   return (
     <div className="glass inline-flex items-center rounded-full p-1 shadow-panel text-xs">
-      <button
-        type="button"
-        onClick={() => onChange("cells")}
-        className={
-          "px-3 py-1 rounded-full transition-colors " +
-          (value === "cells"
-            ? "bg-primary text-primary-foreground"
-            : "text-foreground/70 hover:text-foreground")
-        }
-      >
-        Cells
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange("heatmap")}
-        className={
-          "px-3 py-1 rounded-full transition-colors " +
-          (value === "heatmap"
-            ? "bg-primary text-primary-foreground"
-            : "text-foreground/70 hover:text-foreground")
-        }
-      >
-        Heatmap
-      </button>
+      {opts.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          onClick={() => onChange(o.id)}
+          className={
+            "px-3 py-1 rounded-full transition-colors " +
+            (value === o.id
+              ? "bg-primary text-primary-foreground"
+              : "text-foreground/70 hover:text-foreground")
+          }
+        >
+          {o.label}
+        </button>
+      ))}
     </div>
   );
 }
