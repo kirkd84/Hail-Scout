@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -208,11 +208,11 @@ async def refresh(
     return RefreshResponse(access_token=access, expires_in=expires_in)
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/logout")
 async def logout(
     body: LogoutRequest,
     session: AsyncSession = Depends(get_db_session),
-) -> None:
+) -> Response:
     """Revoke a refresh session (idempotent)."""
     token_hash = hash_refresh_token(body.refresh_token)
     sess = (
@@ -223,4 +223,4 @@ async def logout(
     if sess is not None and sess.revoked_at is None:
         sess.revoked_at = datetime.now(timezone.utc)
         await session.commit()
-    return None
+    return Response(status_code=204)
