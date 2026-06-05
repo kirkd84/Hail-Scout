@@ -44,6 +44,7 @@ RUN pip install \
         'sentry-sdk>=1.40,<3.0' \
         'tenacity>=8.2,<9.0' \
         'svix>=1.30,<2.0' \
+        'pywebpush>=1.14,<3.0' \
         'Pillow>=10.2,<12.0'
 
 # Application code

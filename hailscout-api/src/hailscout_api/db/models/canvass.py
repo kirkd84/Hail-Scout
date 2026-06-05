@@ -135,10 +135,40 @@ class StormAlert(Base):
     email_sent_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    sms_sent_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    push_sent_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = created_at_column()
 
     def __repr__(self) -> str:
         return f"<StormAlert(id={self.id}, storm={self.storm_id}, addr={self.monitored_address_id})>"
+
+
+class PushSubscription(Base):
+    """A browser web-push subscription — one per signed-in device."""
+
+    __tablename__ = "push_subscriptions"
+
+    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    org_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # The browser push endpoint URL (can be long) — natural unique key.
+    endpoint: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    p256dh: Mapped[str] = mapped_column(String(512), nullable=False)
+    auth: Mapped[str] = mapped_column(String(512), nullable=False)
+    user_agent: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    created_at: Mapped[datetime] = created_at_column()
+    updated_at: Mapped[datetime] = updated_at_column()
+
+    def __repr__(self) -> str:
+        return f"<PushSubscription(id={self.id}, user_id={self.user_id})>"
 
 
 class SavedReport(Base):

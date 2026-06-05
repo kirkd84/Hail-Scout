@@ -17,21 +17,32 @@ Why a service module (vs. an inline helper):
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import Iterable
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hailscout_api.db.models.canvass import MonitoredAddress, StormAlert
+from hailscout_api.db.models.canvass import (
+    MonitoredAddress,
+    PushSubscription,
+    StormAlert,
+)
 from hailscout_api.db.models.org import Organization
 from hailscout_api.services.email_alerts import (
     parse_recipient_list,
     render_alert_email,
     send_alert_email,
 )
+from hailscout_api.services.push_alerts import push_configured, send_web_push
 from hailscout_api.services.slack import format_alert_message, send_slack_alert
+from hailscout_api.services.sms_alerts import (
+    parse_phone_list,
+    render_alert_sms,
+    send_sms,
+)
 from hailscout_api.services.storm_query import query_hail_at_point
 
 log = logging.getLogger(__name__)
@@ -210,6 +221,72 @@ async def generate_alerts_for_org(
                 log.exception("alert.email_send_failed")
         await session.commit()
 
+    # ── Fan out to SMS ──
+    sms_numbers = parse_phone_list(org.sms_recipients)
+    if org.sms_enabled and sms_numbers:
+        for alert in delivery_targets:
+            if alert.sms_sent_at is not None:
+                continue
+            addr = address_by_id.get(alert.monitored_address_id)
+            body = render_alert_sms(
+                address=(addr.address if addr else None),
+                address_label=(addr.label if addr else None),
+                peak_size_in=alert.peak_size_in,
+                storm_city=alert.storm_city,
+            )
+            try:
+                n = await send_sms(sms_numbers, body)
+                if n > 0:
+                    alert.sms_sent_at = datetime.now(timezone.utc)
+                    summary["sms_sent"] += 1
+            except Exception:  # pragma: no cover
+                log.exception("alert.sms_send_failed")
+        await session.commit()
+
+    # ── Fan out to web push ──
+    if org.push_enabled and push_configured():
+        subs = (
+            await session.execute(
+                select(PushSubscription).where(PushSubscription.org_id == org.id)
+            )
+        ).scalars().all()
+        if subs:
+            for alert in delivery_targets:
+                if alert.push_sent_at is not None:
+                    continue
+                addr = address_by_id.get(alert.monitored_address_id)
+                where = (
+                    (addr.label or addr.address) if addr else None
+                ) or alert.storm_city or "a monitored address"
+                payload = {
+                    "title": f'{alert.peak_size_in:.2f}" hail — {where}',
+                    "body": "New hail on a monitored address. Tap to verify and pull a report.",
+                    "url": "/app/alerts",
+                    "tag": f"storm-{alert.storm_id}",
+                }
+                delivered = False
+                dead: list[str] = []
+                for sub in subs:
+                    res = await asyncio.to_thread(
+                        send_web_push,
+                        endpoint=sub.endpoint,
+                        p256dh=sub.p256dh,
+                        auth=sub.auth,
+                        payload=payload,
+                    )
+                    if res == "ok":
+                        delivered = True
+                    elif res == "gone":
+                        dead.append(sub.id)
+                for sid in dead:
+                    await session.execute(
+                        delete(PushSubscription).where(PushSubscription.id == sid)
+                    )
+                if delivered:
+                    alert.push_sent_at = datetime.now(timezone.utc)
+                    summary["push_sent"] += 1
+            await session.commit()
+
     return summary
 
 
@@ -218,6 +295,8 @@ def _empty_summary() -> dict:
         "created": 0,
         "slack_sent": 0,
         "email_sent": 0,
+        "sms_sent": 0,
+        "push_sent": 0,
         "skipped_already_delivered": 0,
     }
 

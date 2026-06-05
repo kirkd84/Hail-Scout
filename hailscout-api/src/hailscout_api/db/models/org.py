@@ -46,6 +46,16 @@ class Organization(Base):
     alert_min_size_in: Mapped[float] = mapped_column(
         Float, nullable=False, server_default="0.75", default=0.75,
     )
+    # SMS alert delivery (per-org). Comma-separated phone numbers (≤ 8).
+    sms_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, server_default="false"
+    )
+    sms_recipients: Mapped[str | None] = mapped_column(String(2048))
+    # Web-push alert delivery (per-org toggle). Subscriptions live in
+    # push_subscriptions — one per signed-in device.
+    push_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, server_default="false"
+    )
     created_at: Mapped[datetime] = created_at_column()
 
     # Relationships

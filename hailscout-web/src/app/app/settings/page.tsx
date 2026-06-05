@@ -21,6 +21,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMe } from "@/hooks/useMe";
 import { BrandingCard } from "@/components/app/branding-card";
 import { EmailAlertsCard } from "@/components/app/email-alerts-card";
+import { SmsAlertsCard } from "@/components/app/sms-alerts-card";
+import { PushAlertsCard } from "@/components/app/push-alerts-card";
 import { SlackCard } from "@/components/app/slack-card";
 import { cn } from "@/lib/utils";
 import {
@@ -261,6 +263,8 @@ function IntegrationsTab() {
   return (
     <>
       <EmailAlertsCard />
+      <SmsAlertsCard />
+      <PushAlertsCard />
       <SlackCard />
       <SectionCard
         eyebrow="Coming soon"

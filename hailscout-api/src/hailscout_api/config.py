@@ -74,6 +74,16 @@ class Settings(BaseSettings):
     parcel_service_token: str = ""
     parcel_service_timeout_s: float = 20.0
 
+    # ── Real-time alert channels (beyond email/Slack) ──
+    # SMS via Twilio REST API (HTTP Basic auth: account SID : auth token).
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_from_number: str = ""  # E.164, e.g. "+15551234567"
+    # Web push (VAPID). Generate a keypair once; private key stays secret.
+    vapid_public_key: str = ""
+    vapid_private_key: str = ""
+    vapid_subject: str = "mailto:alerts@hailscout.net"
+
     # Geocoding
     geocoder_provider: Literal["nominatim", "mapbox"] = "nominatim"
     nominatim_user_agent: str = "HailScout/0.1.0 (+https://hailscout.com)"
