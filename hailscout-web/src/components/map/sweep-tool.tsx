@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import type { Map as MapLibreMap, MapMouseEvent, GeoJSONSource } from "maplibre-gl";
 import { useMarkers } from "@/hooks/useMarkers";
 import { useTerritories } from "@/hooks/useTerritories";
 import { useTeam } from "@/hooks/useTeam";
+import { useAuth } from "@/hooks/useAuth";
+import { apiClient, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { IconClose } from "@/components/icons";
 
@@ -14,19 +16,46 @@ const LINE_LAYER = "hs-sweep-line";
 const VTX_LAYER  = "hs-sweep-vtx";
 
 type Mode = "off" | "drawing" | "ready" | "dropping";
+type Bucket = "all" | "residential" | "commercial" | "land" | "other";
+
+interface Parcel {
+  id: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  full_address: string | null;
+  owner_name: string | null;
+  owner_mailing_address: string | null;
+  property_type: string;
+  property_type_raw: string | null;
+  year_built: number | null;
+  building_sqft: number | null;
+  assessed_value: number | null;
+  market_value: number | null;
+  last_sold_at: string | null;
+  lat: number | null;
+  lng: number | null;
+}
+
+interface InPolygonResponse {
+  parcels: Parcel[];
+  count: number;
+  property_type: string;
+}
 
 interface Props {
   map: MapLibreMap | null;
 }
 
 /**
- * "Sweep this area" — draw a polygon, drop a marker at every synthetic
- * parcel inside. For the demo the parcels are generated on-the-fly:
- * a jittered grid of points within the polygon. Each becomes a 'lead'
- * marker through useMarkers().add(...).
+ * "Sweep this area" — draw a polygon, then pull every real property parcel
+ * inside it (via /v1/parcels/in-polygon → Parcel-Service). Filter by land use
+ * (commercial / residential), export the list to CSV, or drop the leads as
+ * canvassing markers. The polygon can also be saved as a named territory.
  *
- * Keyboard: Esc cancels drawing. Enter closes the polygon (or
- * double-tap the start vertex).
+ * Keyboard: Esc cancels drawing. Enter closes the polygon (or click the start
+ * vertex).
  */
 export function SweepTool({ map }: Props) {
   const [mode, setMode] = useState<Mode>("off");
@@ -36,10 +65,17 @@ export function SweepTool({ map }: Props) {
   const { add } = useMarkers();
   const { create: createTerritory } = useTerritories();
   const { members } = useTeam();
+  const { getToken } = useAuth();
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveName, setSaveName] = useState("");
   const [saveAssignee, setSaveAssignee] = useState<string>("");
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+
+  // Lead-list state.
+  const [leads, setLeads] = useState<Parcel[] | null>(null);
+  const [leadsLoading, setLeadsLoading] = useState(false);
+  const [leadsError, setLeadsError] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState<Bucket>("all");
 
   // Set up the source/layers on mount
   useEffect(() => {
@@ -167,53 +203,109 @@ export function SweepTool({ map }: Props) {
     setSaveOpen(false);
     setSaveName("");
     setSaveAssignee("");
+    setLeads(null);
+    setLeadsLoading(false);
+    setLeadsError(null);
+    setTypeFilter("all");
   };
 
   const start = () => {
     setMode("drawing");
     setPts([]);
+    setLeads(null);
+    setLeadsError(null);
   };
 
-  const sweep = async () => {
+  /** GeoJSON Polygon (closed ring) from the drawn vertices. */
+  const polygonGeoJSON = () => ({
+    type: "Polygon" as const,
+    coordinates: [[...pts, pts[0]]],
+  });
+
+  const findProperties = async () => {
     if (pts.length < 3) return;
-    setMode("dropping");
-
-    // Generate synthetic parcels — jittered grid inside the polygon's bbox,
-    // filtered to those inside the polygon.
-    const xs = pts.map((p) => p[0]);
-    const ys = pts.map((p) => p[1]);
-    const minX = Math.min(...xs), maxX = Math.max(...xs);
-    const minY = Math.min(...ys), maxY = Math.max(...ys);
-    const stepX = (maxX - minX) / 10;
-    const stepY = (maxY - minY) / 10;
-    const candidates: [number, number][] = [];
-    for (let x = minX + stepX / 2; x < maxX; x += stepX) {
-      for (let y = minY + stepY / 2; y < maxY; y += stepY) {
-        // Jitter for organic feel
-        const jx = (Math.random() - 0.5) * stepX * 0.4;
-        const jy = (Math.random() - 0.5) * stepY * 0.4;
-        candidates.push([x + jx, y + jy]);
-      }
+    setLeadsLoading(true);
+    setLeadsError(null);
+    try {
+      const token = await getToken();
+      const res = await apiClient.post<InPolygonResponse>(
+        "/v1/parcels/in-polygon",
+        { polygon: polygonGeoJSON(), limit: 3000 },
+        token,
+      );
+      setLeads(res.parcels);
+    } catch (e) {
+      const msg =
+        e instanceof ApiError && e.status === 503
+          ? "Property data isn't connected for your area yet."
+          : e instanceof ApiError && e.status === 502
+            ? "Property lookup is temporarily unavailable. Try again shortly."
+            : "Couldn't load properties. Try a smaller area.";
+      setLeadsError(msg);
+      setLeads([]);
+    } finally {
+      setLeadsLoading(false);
     }
-    const inside = candidates.filter((c) => pointInRing(c, pts));
-    // Cap at 50 to avoid runaway loads
-    const targets = inside.slice(0, 50);
+  };
 
+  // Per-bucket counts + the currently-filtered set.
+  const counts = useMemo(() => {
+    const c: Record<Bucket, number> = { all: 0, residential: 0, commercial: 0, land: 0, other: 0 };
+    for (const p of leads ?? []) {
+      c.all += 1;
+      const b = (p.property_type as Bucket) in c ? (p.property_type as Bucket) : "other";
+      c[b] += 1;
+    }
+    return c;
+  }, [leads]);
+
+  const filtered = useMemo(() => {
+    if (!leads) return [];
+    return typeFilter === "all" ? leads : leads.filter((p) => p.property_type === typeFilter);
+  }, [leads, typeFilter]);
+
+  const exportCsv = () => {
+    const cols: (keyof Parcel)[] = [
+      "full_address", "address", "city", "state", "zip",
+      "owner_name", "owner_mailing_address",
+      "property_type", "property_type_raw",
+      "year_built", "building_sqft", "assessed_value", "market_value",
+      "last_sold_at", "lat", "lng",
+    ];
+    const header = cols.join(",");
+    const rows = filtered.map((p) => cols.map((c) => csvCell(p[c])).join(","));
+    const csv = [header, ...rows].join("\n");
+    const stamp = new Date().toISOString().slice(0, 10);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `HailScout-Leads-${stamp}-${typeFilter}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const dropLeads = async () => {
+    const targets = filtered.filter((p) => p.lat != null && p.lng != null).slice(0, 100);
+    if (targets.length === 0) return;
+    setMode("dropping");
     setProgress({ done: 0, total: targets.length });
-
     for (let i = 0; i < targets.length; i++) {
-      const [lng, lat] = targets[i];
+      const p = targets[i];
       try {
-        await add({ lng, lat, status: "lead" });
+        await add({ lng: p.lng as number, lat: p.lat as number, status: "lead" });
       } catch {
         // ignore individual failures
       }
       setProgress({ done: i + 1, total: targets.length });
     }
-
-    // Hold for a beat, then exit
     setTimeout(() => cancel(), 1200);
   };
+
+  const showLeadsPanel = mode === "ready" && (leadsLoading || leads !== null);
+  const wide = showLeadsPanel;
 
   return (
     <div className="pointer-events-auto absolute top-44 right-4 z-20">
@@ -230,10 +322,10 @@ export function SweepTool({ map }: Props) {
       )}
 
       {mode !== "off" && (
-        <div className="glass rounded-lg p-3 shadow-panel w-60 space-y-2">
+        <div className={cn("glass rounded-lg p-3 shadow-panel space-y-2", wide ? "w-80" : "w-60")}>
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-mono uppercase tracking-wide-caps text-copper">
-              Sweep tool
+              {showLeadsPanel ? "Lead list" : "Sweep tool"}
             </p>
             <button
               type="button"
@@ -265,17 +357,18 @@ export function SweepTool({ map }: Props) {
             </>
           )}
 
-          {mode === "ready" && !saveOpen && (
+          {/* READY — default actions */}
+          {mode === "ready" && !saveOpen && !showLeadsPanel && (
             <>
               <p className="text-xs text-foreground/85 leading-relaxed">
-                Polygon ready. Sweep drops up to 50 markers, or save the polygon as a named territory.
+                Polygon ready. Pull the properties inside it, or save it as a named territory.
               </p>
               <button
                 type="button"
-                onClick={() => void sweep()}
+                onClick={() => void findProperties()}
                 className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-teal-900"
               >
-                Drop markers
+                Find properties
               </button>
               <button
                 type="button"
@@ -286,6 +379,97 @@ export function SweepTool({ map }: Props) {
               </button>
             </>
           )}
+
+          {/* READY — lead-list results */}
+          {mode === "ready" && showLeadsPanel && (
+            <>
+              {leadsLoading ? (
+                <p className="text-xs text-foreground/85">Finding properties in this area…</p>
+              ) : leadsError ? (
+                <>
+                  <p className="text-xs text-foreground/85 leading-relaxed">{leadsError}</p>
+                  <button
+                    type="button"
+                    onClick={() => { setLeads(null); setLeadsError(null); }}
+                    className="w-full rounded-md border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-muted"
+                  >
+                    Back
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="font-mono-num text-[11px] text-foreground/70">
+                    {filtered.length} of {counts.all} properties
+                  </p>
+
+                  {/* Land-use filter — business-type prospecting */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {(["all", "residential", "commercial", "land", "other"] as Bucket[])
+                      .filter((b) => b === "all" || counts[b] > 0)
+                      .map((b) => (
+                        <button
+                          key={b}
+                          type="button"
+                          onClick={() => setTypeFilter(b)}
+                          className={cn(
+                            "rounded-full px-2.5 py-1 text-[10px] font-medium capitalize transition-colors",
+                            typeFilter === b
+                              ? "bg-copper text-primary-foreground"
+                              : "bg-secondary/60 text-foreground hover:bg-secondary",
+                          )}
+                        >
+                          {b} {b === "all" ? counts.all : counts[b]}
+                        </button>
+                      ))}
+                  </div>
+
+                  {counts.all === 0 ? (
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      No property records found here yet — coverage is still being
+                      added county by county. Try a different area, or save it as a
+                      territory for now.
+                    </p>
+                  ) : (
+                    <ul className="max-h-44 overflow-y-auto divide-y divide-border/50 rounded-md border border-border/60">
+                      {filtered.slice(0, 200).map((p, i) => (
+                        <li key={p.id ?? i} className="px-2.5 py-1.5">
+                          <p className="truncate text-xs text-foreground">
+                            {p.full_address ?? p.address ?? "Unknown address"}
+                          </p>
+                          <p className="truncate font-mono-num text-[10px] text-muted-foreground">
+                            <span className="capitalize">{p.property_type}</span>
+                            {p.owner_name ? ` · ${p.owner_name}` : ""}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <button
+                      type="button"
+                      disabled={filtered.length === 0}
+                      onClick={exportCsv}
+                      className="flex-1 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground shadow-atlas hover:bg-teal-900 disabled:opacity-50"
+                    >
+                      Export CSV
+                    </button>
+                    <button
+                      type="button"
+                      disabled={filtered.length === 0}
+                      onClick={() => void dropLeads()}
+                      className="flex-1 rounded-md border border-copper bg-copper/5 px-3 py-2 text-xs font-medium text-copper-700 hover:bg-copper/10 disabled:opacity-50"
+                      title="Drop up to 100 of these as canvassing markers"
+                    >
+                      Drop as markers
+                    </button>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
+          {/* READY — save-territory form */}
           {mode === "ready" && saveOpen && (
             <>
               <p className="text-[10px] font-mono uppercase tracking-wide-caps text-copper">
@@ -354,6 +538,12 @@ export function SweepTool({ map }: Props) {
   );
 }
 
+/** CSV-escape a cell (quote if it contains comma/quote/newline). */
+function csvCell(v: unknown): string {
+  const s = v == null ? "" : String(v);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
 function SweepIcon(p: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...p}>
@@ -361,18 +551,4 @@ function SweepIcon(p: React.SVGProps<SVGSVGElement>) {
       <path d="M3 13L13 13" strokeDasharray="2 2" />
     </svg>
   );
-}
-
-/** Point-in-polygon (ray casting). */
-function pointInRing(p: [number, number], ring: [number, number][]): boolean {
-  let inside = false;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const [xi, yi] = ring[i];
-    const [xj, yj] = ring[j];
-    const intersect =
-      yi > p[1] !== yj > p[1] &&
-      p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi + 1e-12) + xi;
-    if (intersect) inside = !inside;
-  }
-  return inside;
 }

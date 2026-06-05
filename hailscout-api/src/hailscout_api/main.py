@@ -28,6 +28,7 @@ from hailscout_api.routes import (
     markers,
     me,
     monitored,
+    parcels,
     reports,
     storms,
     tiles,
@@ -115,6 +116,7 @@ def create_app() -> FastAPI:
     v1.include_router(reports.router, tags=["reports"])
     v1.include_router(markers.router, tags=["markers"])
     v1.include_router(monitored.router, tags=["monitoring"])
+    v1.include_router(parcels.router, tags=["parcels"])
     v1.include_router(contacts.router, tags=["contacts"])
     v1.include_router(ai.router, tags=["ai"])
     v1.include_router(admin.router, tags=["super-admin"])

@@ -9,6 +9,7 @@ export default function PricingPage() {
       <SiteHeader />
       <StatTicker />
       <Hero />
+      <TransparencyBand />
       <PricingGrid />
       <Faq />
       <FinalCta />
@@ -30,6 +31,61 @@ function Hero() {
         <p className="mx-auto mt-5 max-w-xl text-lg text-muted-foreground">
           Unlimited team members. Unlimited storms. Nationwide coverage. No per-seat tax.
         </p>
+      </div>
+    </section>
+  );
+}
+
+const PROMISES: { k: string; v: string }[] = [
+  {
+    k: "Published price",
+    v: "The number's right here. No “request a demo” just to find out what it costs.",
+  },
+  {
+    k: "No per-seat tax",
+    v: "Your whole crew and sales team are included. Headcount never changes the bill.",
+  },
+  {
+    k: "14-day free trial",
+    v: "Full access, no credit card. Explore the entire atlas before you pay a cent.",
+  },
+  {
+    k: "Cancel anytime",
+    v: "No multi-year lock-in to get started. Stay because it works, not because you're stuck.",
+  },
+];
+
+function TransparencyBand() {
+  return (
+    <section className="border-y border-border bg-card">
+      <div className="container py-10 md:py-12">
+        <p className="mx-auto max-w-2xl text-center text-sm text-muted-foreground">
+          Every other hail platform makes you{" "}
+          <span className="font-medium text-foreground">&ldquo;contact sales&rdquo;</span>{" "}
+          just to see a price. We don&apos;t.
+        </p>
+        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {PROMISES.map((p) => (
+            <div key={p.k} className="flex items-start gap-3">
+              <svg viewBox="0 0 16 16" className="mt-0.5 h-4 w-4 shrink-0 text-copper" aria-hidden>
+                <path
+                  d="M3 8.5L6.5 12L13 4.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <div>
+                <p className="font-display text-base font-medium tracking-tight-display text-foreground">
+                  {p.k}
+                </p>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{p.v}</p>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -84,7 +140,7 @@ const TIERS: Tier[] = [
     blurb: "For multi-territory operators and franchises.",
     price: null,
     priceLabel: "Custom",
-    cta: { label: "Contact sales", href: "mailto:hello@hailscout.com" },
+    cta: { label: "Talk to us", href: "mailto:hello@hailscout.net" },
     features: [
       "Everything in Pro",
       "Dedicated meteorologist review",
@@ -177,6 +233,10 @@ function PricingGrid() {
 
 const FAQS: { q: string; a: string }[] = [
   {
+    q: "Why publish your pricing when HailTrace and IHM hide theirs?",
+    a: "Because you shouldn't have to sit through a sales call just to learn what a tool costs. Our price is the same whether you run one truck or forty — published, flat, and honest. No quote games, no “it depends.”",
+  },
+  {
     q: "Can I try for free?",
     a: "Yes. 14 days full access to Starter, no credit card required. The atlas is yours to explore from day one.",
   },
@@ -190,7 +250,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "Do you offer annual discounts?",
-    a: "Pricing shown is annual. We offer volume and multi-year discounts — contact sales for details.",
+    a: "Pricing shown is already annual. Volume and multi-year discounts are available — just email us and we'll sort it out, no pressure.",
   },
   {
     q: "How accurate is the hail detection?",

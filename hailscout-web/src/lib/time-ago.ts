@@ -33,3 +33,34 @@ export function isLiveByTime(startIso: string, withinMs = 2 * 60 * 60 * 1000): b
   if (Number.isNaN(ts)) return false;
   return Date.now() - ts < withinMs;
 }
+
+export interface SoLStatus {
+  /** Which anniversary deadline is approaching: 1-year or 2-year. */
+  deadline: 1 | 2;
+  /** Whole days until that deadline (>= 0). */
+  daysUntil: number;
+  /** The calendar deadline date. */
+  deadlineDate: Date;
+}
+
+/**
+ * Statute-of-limitations radar. A hail claim's window typically closes 1 or 2
+ * years after the storm (varies by state/policy). Returns the nearest upcoming
+ * anniversary that falls within `windowDays`, else null. Calendar-accurate
+ * (handles leap years via setFullYear), so it lines up with the real date.
+ */
+export function statuteStatus(startIso: string, windowDays = 60): SoLStatus | null {
+  const start = new Date(startIso);
+  if (Number.isNaN(start.getTime())) return null;
+  const now = Date.now();
+  const DAY = 86_400_000;
+  for (const yrs of [1, 2] as const) {
+    const deadline = new Date(start);
+    deadline.setFullYear(start.getFullYear() + yrs);
+    const daysUntil = Math.ceil((deadline.getTime() - now) / DAY);
+    if (daysUntil >= 0 && daysUntil <= windowDays) {
+      return { deadline: yrs, daysUntil, deadlineDate: deadline };
+    }
+  }
+  return null;
+}

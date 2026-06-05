@@ -67,6 +67,13 @@ class Settings(BaseSettings):
     # so one fetch is reused across requests for this long.
     oidc_jwks_cache_ttl_seconds: int = 3600
 
+    # Parcel-Service — shared county-parcel microservice. Powers draw-area lead
+    # lists + business-type prospecting. When unset, those endpoints return 503.
+    # Mint a "hailscout" consumer token on the Parcel-Service and set both.
+    parcel_service_url: str = ""
+    parcel_service_token: str = ""
+    parcel_service_timeout_s: float = 20.0
+
     # Geocoding
     geocoder_provider: Literal["nominatim", "mapbox"] = "nominatim"
     nominatim_user_agent: str = "HailScout/0.1.0 (+https://hailscout.com)"
