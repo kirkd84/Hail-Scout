@@ -19,6 +19,7 @@ export function SiteHeader() {
           <Link href="/alerts"        className="text-sm text-muted-foreground hover:text-foreground transition-colors">Alerts</Link>
           <Link href="/storms"        className="text-sm text-muted-foreground hover:text-foreground transition-colors">Storm catalog</Link>
           <Link href="/stats"         className="text-sm text-muted-foreground hover:text-foreground transition-colors">By the numbers</Link>
+          <Link href="/accuracy"      className="text-sm text-muted-foreground hover:text-foreground transition-colors">Accuracy</Link>
           <Link href="/claim"         className="text-sm text-muted-foreground hover:text-foreground transition-colors">Claim lookup</Link>
           <Link href="/case-studies"  className="text-sm text-muted-foreground hover:text-foreground transition-colors">Customers</Link>
           <Link href="/pricing"       className="text-sm text-muted-foreground hover:text-foreground transition-colors">Pricing</Link>
@@ -54,6 +55,7 @@ export function SiteFooter() {
             <Link href="/alerts" className="hover:text-foreground">Alerts</Link>
             <Link href="/storms" className="hover:text-foreground">Storm catalog</Link>
             <Link href="/stats" className="hover:text-foreground">By the numbers</Link>
+            <Link href="/accuracy" className="hover:text-foreground">Accuracy</Link>
             <Link href="/pricing" className="hover:text-foreground">Pricing</Link>
             <Link href="/case-studies" className="hover:text-foreground">Customers</Link>
             <Link href="/claim" className="hover:text-foreground">Claim lookup</Link>

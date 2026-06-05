@@ -83,9 +83,12 @@ export default function ClaimLookupPage() {
               radar, and National Weather Service ground reports.
             </p>
             {accuracy?.headline && (
-              <p className="mx-auto mt-4 max-w-xl rounded-full border border-forest/30 bg-forest/5 px-4 py-2 text-sm text-forest">
-                {accuracy.headline}
-              </p>
+              <Link
+                href="/accuracy"
+                className="mx-auto mt-4 block max-w-xl rounded-full border border-forest/30 bg-forest/5 px-4 py-2 text-sm text-forest transition-colors hover:bg-forest/10"
+              >
+                {accuracy.headline} <span aria-hidden>→</span>
+              </Link>
             )}
           </div>
 
@@ -202,13 +205,13 @@ export default function ClaimLookupPage() {
                   type="button"
                   onClick={() => {
                     if (typeof window !== "undefined") {
-                      const url = `${window.location.origin}/claim?address=${encodeURIComponent(data.address)}`;
+                      const url = `${window.location.origin}/verified?lat=${data.lat}&lng=${data.lng}&label=${encodeURIComponent(data.address)}`;
                       void navigator.clipboard?.writeText(url);
                     }
                   }}
                   className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-4 py-2 text-sm text-foreground hover:border-copper/50"
                 >
-                  Copy share link
+                  Copy verified link
                 </button>
                 <Link
                   href="/sign-up"

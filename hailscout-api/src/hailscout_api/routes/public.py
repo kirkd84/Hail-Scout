@@ -48,6 +48,13 @@ class AccuracyStat(BaseModel):
     confirmed_events: int
     sample_size: int
     within_quarter_inch: float | None
+    # Fuller (honest) calibration picture for the public accuracy dashboard.
+    within_half_inch: float | None = None
+    detection_rate: float | None = None
+    mae_in: float | None = None
+    correlation: float | None = None
+    confirmed_pairs: int = 0
+    min_size_in: float = 1.0
 
 
 @router.get("/public/stats", response_model=PublicStats)
@@ -193,4 +200,10 @@ async def public_accuracy(
         confirmed_events=int(confirmed_events),
         sample_size=int(calib.get("sample_size", 0)),
         within_quarter_inch=calib.get("within_0_25in"),
+        within_half_inch=calib.get("within_0_50in"),
+        detection_rate=calib.get("detection_rate"),
+        mae_in=calib.get("mae_in"),
+        correlation=calib.get("correlation"),
+        confirmed_pairs=int(calib.get("confirmed_pairs", 0)),
+        min_size_in=float(calib.get("min_size_in", 1.0)),
     )
