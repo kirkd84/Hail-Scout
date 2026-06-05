@@ -7,7 +7,7 @@ import {
   RefreshControl,
   useColorScheme,
 } from "react-native";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@/auth/AuthProvider";
 import { theme, SPACING, RADIUS } from "@/lib/tokens";
 import { AppHeader } from "@/components/AppHeader";
 import { HailBadge } from "@/components/HailBadge";

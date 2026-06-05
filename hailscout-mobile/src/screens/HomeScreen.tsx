@@ -7,7 +7,7 @@ import {
   RefreshControl,
   useColorScheme,
 } from "react-native";
-import { useUser } from "@clerk/clerk-expo";
+import { useAuth } from "@/auth/AuthProvider";
 import { theme, SPACING, RADIUS } from "@/lib/tokens";
 import { useStorms } from "@/hooks/useStorms";
 import { Card } from "@/components/Card";
@@ -16,7 +16,7 @@ import { StormRow } from "@/components/StormRow";
 
 export function HomeScreen() {
   const t = theme(useColorScheme());
-  const { user } = useUser();
+  const { user } = useAuth();
   const [, setTick] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const { storms, refresh } = useStorms({ daysBack: 30 });
@@ -51,7 +51,7 @@ export function HomeScreen() {
     return "Good evening.";
   })();
 
-  const firstName = user?.firstName ?? user?.emailAddresses[0]?.emailAddress.split("@")[0];
+  const firstName = user?.email?.split("@")[0];
 
   return (
     <View style={[styles.root, { backgroundColor: t.bg }]}>

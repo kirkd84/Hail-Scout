@@ -1,52 +1,116 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
-  TextInput,
   Pressable,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
   useColorScheme,
+  ActivityIndicator,
 } from "react-native";
-import { useSignIn } from "@clerk/clerk-expo";
-import { useNavigation } from "@react-navigation/native";
+import * as WebBrowser from "expo-web-browser";
+import * as Google from "expo-auth-session/providers/google";
+import {
+  useAuthRequest,
+  useAutoDiscovery,
+  exchangeCodeAsync,
+  makeRedirectUri,
+  ResponseType,
+} from "expo-auth-session";
 import { theme, SPACING, RADIUS } from "@/lib/tokens";
 import { Wordmark } from "@/components/Wordmark";
+import { useAuth } from "@/auth/AuthProvider";
+import { env } from "@/app/env";
+
+WebBrowser.maybeCompleteAuthSession();
+
+const SCOPES = ["openid", "profile", "email"];
 
 export function SignInScreen() {
   const t = theme(useColorScheme());
-  const { signIn, setActive, isLoaded } = useSignIn();
-  const nav = useNavigation<any>();
-
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [busy, setBusy] = useState(false);
+  const { completeSignIn } = useAuth();
+  const [busy, setBusy] = useState<null | "google" | "microsoft">(null);
   const [error, setError] = useState<string | null>(null);
 
-  const submit = async () => {
-    if (!isLoaded) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const attempt = await signIn.create({ identifier: email, password });
-      if (attempt.status === "complete") {
-        await setActive({ session: attempt.createdSessionId });
-      } else {
-        setError("Additional verification required.");
-      }
-    } catch (e: any) {
-      setError(e?.errors?.[0]?.message ?? "Sign-in failed.");
-    } finally {
-      setBusy(false);
+  // Google — the provider helper manages the iOS/Android client IDs + id_token.
+  const [, gRes, gPrompt] = Google.useAuthRequest({
+    iosClientId: env.GOOGLE_IOS_CLIENT_ID || undefined,
+    androidClientId: env.GOOGLE_ANDROID_CLIENT_ID || undefined,
+    scopes: SCOPES,
+  });
+
+  // Microsoft — generic Authorization-Code + PKCE against the v2.0 endpoints.
+  const msDiscovery = useAutoDiscovery(
+    `https://login.microsoftonline.com/${env.MICROSOFT_TENANT}/v2.0`,
+  );
+  const msRedirect = makeRedirectUri({ scheme: "hailscout", path: "auth" });
+  const [mReq, mRes, mPrompt] = useAuthRequest(
+    {
+      clientId: env.MICROSOFT_CLIENT_ID,
+      scopes: SCOPES,
+      redirectUri: msRedirect,
+      responseType: ResponseType.Code,
+      usePKCE: true,
+    },
+    msDiscovery,
+  );
+
+  // Google result → id_token → exchange.
+  useEffect(() => {
+    if (!gRes) return;
+    if (gRes.type !== "success") {
+      if (gRes.type === "error") setError("Google sign-in failed.");
+      setBusy(null);
+      return;
     }
-  };
+    const idToken =
+      (gRes.params?.id_token as string | undefined) ?? gRes.authentication?.idToken;
+    if (!idToken) {
+      setError("Google didn't return an identity token.");
+      setBusy(null);
+      return;
+    }
+    (async () => {
+      try {
+        await completeSignIn("google", idToken);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Sign-in failed.");
+      } finally {
+        setBusy(null);
+      }
+    })();
+  }, [gRes, completeSignIn]);
+
+  // Microsoft result → exchange code for tokens → id_token → exchange.
+  useEffect(() => {
+    if (!mRes) return;
+    if (mRes.type !== "success" || !msDiscovery || !mReq) {
+      if (mRes.type === "error") setError("Microsoft sign-in failed.");
+      setBusy(null);
+      return;
+    }
+    (async () => {
+      try {
+        const tokenRes = await exchangeCodeAsync(
+          {
+            clientId: env.MICROSOFT_CLIENT_ID,
+            code: mRes.params.code,
+            redirectUri: msRedirect,
+            extraParams: { code_verifier: mReq.codeVerifier ?? "" },
+          },
+          msDiscovery,
+        );
+        if (!tokenRes.idToken) throw new Error("Microsoft didn't return an identity token.");
+        await completeSignIn("microsoft", tokenRes.idToken);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Sign-in failed.");
+      } finally {
+        setBusy(null);
+      }
+    })();
+  }, [mRes, msDiscovery, mReq, msRedirect, completeSignIn]);
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.root, { backgroundColor: t.bg }]}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
+    <View style={[styles.root, { backgroundColor: t.bg }]}>
       <View style={styles.center}>
         <Wordmark size={28} />
         <Text style={[styles.eyebrow, { color: t.accent }]}>SIGN IN</Text>
@@ -56,47 +120,72 @@ export function SignInScreen() {
         </Text>
 
         <View style={{ width: "100%", marginTop: SPACING.xl, gap: SPACING.md }}>
-          <TextInput
-            placeholder="Email"
-            placeholderTextColor={t.fgMuted}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            textContentType="username"
-            value={email}
-            onChangeText={setEmail}
-            style={[styles.input, { color: t.fg, backgroundColor: t.bgLift, borderColor: t.border }]}
+          <ProviderButton
+            label="Continue with Google"
+            loading={busy === "google"}
+            disabled={busy !== null}
+            onPress={() => {
+              setError(null);
+              setBusy("google");
+              void gPrompt();
+            }}
+            t={t}
           />
-          <TextInput
-            placeholder="Password"
-            placeholderTextColor={t.fgMuted}
-            secureTextEntry
-            textContentType="password"
-            value={password}
-            onChangeText={setPassword}
-            style={[styles.input, { color: t.fg, backgroundColor: t.bgLift, borderColor: t.border }]}
+          <ProviderButton
+            label="Continue with Microsoft"
+            loading={busy === "microsoft"}
+            disabled={busy !== null || !mReq}
+            onPress={() => {
+              setError(null);
+              setBusy("microsoft");
+              void mPrompt();
+            }}
+            t={t}
           />
           {error && <Text style={[styles.error, { color: t.destructive }]}>{error}</Text>}
-          <Pressable
-            disabled={busy}
-            onPress={submit}
-            style={({ pressed }) => [
-              styles.cta,
-              { backgroundColor: t.primary, opacity: busy || pressed ? 0.7 : 1 },
-            ]}
-          >
-            <Text style={[styles.ctaText, { color: t.primaryFg }]}>
-              {busy ? "Signing in…" : "Sign in"}
-            </Text>
-          </Pressable>
-          <Pressable onPress={() => nav.navigate("SignUp")}>
-            <Text style={[styles.altLink, { color: t.fgMuted }]}>
-              No account yet?{" "}
-              <Text style={{ color: t.accent, fontWeight: "500" }}>Create one →</Text>
-            </Text>
-          </Pressable>
+          <Text style={[styles.fine, { color: t.fgMuted }]}>
+            Use the Google or Microsoft account tied to your work email. No account?
+            Ask your administrator to add you.
+          </Text>
         </View>
       </View>
-    </KeyboardAvoidingView>
+    </View>
+  );
+}
+
+function ProviderButton({
+  label,
+  loading,
+  disabled,
+  onPress,
+  t,
+}: {
+  label: string;
+  loading: boolean;
+  disabled: boolean;
+  onPress: () => void;
+  t: ReturnType<typeof theme>;
+}) {
+  return (
+    <Pressable
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.cta,
+        {
+          backgroundColor: t.bgLift,
+          borderColor: t.border,
+          borderWidth: 1,
+          opacity: disabled || pressed ? 0.7 : 1,
+        },
+      ]}
+    >
+      {loading ? (
+        <ActivityIndicator color={t.accent} />
+      ) : (
+        <Text style={[styles.ctaText, { color: t.fg }]}>{label}</Text>
+      )}
+    </Pressable>
   );
 }
 
@@ -106,15 +195,8 @@ const styles = StyleSheet.create({
   eyebrow: { fontSize: 10, fontFamily: "Courier", letterSpacing: 1.4, marginTop: 24 },
   title: { fontFamily: "serif", fontSize: 32, fontWeight: "500", letterSpacing: -0.5, textAlign: "center" },
   sub: { fontSize: 14, textAlign: "center", lineHeight: 20, maxWidth: 280 },
-  input: {
-    borderWidth: 1, borderRadius: RADIUS.md,
-    padding: SPACING.md, fontSize: 15,
-  },
-  cta: {
-    borderRadius: RADIUS.md, padding: SPACING.md,
-    alignItems: "center", marginTop: SPACING.sm,
-  },
+  cta: { borderRadius: RADIUS.md, padding: SPACING.md, alignItems: "center", justifyContent: "center", minHeight: 50 },
   ctaText: { fontSize: 15, fontWeight: "600", letterSpacing: -0.2 },
-  altLink: { textAlign: "center", fontSize: 13, marginTop: SPACING.md },
+  fine: { textAlign: "center", fontSize: 12, lineHeight: 18, marginTop: SPACING.sm },
   error: { fontSize: 13, textAlign: "center" },
 });

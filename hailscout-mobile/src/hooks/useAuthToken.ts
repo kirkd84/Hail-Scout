@@ -1,40 +1,10 @@
-import { useAuth } from "@clerk/clerk-expo";
-import { useCallback, useState } from "react";
+import { useAuth } from "@/auth/AuthProvider";
 
 /**
- * useAuthToken Hook
- *
- * Wraps Clerk's useAuth hook to:
- * - Fetch the current JWT token
- * - Handle token refresh
- * - Provide convenient error handling
+ * Back-compat shim. Existing screens call `const { token } = useAuthToken();`
+ * then `await token()`. We now back it with the first-party AuthProvider.
  */
-
 export function useAuthToken() {
   const { getToken } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-
-  const token = useCallback(async (): Promise<string | null> => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const token = await getToken({ template: "hailscout" });
-      return token;
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error(String(err));
-      setError(error);
-      console.error("Failed to get auth token:", error);
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [getToken]);
-
-  return {
-    token,
-    isLoading,
-    error,
-  };
+  return { token: getToken, isLoading: false, error: null as Error | null };
 }

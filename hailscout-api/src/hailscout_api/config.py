@@ -59,6 +59,10 @@ class Settings(BaseSettings):
     # web tier (Arctic does the token exchange) — never here. We only need the
     # client IDs to validate the `aud` claim of the provider id_token.
     google_oauth_client_id: str = ""
+    # Extra accepted Google audiences — the mobile app's iOS/Android native
+    # client IDs differ from the web client ID, and a token's `aud` is its own
+    # client. List them here so mobile sign-in passes audience validation.
+    google_oauth_audiences: list[str] = []
     microsoft_oauth_client_id: str = ""
     # Microsoft tenant: "common" (work + personal), "organizations",
     # "consumers", or a specific tenant GUID. Controls the accepted issuer.

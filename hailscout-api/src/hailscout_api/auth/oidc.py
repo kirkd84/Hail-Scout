@@ -102,14 +102,19 @@ def _truthy(value: Any) -> bool:
 async def _verify_google(token: str) -> OAuthIdentity:
     from hailscout_api.config import get_settings
 
-    client_id = get_settings().google_oauth_client_id
+    settings = get_settings()
+    client_id = settings.google_oauth_client_id
     if not client_id:
         raise AuthenticationError("Google OAuth is not configured")
+
+    # Accept the web client ID plus any configured mobile (iOS/Android) client
+    # IDs — each platform's id_token carries its own client as `aud`.
+    audiences = [client_id, *[a for a in settings.google_oauth_audiences if a]]
 
     jwks = await _get_jwks_cache().get(_GOOGLE_JWKS)
     key = _public_key_for(token, jwks)
     try:
-        claims = jwt.decode(token, key, algorithms=["RS256"], audience=client_id)
+        claims = jwt.decode(token, key, algorithms=["RS256"], audience=audiences)
     except PyJWTError as exc:
         raise AuthenticationError("Google id_token verification failed") from exc
 

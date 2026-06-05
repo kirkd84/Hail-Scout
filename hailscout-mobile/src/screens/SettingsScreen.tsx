@@ -7,7 +7,7 @@ import {
   Linking,
   useColorScheme,
 } from "react-native";
-import { useAuth, useUser } from "@clerk/clerk-expo";
+import { useAuth } from "@/auth/AuthProvider";
 import { theme, SPACING, RADIUS } from "@/lib/tokens";
 import { AppHeader } from "@/components/AppHeader";
 import { Card } from "@/components/Card";
@@ -17,8 +17,7 @@ const VERSION = "0.2.0";
 
 export function SettingsScreen() {
   const t = theme(useColorScheme());
-  const { signOut } = useAuth();
-  const { user } = useUser();
+  const { signOut, user, organization } = useAuth();
 
   return (
     <View style={[styles.root, { backgroundColor: t.bg }]}>
@@ -28,23 +27,19 @@ export function SettingsScreen() {
         <Card>
           <Text style={[styles.eyebrow, { color: t.fgMuted }]}>SIGNED IN</Text>
           <Text style={[styles.value, { color: t.fg }]} numberOfLines={1}>
-            {user?.emailAddresses[0]?.emailAddress ?? "—"}
+            {user?.email ?? "—"}
           </Text>
-          {user?.firstName && (
+          {(organization?.name || user?.role) && (
             <Text style={[styles.sub, { color: t.fgMuted }]}>
-              {user.firstName} {user.lastName}
+              {[organization?.name, user?.role?.replace("_", " ")].filter(Boolean).join(" · ")}
             </Text>
           )}
         </Card>
 
         <Card>
-          <Pressable
-            onPress={() => Linking.openURL("https://hail-scout.vercel.app/app")}
-          >
+          <Pressable onPress={() => Linking.openURL("https://hailscout.net/app")}>
             <Text style={[styles.linkLabel, { color: t.accent }]}>OPEN ON DESKTOP</Text>
-            <Text style={[styles.linkValue, { color: t.fg }]}>
-              hail-scout.vercel.app/app  →
-            </Text>
+            <Text style={[styles.linkValue, { color: t.fg }]}>hailscout.net/app  →</Text>
             <Text style={[styles.sub, { color: t.fgMuted }]}>
               Markers and addresses sync between mobile and web.
             </Text>
@@ -52,7 +47,9 @@ export function SettingsScreen() {
         </Card>
 
         <Pressable
-          onPress={() => signOut()}
+          onPress={() => {
+            void signOut();
+          }}
           style={({ pressed }) => [
             styles.signOut,
             {
@@ -75,18 +72,18 @@ export function SettingsScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  eyebrow:    { fontSize: 10, fontFamily: "Courier", letterSpacing: 1.2 },
-  value:      { fontFamily: "serif", fontSize: 18, fontWeight: "500", marginTop: 4 },
-  sub:        { fontSize: 12, marginTop: 4 },
-  linkLabel:  { fontSize: 10, fontFamily: "Courier", letterSpacing: 1.2 },
-  linkValue:  { fontSize: 16, fontWeight: "500", marginTop: 6, letterSpacing: -0.2 },
-  signOut:    {
+  eyebrow: { fontSize: 10, fontFamily: "Courier", letterSpacing: 1.2 },
+  value: { fontFamily: "serif", fontSize: 18, fontWeight: "500", marginTop: 4 },
+  sub: { fontSize: 12, marginTop: 4 },
+  linkLabel: { fontSize: 10, fontFamily: "Courier", letterSpacing: 1.2 },
+  linkValue: { fontSize: 16, fontWeight: "500", marginTop: 6, letterSpacing: -0.2 },
+  signOut: {
     borderWidth: 1,
     borderRadius: RADIUS.lg,
     padding: SPACING.md,
     alignItems: "center",
   },
   signOutText: { fontSize: 15, fontWeight: "500" },
-  footer:      { alignItems: "center", marginTop: SPACING.xl, gap: 6 },
-  version:     { fontSize: 11, fontFamily: "Courier" },
+  footer: { alignItems: "center", marginTop: SPACING.xl, gap: 6 },
+  version: { fontSize: 11, fontFamily: "Courier" },
 });

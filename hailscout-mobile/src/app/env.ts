@@ -1,29 +1,17 @@
-import { z } from "zod";
+/**
+ * Client-safe config (all EXPO_PUBLIC_*, inlined at build time).
+ *
+ * OAuth client IDs come from the Google Cloud + Azure NATIVE app registrations
+ * (separate from the web ones). See RUNNING.md → Auth.
+ */
+export const env = {
+  GOOGLE_IOS_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? "",
+  GOOGLE_ANDROID_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? "",
+  MICROSOFT_CLIENT_ID: process.env.EXPO_PUBLIC_MICROSOFT_CLIENT_ID ?? "",
+  MICROSOFT_TENANT: process.env.EXPO_PUBLIC_MICROSOFT_TENANT ?? "common",
+  API_BASE_URL:
+    process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://hail-scout-production.up.railway.app",
+  TILES_BASE_URL: process.env.EXPO_PUBLIC_TILES_BASE_URL ?? "https://tiles.hailscout.com",
+} as const;
 
-const envSchema = z.object({
-  CLERK_PUBLISHABLE_KEY: z.string().min(1),
-  API_BASE_URL: z.string().url(),
-  TILES_BASE_URL: z.string().url(),
-  ENVIRONMENT: z.enum(["development", "preview", "production"]).default("development"),
-});
-
-export type Env = z.infer<typeof envSchema>;
-
-function getEnvVars(): Env {
-  const raw = {
-    CLERK_PUBLISHABLE_KEY: process.env.CLERK_PUBLISHABLE_KEY || "",
-    API_BASE_URL: process.env.API_BASE_URL || "https://api.hailscout.com/v1",
-    TILES_BASE_URL: process.env.TILES_BASE_URL || "https://tiles.hailscout.com",
-    ENVIRONMENT: (process.env.ENVIRONMENT || "development") as "development" | "preview" | "production",
-  };
-
-  const parsed = envSchema.safeParse(raw);
-  if (!parsed.success) {
-    console.error("Environment validation failed:", parsed.error.flatten());
-    throw new Error("Invalid environment variables");
-  }
-
-  return parsed.data;
-}
-
-export const env = getEnvVars();
+export type Env = typeof env;

@@ -1,5 +1,5 @@
 import React from "react";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@/auth/AuthProvider";
 import { createStackNavigator } from "@react-navigation/stack";
 import { View, ActivityIndicator, useColorScheme } from "react-native";
 import { theme } from "@/lib/tokens";
