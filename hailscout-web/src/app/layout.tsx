@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { AuthProvider } from "@/hooks/useAuth";
 import { Inter, Fraunces, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { APP_NAME, APP_DESCRIPTION } from "@/lib/constants";
 import { ThemeProvider } from "@/components/theme/theme-provider";
+import { ServiceWorkerRegistrar } from "@/components/service-worker-registrar";
 
 const sans = Inter({
   subsets: ["latin"],
@@ -36,7 +37,15 @@ export const metadata: Metadata = {
     title: APP_NAME,
     description: APP_DESCRIPTION,
   },
-  icons: { icon: "/favicon.ico" },
+  icons: { icon: "/favicon.ico", apple: "/apple-icon" },
+  appleWebApp: { capable: true, title: APP_NAME, statusBarStyle: "default" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0F4C5C",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -50,6 +59,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>
+        <ServiceWorkerRegistrar />
       </body>
     </html>
   );

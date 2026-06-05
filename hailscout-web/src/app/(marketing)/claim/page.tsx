@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 import { StatTicker } from "@/components/marketing/stat-ticker";
@@ -15,6 +15,7 @@ import { VerificationBadge, VerificationPanel } from "@/components/verification-
 import { DownloadReportButton } from "@/components/reports/download-report-button";
 import { useAccuracyStat } from "@/hooks/useAccuracyStat";
 import { useExposure } from "@/hooks/useExposure";
+import { useGeolocation } from "@/hooks/useGeolocation";
 
 /**
  * Public claim lookup — homeowners and insurance adjusters can search
@@ -28,12 +29,24 @@ import { useExposure } from "@/hooks/useExposure";
 export default function ClaimLookupPage() {
   const [query, setQuery] = useState("");
   const [submitted, setSubmitted] = useState<string | undefined>(undefined);
-  const { data, isLoading, error } = useStormsAtAddress(submitted);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const { data, isLoading, error } = useStormsAtAddress(submitted, coords ?? undefined);
   const accuracy = useAccuracyStat();
+  const geo = useGeolocation();
+
+  // When the device returns a GPS fix, run the lookup at those coordinates.
+  useEffect(() => {
+    if (geo.coords) {
+      setCoords(geo.coords);
+      setSubmitted("My current location");
+      setQuery("");
+    }
+  }, [geo.coords]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
+    setCoords(null);
     setSubmitted(query.trim());
   };
 
@@ -97,9 +110,21 @@ export default function ClaimLookupPage() {
             </div>
           </form>
 
-          {error && (
+          <div className="mx-auto mt-3 flex max-w-xl justify-center">
+            <button
+              type="button"
+              onClick={geo.locate}
+              disabled={geo.loading || isLoading}
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60"
+            >
+              <LocateIcon className="h-4 w-4" />
+              {geo.loading ? "Locating…" : "Use my current location"}
+            </button>
+          </div>
+
+          {(error || geo.error) && (
             <p className="mx-auto mt-3 max-w-xl text-center text-sm text-destructive">
-              {error.message}
+              {geo.error ?? error?.message}
             </p>
           )}
         </div>
@@ -213,6 +238,7 @@ export default function ClaimLookupPage() {
                     key={m}
                     type="button"
                     onClick={() => {
+                      setCoords(null);
                       setQuery(m);
                       setSubmitted(m);
                     }}
@@ -369,6 +395,15 @@ function StormResultCard({ storm, address }: { storm: Storm; address?: string })
         </div>
       </div>
     </li>
+  );
+}
+
+function LocateIcon(p: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <circle cx="12" cy="12" r="3.2" />
+      <path d="M12 2v3.2M12 18.8V22M2 12h3.2M18.8 12H22" />
+    </svg>
   );
 }
 
