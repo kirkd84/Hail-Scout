@@ -29,6 +29,7 @@ from hailscout_api.routes import (
     me,
     monitored,
     parcels,
+    provision,
     reports,
     storms,
     tiles,
@@ -128,6 +129,12 @@ def create_app() -> FastAPI:
     v1.include_router(contacts_crm.router, tags=["customers"])
 
     app.include_router(v1)
+
+    # External HR provisioning API. Mounted at its own ``/api/provision`` prefix
+    # (NOT under /v1) and authenticated by a static X-API-Key — separate from the
+    # first-party OAuth/JWT surface. The router itself returns 503 when
+    # HR_PROVISION_API_KEY is unset, so mounting it unconditionally is safe.
+    app.include_router(provision.router)
 
     # Map domain auth errors to 401/403 instead of falling through to 500.
     from hailscout_api.core import AuthenticationError, AuthorizationError

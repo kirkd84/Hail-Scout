@@ -55,6 +55,17 @@ class Settings(BaseSettings):
     # Long-lived, server-stored, revocable refresh/session lifetime.
     session_refresh_ttl_days: int = 30
 
+    # ------------------------------------------------------------------
+    # External HR provisioning API (X-API-Key). Lets an outside HR system
+    # create / disable rep accounts via /api/provision/*. When
+    # ``hr_provision_api_key`` is empty the whole router answers 503 (feature
+    # off). The key maps to exactly ONE org: ``hr_provision_org_id``. Callers
+    # MAY also pass ``org_id`` in the request body, but it must equal the
+    # configured org — we never let one key provision into a different tenant.
+    # ------------------------------------------------------------------
+    hr_provision_api_key: str = ""
+    hr_provision_org_id: str = ""
+
     # OAuth provider PUBLIC client IDs only. The client *secrets* live in the
     # web tier (Arctic does the token exchange) — never here. We only need the
     # client IDs to validate the `aud` claim of the provider id_token.

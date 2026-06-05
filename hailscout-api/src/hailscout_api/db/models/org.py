@@ -88,6 +88,13 @@ class User(Base):
     auth_subject: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     # Which provider linked the subject: 'google' | 'microsoft' | None.
     auth_provider: Mapped[str | None] = mapped_column(String(32))
+    # Account disable flag. Set by the HR provisioning API (and usable by any
+    # future admin tooling). A disabled user is rejected at OAuth exchange and
+    # has all refresh sessions revoked, so existing tokens stop working too.
+    is_disabled: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, server_default="false"
+    )
+    disabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = created_at_column()
     updated_at: Mapped[datetime] = updated_at_column()
 

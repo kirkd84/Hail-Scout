@@ -118,6 +118,15 @@ async def exchange(
             detail="No HailScout account exists for this email. Ask your administrator to add you.",
         )
 
+    # Disabled accounts (e.g. deactivated by the HR provisioning API) cannot
+    # sign in, even though the row still exists for audit/history.
+    if user.is_disabled:
+        logger.info("auth.exchange.disabled", user_id=user.id, email=identity.email)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This account has been disabled. Contact your administrator.",
+        )
+
     org = (
         await session.execute(
             select(Organization).where(Organization.id == user.org_id)
