@@ -23,6 +23,7 @@ from hailscout_api.routes import (
     reports,
     storms,
     tiles,
+    tokens,
 )
 
 __all__ = [
@@ -32,6 +33,7 @@ __all__ = [
     "storms",
     "hail",
     "tiles",
+    "tokens",
     "reports",
     "markers",
     "monitored",

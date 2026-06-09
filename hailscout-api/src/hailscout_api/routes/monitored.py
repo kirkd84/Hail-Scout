@@ -11,6 +11,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hailscout_api.auth.session import verify_access_token
+from hailscout_api.auth.principal import resolve_user_from_token
 from hailscout_api.core import AuthenticationError, get_logger
 from hailscout_api.db.models.canvass import MonitoredAddress
 from hailscout_api.db.models.org import User
@@ -54,17 +55,7 @@ async def _resolve_user(request: Request, session: AsyncSession) -> User:
     if not token:
         raise AuthenticationError("Missing Authorization header")
 
-    claims = verify_access_token(token)
-    user_id = claims.get("sub")
-    if not user_id:
-        raise AuthenticationError("JWT missing sub claim")
-
-    user = (
-        await session.execute(select(User).where(User.id == user_id))
-    ).scalars().first()
-    if not user:
-        raise AuthenticationError("User not found — webhook may not have reconciled yet")
-    return user
+    return await resolve_user_from_token(token, request.method, session)
 
 
 def _near(a: MonitoredAddress, lat: float, lng: float, tol: float = 0.0005) -> bool:

@@ -33,6 +33,7 @@ from hailscout_api.routes import (
     reports,
     storms,
     tiles,
+    tokens,
 )
 
 log = logging.getLogger(__name__)
@@ -111,6 +112,7 @@ def create_app() -> FastAPI:
     v1.include_router(health.router, tags=["health"])
     v1.include_router(auth.router, tags=["auth"])
     v1.include_router(me.router, tags=["user"])
+    v1.include_router(tokens.router, tags=["tokens"])
     v1.include_router(storms.router, tags=["storms"])
     v1.include_router(hail.router, tags=["hail"])
     v1.include_router(tiles.router, tags=["tiles"])

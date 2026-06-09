@@ -9,6 +9,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hailscout_api.auth.session import verify_access_token
+from hailscout_api.auth.principal import resolve_user
 from hailscout_api.core import AuthenticationError, get_logger
 from hailscout_api.db.models.canvass import SavedReport
 from hailscout_api.db.models.org import Organization, User
@@ -26,27 +27,7 @@ router = APIRouter(prefix="/reports")
 
 
 async def _resolve_user(request: Request, session: AsyncSession) -> User:
-    auth_header = request.headers.get("Authorization")
-    if not auth_header:
-        raise AuthenticationError("Missing Authorization header")
-    try:
-        scheme, token = auth_header.split(" ", 1)
-    except ValueError as exc:
-        raise AuthenticationError("Invalid Authorization header format") from exc
-    if scheme.lower() != "bearer":
-        raise AuthenticationError("Only Bearer tokens supported")
-
-    claims = verify_access_token(token)
-    user_id = claims.get("sub")
-    if not user_id:
-        raise AuthenticationError("JWT missing sub claim")
-
-    user = (
-        await session.execute(select(User).where(User.id == user_id))
-    ).scalars().first()
-    if not user:
-        raise AuthenticationError("User not found")
-    return user
+    return await resolve_user(request, session)
 
 
 def _report_id() -> str:

@@ -24,6 +24,7 @@ import { EmailAlertsCard } from "@/components/app/email-alerts-card";
 import { SmsAlertsCard } from "@/components/app/sms-alerts-card";
 import { PushAlertsCard } from "@/components/app/push-alerts-card";
 import { SlackCard } from "@/components/app/slack-card";
+import { ApiTokensCard } from "@/components/app/api-tokens-card";
 import { cn } from "@/lib/utils";
 import {
   IconUser,
@@ -276,16 +277,7 @@ function IntegrationsTab() {
           need this today and we'll wire it up by hand.
         </p>
       </SectionCard>
-      <SectionCard
-        eyebrow="API"
-        title="API tokens"
-        description="Generate a personal access token for read-only API queries (markers, addresses, alerts)."
-      >
-        <p className="text-sm text-foreground/55">
-          On the way. The full OpenAPI spec is at{" "}
-          <span className="font-mono">/v1/openapi.json</span>.
-        </p>
-      </SectionCard>
+      <ApiTokensCard />
     </>
   );
 }

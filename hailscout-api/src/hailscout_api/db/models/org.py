@@ -142,6 +142,38 @@ class UserSession(Base):
         return f"<UserSession(id={self.id}, user_id={self.user_id})>"
 
 
+class ApiToken(Base):
+    """A personal access token for the read-only API.
+
+    We store only the SHA-256 hash of the token; the plaintext (``hsk_…``) is
+    shown exactly once at creation. ``scope`` is "read" for now — PATs are
+    rejected on any non-GET request at the auth layer.
+    """
+
+    __tablename__ = "api_tokens"
+
+    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    org_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
+    # First chars of the plaintext, kept for display ("hsk_ab12cd…").
+    prefix: Mapped[str] = mapped_column(String(16), nullable=False)
+    scope: Mapped[str] = mapped_column(
+        String(32), nullable=False, server_default="read", default="read"
+    )
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = created_at_column()
+
+    def __repr__(self) -> str:
+        return f"<ApiToken(id={self.id}, user_id={self.user_id})>"
+
+
 class Seat(Base):
     """Organizational seat allocation."""
 
