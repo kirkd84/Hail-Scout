@@ -44,7 +44,7 @@ export function useViewportRaster({
           // Render a margin BEYOND the visible viewport so panning/zooming
           // stays covered by the current image while the next one loads —
           // this is what kills the "swath vanishes for a few seconds" flicker.
-          const PAD = 0.35;
+          const PAD = 0.45;
           const [w, s, e, n] = bbox;
           const dx = (e - w) * PAD;
           const dy = (n - s) * PAD;

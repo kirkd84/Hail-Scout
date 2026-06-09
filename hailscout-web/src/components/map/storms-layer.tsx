@@ -68,6 +68,20 @@ function categoryToMinInches(label: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+// The discrete size-category ladder (inches). Our swaths are stored as bands
+// on these floors, so the honest at-point answer is a RANGE, not a single
+// decimal — which is why a smooth color gradient within one band reads the
+// same size everywhere (the shading between bands is cosmetic blur, not data).
+const SIZE_LADDER = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0];
+
+/** Band range for a category floor: 1.0 → "1.00–1.25″", 3.0 → "≥3.00″". */
+function bandRangeLabel(floor: number): string {
+  const i = SIZE_LADDER.findIndex((x) => Math.abs(x - floor) < 1e-6);
+  if (i === -1) return `${floor.toFixed(2)}″`;
+  if (i === SIZE_LADDER.length - 1) return `≥${floor.toFixed(2)}″`;
+  return `${floor.toFixed(2)}–${SIZE_LADDER[i + 1].toFixed(2)}″`;
+}
+
 function formatDateLabel(iso: string): string {
   const d = new Date(iso);
   // "May 11" / "Aug 03" — same format the time-scrubber uses.
@@ -498,8 +512,8 @@ export function StormsLayer({
       // to target a neighborhood. Fall back to the storm peak only when
       // hovering a centroid (no band under the cursor).
       const bandSize = feat.properties?.min_size_in;
-      const localSize =
-        typeof bandSize === "number" ? bandSize : s.max_hail_size_in;
+      const isBand = typeof bandSize === "number";
+      const localSize = isBand ? bandSize : s.max_hail_size_in;
       const c = hailColor(localSize);
       const where = nearestMetro(s.centroid_lat, s.centroid_lng);
       const heavy = localSize >= 1.5;
@@ -516,6 +530,12 @@ export function StormsLayer({
         s.max_hail_size_in > localSize + 0.01
           ? `<div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;opacity:0.55;margin-top:2px;">Storm peak: ${s.max_hail_size_in.toFixed(2)}″ elsewhere</div>`
           : "";
+      // Honest at-point precision: we store hail in 0.25″ category bands, so
+      // the size HERE is a range. Showing it explains why a smooth color
+      // gradient inside one band reads the same size everywhere.
+      const bandNote = isBand
+        ? `<div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;opacity:0.7;margin-top:3px;">Size band: ${bandRangeLabel(localSize)}</div>`
+        : "";
       // Inline HTML kept tight; styling matches the picker card.
       // The LSR-confirmed pill appears only when an SPC ground-truth
       // report fell inside this cell within ±30 min — it's a quiet
@@ -539,6 +559,7 @@ export function StormsLayer({
           <div style="min-width:0;">
             <div style="font-family:Fraunces,Cambria,serif;font-size:15px;font-weight:500;letter-spacing:-0.01em;line-height:1.2;">${where?.label ?? "United States"}${confirmedPill}</div>
             <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;opacity:0.65;margin-top:3px;">${dateStr} · ${s.source}</div>
+            ${bandNote}
             ${peakNote}
             ${lsrSizeNote}
           </div>
