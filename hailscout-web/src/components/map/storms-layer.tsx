@@ -100,6 +100,7 @@ function buildCentroidFC(storms: StormWithSwaths[]): GeoJSON.FeatureCollection {
         start_time: s.start_time,
         date_label: formatDateLabel(s.start_time),
         peak_label: `${s.max_hail_size_in.toFixed(1)}″`,
+        suspect: s.suspect ? true : false,
       },
     })),
   };
@@ -118,6 +119,7 @@ function buildBandsFC(storms: StormWithSwaths[]): GeoJSON.FeatureCollection {
           storm_id: s.id,
           min_size_in: categoryToMinInches(sw.hail_size_category),
           start_time: s.start_time,
+          suspect: s.suspect ? true : false,
         },
       });
     }
@@ -251,13 +253,19 @@ export function StormsLayer({
           // cleanly instead of producing one opaque mass. The severe
           // tiers still read because the glow halo amplifies them.
           "fill-opacity": [
-            "interpolate", ["linear"], ["get", "min_size_in"],
-            0.75, 0.22,
-            1.0,  0.32,
-            1.5,  0.48,
-            2.0,  0.62,
-            2.5,  0.74,
-            3.0,  0.84,
+            "*",
+            [
+              "interpolate", ["linear"], ["get", "min_size_in"],
+              0.75, 0.22,
+              1.0,  0.32,
+              1.5,  0.48,
+              2.0,  0.62,
+              2.5,  0.74,
+              3.0,  0.84,
+            ],
+            // Unverified (suspect) cells render at 40% so they read as
+            // "present but provisional" beside confirmed cells.
+            ["case", ["==", ["get", "suspect"], true], 0.4, 1.0],
           ],
           // Subtle blur on the antialiased fill edges. MapLibre paints
           // polygon fills with hard edges; fill-antialias=true plus the
@@ -343,7 +351,7 @@ export function StormsLayer({
           ],
           "circle-stroke-color": "#FAF7F1",
           "circle-stroke-width": 1.6,
-          "circle-opacity": 1,
+          "circle-opacity": ["case", ["==", ["get", "suspect"], true], 0.5, 1],
         },
       });
 
@@ -544,6 +552,16 @@ export function StormsLayer({
       const confirmedPill = s.lsr_confirmed
         ? `<span style="display:inline-flex;align-items:center;gap:3px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:0.08em;color:#2f7a4f;background:rgba(47,122,79,0.12);border:1px solid rgba(47,122,79,0.3);border-radius:3px;padding:1px 5px;margin-left:6px;vertical-align:middle;">✓ Confirmed</span>`
         : "";
+      // Unverified pill — only when the cell is suspect AND not LSR-confirmed.
+      // Communicates the confidence tier instead of hiding the cell entirely.
+      const unverifiedPill =
+        s.suspect && !s.lsr_confirmed
+          ? `<span style="display:inline-flex;align-items:center;gap:3px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:0.08em;color:#9a6a1a;background:rgba(216,138,61,0.14);border:1px solid rgba(216,138,61,0.4);border-radius:3px;padding:1px 5px;margin-left:6px;vertical-align:middle;">⚠ Unverified</span>`
+          : "";
+      const suspectNote =
+        s.suspect && !s.lsr_confirmed
+          ? `<div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;opacity:0.6;margin-top:2px;color:#9a6a1a;">Radar-only — not yet cross-confirmed</div>`
+          : "";
       const lsrSizeNote =
         s.lsr_confirmed && s.lsr_observed_size_in
           ? `<div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;opacity:0.55;margin-top:2px;">Ground report: ${s.lsr_observed_size_in.toFixed(
@@ -557,11 +575,12 @@ export function StormsLayer({
             <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:8px;text-transform:uppercase;letter-spacing:0.08em;line-height:1;margin-top:2px;opacity:0.9;">${c.object}</span>
           </span>
           <div style="min-width:0;">
-            <div style="font-family:Fraunces,Cambria,serif;font-size:15px;font-weight:500;letter-spacing:-0.01em;line-height:1.2;">${where?.label ?? "United States"}${confirmedPill}</div>
+            <div style="font-family:Fraunces,Cambria,serif;font-size:15px;font-weight:500;letter-spacing:-0.01em;line-height:1.2;">${where?.label ?? "United States"}${confirmedPill}${unverifiedPill}</div>
             <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;opacity:0.65;margin-top:3px;">${dateStr} · ${s.source}</div>
             ${bandNote}
             ${peakNote}
             ${lsrSizeNote}
+            ${suspectNote}
           </div>
         </div>`;
       popup.setLngLat(e.lngLat).setHTML(html).addTo(map);

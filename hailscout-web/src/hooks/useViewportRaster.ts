@@ -21,6 +21,8 @@ interface Args {
   minSize?: number | null;
   source?: string | null;
   enabled?: boolean;
+  /** Include suspect/low-confidence cells in the surface (default false). */
+  includeUnconfirmed?: boolean;
 }
 
 /**
@@ -36,6 +38,7 @@ export function useViewportRaster({
   minSize = null,
   source = null,
   enabled = true,
+  includeUnconfirmed = false,
 }: Args) {
   // Round the bbox so small pixel-level pans don't thrash the cache.
   const key =
@@ -64,6 +67,7 @@ export function useViewportRaster({
           });
           if (minSize != null && minSize > 0) qs.set("min_size", String(minSize));
           if (source) qs.set("source", source);
+          if (includeUnconfirmed) qs.set("include_unconfirmed", "true");
           return `/v1/storms/raster?${qs}`;
         })()
       : null;

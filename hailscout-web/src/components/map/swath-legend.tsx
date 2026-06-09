@@ -13,7 +13,15 @@ import { cn } from "@/lib/utils";
  * (penny / quarter / golf ball / baseball / softball) so contractors
  * switching from HailTrace or IHM see the exact same vocabulary.
  */
-export function SwathLegend() {
+export function SwathLegend({
+  showUnverified,
+  onToggleUnverified,
+}: {
+  /** Current state of the "show unverified cells" toggle. */
+  showUnverified?: boolean;
+  /** When provided, the expanded panel renders a verification-tier toggle. */
+  onToggleUnverified?: () => void;
+} = {}) {
   const [expanded, setExpanded] = useState(false);
 
   // Reverse for display so the heaviest hail sits at the top of the list
@@ -71,6 +79,44 @@ export function SwathLegend() {
               </li>
             ))}
           </ul>
+          {onToggleUnverified && (
+            <div className="mt-3 pt-2 border-t border-border">
+              <button
+                type="button"
+                onClick={onToggleUnverified}
+                className="flex w-full items-center justify-between gap-2"
+                aria-pressed={!!showUnverified}
+              >
+                <span className="flex items-center gap-2 text-xs text-foreground/85">
+                  <span
+                    className="inline-block h-3.5 w-3.5 rounded-sm ring-1 ring-foreground/10"
+                    style={{
+                      background:
+                        "repeating-linear-gradient(45deg, rgba(216,138,61,0.55) 0 2px, transparent 2px 4px)",
+                    }}
+                  />
+                  Unverified cells
+                </span>
+                <span
+                  className={cn(
+                    "relative inline-flex h-4 w-7 items-center rounded-full transition-colors",
+                    showUnverified ? "bg-primary" : "bg-foreground/25",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "inline-block h-3 w-3 rounded-full bg-white shadow transition-transform",
+                      showUnverified ? "translate-x-3.5" : "translate-x-0.5",
+                    )}
+                  />
+                </span>
+              </button>
+              <p className="mt-1.5 text-[10px] text-muted-foreground leading-relaxed">
+                Radar-only cells not yet cross-confirmed — shown dimmed and
+                flagged on hover. Off = verified only.
+              </p>
+            </div>
+          )}
           <p className="mt-3 pt-2 border-t border-border text-[10px] text-muted-foreground leading-relaxed">
             Same color scale as HailTrace and Interactive Hail Maps. Refreshes every 2 min during active storms.
           </p>

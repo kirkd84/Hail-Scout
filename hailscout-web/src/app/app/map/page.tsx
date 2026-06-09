@@ -60,6 +60,10 @@ export default function MapPage() {
   // different ways. Heatmap is more compelling at low zoom; cells
   // are more useful zoomed in.
   const [viewMode, setViewMode] = useState<"cells" | "smooth" | "heatmap">("smooth");
+  // Show suspect/low-confidence cells (flagged). ON by default so the
+  // footprint reflects reality (closes the gap vs IHM); each unverified cell
+  // renders dimmed and is flagged on hover. Toggle lives in the legend.
+  const [showUnverified, setShowUnverified] = useState(true);
   // NEXRAD stations overlay — show by default when "NEXRAD" or "all"
   // is selected, hide for "MRMS only" to reduce visual noise.
   const showNexradStations = source !== "MRMS";
@@ -140,6 +144,7 @@ export default function MapPage() {
     swathSimplify: 0.02,
     fallbackToFixtures: true,
     source: source === "all" ? null : source,
+    includeUnconfirmed: showUnverified,
   });
 
   // Smooth raster surface (Phase 25) — one colorized image of every
@@ -151,6 +156,7 @@ export default function MapPage() {
     source: source === "all" ? null : source,
     minSize: size === "any" ? null : parseFloat(size),
     enabled: viewMode === "smooth",
+    includeUnconfirmed: showUnverified,
   });
 
   // When a storm is selected, isolate it: fetch just its raster and
@@ -320,7 +326,10 @@ export default function MapPage() {
         onSourceChange={setSource}
         onSpecificDateChange={setSpecificDate}
       />
-      <SwathLegend />
+      <SwathLegend
+        showUnverified={showUnverified}
+        onToggleUnverified={() => setShowUnverified((v) => !v)}
+      />
 
       <DropModeToggle
         active={dropMode}

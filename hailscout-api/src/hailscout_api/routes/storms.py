@@ -144,6 +144,12 @@ async def get_viewport_raster(
     to_date: str = Query(..., alias="to"),
     min_size: float | None = Query(None, ge=0.0),
     source: str | None = Query(None),
+    include_unconfirmed: bool = Query(
+        False,
+        description="Include suspect/low-confidence cells in the surface. "
+                    "The map sends this when 'Show unverified' is on so the "
+                    "footprint matches reality; cells stay flagged on hover.",
+    ),
     session: AsyncSession = Depends(get_db_session),
 ) -> StormRasterResponse:
     """One smooth hail raster for every storm in the viewport (Phase 25).
@@ -171,6 +177,7 @@ async def get_viewport_raster(
         limit=200, include_swaths=True, swath_simplify_tolerance=0.0,
         source=source.strip() if source and source.strip() else None,
         min_hail_size_in=min_size,
+        include_unconfirmed=include_unconfirmed,
     )
     all_swaths: list[dict] = []
     for st in storms:

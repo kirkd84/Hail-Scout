@@ -164,6 +164,9 @@ export interface UseStormsArgs {
   /** Sort order. "recent" (default) sorts by start_time DESC; "peak"
    *  sorts by max_hail_size_in DESC — for leaderboards. */
   order?: "recent" | "peak";
+  /** Include suspect/low-confidence cells the API hides by default. The map
+   *  passes this when "Show unverified" is on. */
+  includeUnconfirmed?: boolean;
 }
 
 /** Storm with optional swath payload (when fetched with includeSwaths). */
@@ -187,6 +190,7 @@ export function useStorms(args: UseStormsArgs) {
     source = null,
     minSize = null,
     order,
+    includeUnconfirmed = false,
   } = args;
   const fixtureMode = isFixtureMode();
 
@@ -203,6 +207,7 @@ export function useStorms(args: UseStormsArgs) {
   if (source) qsParams.source = source;
   if (minSize != null && minSize > 0) qsParams.min_size = String(minSize);
   if (order) qsParams.order = order;
+  if (includeUnconfirmed) qsParams.include_unconfirmed = "true";
   const qs = new URLSearchParams(qsParams);
   const swrKey = fixtureMode ? null : `/v1/storms?${qs}`;
   const { data, error, isLoading, mutate } = useSWR<ApiStormsListResponse>(
