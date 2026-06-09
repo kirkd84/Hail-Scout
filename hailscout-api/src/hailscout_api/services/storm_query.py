@@ -6,9 +6,12 @@ import json
 from datetime import datetime
 from typing import Any
 
+from geoalchemy2 import Geography
 from geoalchemy2.functions import (
     ST_AsGeoJSON,
     ST_Contains,
+    ST_Distance,
+    ST_DWithin,
     ST_Intersects,
     ST_MakeEnvelope,
     ST_MakePoint,
@@ -16,8 +19,7 @@ from geoalchemy2.functions import (
     ST_SetSRID,
     ST_SimplifyPreserveTopology,
 )
-from sqlalchemy import func
-from sqlalchemy import and_, select
+from sqlalchemy import and_, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hailscout_api.core import get_logger
@@ -364,7 +366,63 @@ async def query_hail_at_point(
     # fell here, not the storm's peak miles away.
     attach_verification(out, size_key="size_at_point")
 
-    logger.info("Hail at point", lat=lat, lng=lng, hits=len(out))
+    # ── Fuse nearby SPC ground reports (LSRs) — the gold standard ───────
+    # A radar swath frequently won't cover an exact address even when a
+    # trained spotter reported large hail a mile away (e.g. a 1.5" Arvada
+    # report next to a cell our MESH read at 1.0"). Surface ground reports
+    # within a short radius as their own hits so "what hit this address"
+    # reflects the best available truth, not radar alone.
+    GROUND_RADIUS_M = 6000.0  # ~3.7 mi — spotter fixes are town-relative
+    geog_centroid = cast(Storm.centroid_geom, Geography)
+    geog_point = cast(point, Geography)
+    lsr_stmt = (
+        select(
+            Storm.id,
+            Storm.start_time,
+            Storm.end_time,
+            Storm.max_hail_size_in,
+            Storm.source,
+            ST_Distance(geog_centroid, geog_point).label("dist_m"),
+        )
+        .where(Storm.source == "SPC-LSR")
+        .where(ST_DWithin(geog_centroid, geog_point, GROUND_RADIUS_M))
+    )
+    if from_date:
+        lsr_stmt = lsr_stmt.where(Storm.start_time >= from_date)
+    if to_date:
+        lsr_stmt = lsr_stmt.where(Storm.start_time <= to_date)
+    lsr_stmt = lsr_stmt.order_by("dist_m").limit(limit)
+
+    for r in (await session.execute(lsr_stmt)).all():
+        size = float(r.max_hail_size_in)
+        out.append({
+            "id": r.id,
+            "start_time": r.start_time,
+            "end_time": r.end_time,
+            "max_hail_size_in": size,
+            "source": r.source,  # "SPC-LSR"
+            "suspect": False,
+            "confidence": 1.0,
+            "lsr_confirmed": True,
+            "lsr_observed_size_in": size,
+            "lsr_observed_at": r.start_time,
+            "hail_confirmed": True,
+            "hail_gate_fraction": None,
+            "peak_dbz": None,
+            "category_at_point": f"{size:.2f}",
+            "size_at_point": size,
+            "verification": None,
+            "distance_mi": round(float(r.dist_m) / 1609.34, 1),
+        })
+
+    # Lead with ground reports (largest first), then radar hits in time order.
+    ground = [d for d in out if d.get("source") == "SPC-LSR"]
+    radar = [d for d in out if d.get("source") != "SPC-LSR"]
+    ground.sort(key=lambda d: d.get("size_at_point") or 0.0, reverse=True)
+    out = (ground + radar)[:limit]
+
+    logger.info("Hail at point", lat=lat, lng=lng, hits=len(out),
+                ground_reports=len(ground))
     return out
 
 

@@ -133,6 +133,12 @@ class HailAtPointResponse(BaseModel):
     peak_dbz: float | None = None
     confidence: float = 1.0
     suspect: bool = False
+    distance_mi: float | None = Field(
+        None,
+        description="For ground reports (source=SPC-LSR): distance in miles "
+                    "from the queried point to the report. None for radar hits "
+                    "whose swath contains the point.",
+    )
     verification: VerificationResponse | None = None
 
 
