@@ -19,7 +19,7 @@ from __future__ import annotations
 import secrets
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -59,6 +59,12 @@ class DisableUserRequest(BaseModel):
 
 class DisableUserResponse(BaseModel):
     ok: bool = True
+
+
+class UserStatusResponse(BaseModel):
+    email: str
+    exists: bool
+    active: bool
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -215,3 +221,33 @@ async def disable_user(
 
     logger.info("provision.disable.ok", org_id=org_id, user_id=user.id, email=email)
     return DisableUserResponse(ok=True)
+
+
+@router.get("/user/status", response_model=UserStatusResponse)
+async def user_status(
+    email: str = Query(..., description="Email to look up within the bound org."),
+    org_id: str = Depends(require_provision_key),
+    session: AsyncSession = Depends(get_db_session),
+) -> UserStatusResponse:
+    """Read-only existence/active check for a rep account by email.
+
+    Looks up the user by the key's bound org + lowercased email. Creates
+    nothing and never mutates. ``active`` is true only when the user exists
+    *and* is not disabled. An email that doesn't exist in the org returns
+    ``exists=false, active=false`` (HR can't observe org membership otherwise).
+    """
+    normalized = email.strip().lower()
+
+    user = (
+        await session.execute(
+            select(User).where(User.org_id == org_id, User.email == normalized)
+        )
+    ).scalar_one_or_none()
+
+    exists = user is not None
+    active = exists and not user.is_disabled
+
+    logger.info(
+        "provision.status", org_id=org_id, email=normalized, exists=exists, active=active
+    )
+    return UserStatusResponse(email=normalized, exists=exists, active=active)
