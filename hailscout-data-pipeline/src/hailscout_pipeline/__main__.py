@@ -235,12 +235,39 @@ def cmd_loop(args: argparse.Namespace) -> int:
         log.info("loop_pre_lsr_backfill_done — entering live loop")
 
     interval = args.interval_seconds
-    log.info("loop_start", interval_seconds=interval)
+    # Real-time SPC ground-truth pull. SPC updates the daily hail CSV
+    # continuously as reports are filed, so we re-pull today (+ yesterday, for
+    # the UTC-day boundary and late-filed reports) on a cadence. THIS is what
+    # lets a ground report (e.g. a 1.5" Arvada LSR) reach the product within
+    # minutes — previously LSRs were only ingested by a manual CLI run or the
+    # one-time boot backfill, so live storms had zero ground truth. 0 disables.
+    lsr_interval = int(os.environ.get("LSR_LIVE_INTERVAL_S", "1200"))  # 20 min
+    last_lsr = 0.0
+    log.info("loop_start", interval_seconds=interval,
+             lsr_interval_seconds=lsr_interval)
     while True:
         try:
             cmd_live(args)
         except Exception as e:
             log.exception("loop_iteration_failed", error=str(e))
+
+        # Periodic ground-truth (SPC LSR) pull. First iteration runs it
+        # immediately so a freshly-(re)deployed worker seeds today's reports.
+        due = lsr_interval > 0 and (
+            last_lsr == 0.0 or (time.monotonic() - last_lsr) >= lsr_interval
+        )
+        if due:
+            try:
+                today = datetime.now(timezone.utc)
+                yday = today - timedelta(days=1)
+                cmd_lsr(argparse.Namespace(
+                    since=yday.strftime("%Y-%m-%d"),
+                    until=today.strftime("%Y-%m-%d"),
+                ))
+            except Exception:
+                log.exception("loop_lsr_pull_failed")
+            last_lsr = time.monotonic()
+
         log.info("loop_sleep", seconds=interval)
         time.sleep(interval)
 

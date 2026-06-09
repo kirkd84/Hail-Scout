@@ -101,6 +101,7 @@ function buildCentroidFC(storms: StormWithSwaths[]): GeoJSON.FeatureCollection {
         date_label: formatDateLabel(s.start_time),
         peak_label: `${s.max_hail_size_in.toFixed(1)}″`,
         suspect: s.suspect ? true : false,
+        is_ground: s.source === "SPC-LSR",
       },
     })),
   };
@@ -349,8 +350,12 @@ export function StormsLayer({
             "#5DCAA5", 1.0, "#E2B843", 1.25, "#D88A3D", 1.5, "#C46434",
             1.75, "#A8412D", 2.0, "#822424", 2.5, "#5B2059", 3.0, "#1F1B33",
           ],
-          "circle-stroke-color": "#FAF7F1",
-          "circle-stroke-width": 1.6,
+          // Ground reports (SPC-LSR points) get a green ring so they read as
+          // gold-standard ground truth, distinct from cream radar centroids.
+          "circle-stroke-color": [
+            "case", ["==", ["get", "is_ground"], true], "#2f7a4f", "#FAF7F1",
+          ],
+          "circle-stroke-width": ["case", ["==", ["get", "is_ground"], true], 2.2, 1.6],
           "circle-opacity": ["case", ["==", ["get", "suspect"], true], 0.5, 1],
         },
       });
@@ -522,9 +527,19 @@ export function StormsLayer({
       const bandSize = feat.properties?.min_size_in;
       const isBand = typeof bandSize === "number";
       const localSize = isBand ? bandSize : s.max_hail_size_in;
-      const c = hailColor(localSize);
+      // Ground-truth fusion ("fuse + override"): a confirmed SPC report that
+      // is larger than the radar read at this cell wins — a spotter/SPC
+      // measurement beats a radar estimate. We only ever override UPWARD.
+      const groundSize =
+        s.lsr_confirmed && typeof s.lsr_observed_size_in === "number"
+          ? s.lsr_observed_size_in
+          : null;
+      const isGroundReport = s.source === "SPC-LSR";
+      const displaySize =
+        groundSize != null && groundSize > localSize ? groundSize : localSize;
+      const c = hailColor(displaySize);
       const where = nearestMetro(s.centroid_lat, s.centroid_lng);
-      const heavy = localSize >= 1.5;
+      const heavy = displaySize >= 1.5;
       const badgeFg = heavy ? "#FAF7F1" : c.text;
       const dateStr = new Date(s.start_time).toLocaleDateString(undefined, {
         month: "short",
@@ -535,7 +550,7 @@ export function StormsLayer({
       // local size — so the user knows this neighborhood saw less than
       // the storm's worst.
       const peakNote =
-        s.max_hail_size_in > localSize + 0.01
+        s.max_hail_size_in > displaySize + 0.01
           ? `<div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;opacity:0.55;margin-top:2px;">Storm peak: ${s.max_hail_size_in.toFixed(2)}″ elsewhere</div>`
           : "";
       // Honest at-point precision: we store hail in 0.25″ category bands, so
@@ -562,6 +577,11 @@ export function StormsLayer({
         s.suspect && !s.lsr_confirmed
           ? `<div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;opacity:0.6;margin-top:2px;color:#9a6a1a;">Radar-only — not yet cross-confirmed</div>`
           : "";
+      // SPC ground-report point (source="SPC-LSR"): a human-filed observation,
+      // the gold standard. Distinct green pill so it never reads as radar.
+      const groundReportPill = isGroundReport
+        ? `<span style="display:inline-flex;align-items:center;gap:3px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:0.08em;color:#2f7a4f;background:rgba(47,122,79,0.12);border:1px solid rgba(47,122,79,0.3);border-radius:3px;padding:1px 5px;margin-left:6px;vertical-align:middle;">● Ground report</span>`
+        : "";
       const lsrSizeNote =
         s.lsr_confirmed && s.lsr_observed_size_in
           ? `<div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;opacity:0.55;margin-top:2px;">Ground report: ${s.lsr_observed_size_in.toFixed(
@@ -571,11 +591,11 @@ export function StormsLayer({
       const html = `
         <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 10px;min-width:200px;">
           <span style="display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:42px;height:38px;border-radius:6px;background:${c.solid};color:${badgeFg};box-shadow:0 1px 3px rgba(0,0,0,0.15);">
-            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:500;line-height:1;">${localSize.toFixed(2)}″</span>
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:500;line-height:1;">${displaySize.toFixed(2)}″</span>
             <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:8px;text-transform:uppercase;letter-spacing:0.08em;line-height:1;margin-top:2px;opacity:0.9;">${c.object}</span>
           </span>
           <div style="min-width:0;">
-            <div style="font-family:Fraunces,Cambria,serif;font-size:15px;font-weight:500;letter-spacing:-0.01em;line-height:1.2;">${where?.label ?? "United States"}${confirmedPill}${unverifiedPill}</div>
+            <div style="font-family:Fraunces,Cambria,serif;font-size:15px;font-weight:500;letter-spacing:-0.01em;line-height:1.2;">${where?.label ?? "United States"}${confirmedPill}${unverifiedPill}${groundReportPill}</div>
             <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;opacity:0.65;margin-top:3px;">${dateStr} · ${s.source}</div>
             ${bandNote}
             ${peakNote}
