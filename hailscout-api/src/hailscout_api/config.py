@@ -99,6 +99,19 @@ class Settings(BaseSettings):
     vapid_private_key: str = ""
     vapid_subject: str = "mailto:alerts@hailscout.net"
 
+    # AI features (Anthropic). Powers Photo-AI roof-damage triage, claim-letter
+    # drafting, and natural-language search. When the key is unset, those
+    # endpoints answer 503 (feature off) — the rest of the API is unaffected.
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-3-5-sonnet-latest"
+
+    # Contact enrichment (homeowner phone/email for a parcel). Provider-pluggable
+    # and OFF by default: with no provider configured the /contacts/* endpoints
+    # answer 503 rather than fabricate regulated (TCPA/DNC) contact data. Set both
+    # to turn it on, e.g. enrichment_provider="cole".
+    enrichment_provider: str = ""
+    enrichment_api_key: str = ""
+
     # Geocoding
     geocoder_provider: Literal["nominatim", "mapbox"] = "nominatim"
     nominatim_user_agent: str = "HailScout/0.1.0 (+https://hailscout.com)"

@@ -45,6 +45,7 @@ RUN pip install \
         'tenacity>=8.2,<9.0' \
         'svix>=1.30,<2.0' \
         'pywebpush>=1.14,<3.0' \
+        'anthropic>=0.39,<1.0' \
         'Pillow>=10.2,<12.0'
 
 # Application code

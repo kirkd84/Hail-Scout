@@ -20,19 +20,25 @@ class StormScoreResponse(BaseModel):
 
 
 class DamageTriageRequest(BaseModel):
-    """Analyze roof photos for hail damage (M4)."""
+    """Analyze a roof photo for hail damage (inline image)."""
 
-    parcel_id: str
-    photo_urls: list[str] = Field(..., description="S3 URLs of contractor photos")
+    image_base64: str = Field(..., description="Base64 image bytes (a data: prefix is OK)")
+    media_type: str = "image/jpeg"
+    context: str | None = Field(
+        default=None, description="Optional: address, known storm size, etc."
+    )
 
 
 class DamageTriageResponse(BaseModel):
-    """Damage assessment result (M4)."""
+    """Damage assessment result."""
 
-    parcel_id: str
     hail_damage_probability: float = Field(..., ge=0, le=1)
+    severity: str = "Low"  # Low | Moderate | Severe | Total Loss
+    confidence: float = Field(default=0.0, ge=0, le=1)
     estimated_hail_size_in: float | None = None
-    recommendations: list[str] = Field(default_factory=list)
+    findings: list[str] = Field(default_factory=list)
+    summary: str = ""
+    recommended_action: str = ""
 
 
 class NaturalLanguageQueryRequest(BaseModel):

@@ -18,8 +18,9 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hailscout_api.auth.super_admin import require_super_admin
+from hailscout_api.db.models.canvass import Marker, MonitoredAddress
+from hailscout_api.db.models.ops import ImpactReport
 from hailscout_api.db.models.org import Organization, Seat, User
-from hailscout_api.db.models.storm import Storm
 from hailscout_api.db.session import get_db_session
 from hailscout_api.schemas.admin import (
     OrgCreate,
@@ -172,15 +173,39 @@ async def org_usage(
         )
     ).scalar_one()
 
-    # ``storms`` is global (not org-scoped) — every tenant sees the same NOAA
-    # data. We count "storms touched by this tenant" via a join through
-    # markers/monitored_addresses in a future iteration. For now report 0.
-    storms_in_period = 0
-    # TODO(M3): join Storm <-> markers <-> users.org_id for per-tenant counts.
-    _ = Storm  # silence unused import
+    # Storms are global NOAA data, so a raw storm count is identical for every
+    # tenant and meaningless here. The useful per-tenant number is "storms this
+    # tenant has actually worked" — distinct storms referenced by its markers.
+    storms_in_period = (
+        await session.execute(
+            select(func.count(func.distinct(Marker.storm_id))).where(
+                Marker.org_id == org_id, Marker.storm_id.is_not(None)
+            )
+        )
+    ).scalar_one()
 
-    monitored_addresses = 0  # TODO(M3): COUNT(monitored_addresses WHERE org_id=...)
-    impact_reports_generated = 0  # TODO(M3): COUNT(impact_reports WHERE org_id=...)
+    monitored_addresses = (
+        await session.execute(
+            select(func.count())
+            .select_from(MonitoredAddress)
+            .where(MonitoredAddress.org_id == org_id)
+        )
+    ).scalar_one()
+
+    impact_reports_generated = (
+        await session.execute(
+            select(func.count())
+            .select_from(ImpactReport)
+            .where(ImpactReport.org_id == org_id)
+        )
+    ).scalar_one()
+
+    # Last-activity proxy: the most recent canvassing-marker touch for the org.
+    last_active_at = (
+        await session.execute(
+            select(func.max(Marker.updated_at)).where(Marker.org_id == org_id)
+        )
+    ).scalar_one_or_none()
 
     return OrgUsage(
         org_id=org.id,
@@ -188,10 +213,10 @@ async def org_usage(
         plan_tier=org.plan_tier,
         user_count=int(user_count),
         seat_count=int(seat_count),
-        storms_in_period=storms_in_period,
-        monitored_addresses=monitored_addresses,
-        impact_reports_generated=impact_reports_generated,
-        last_active_at=None,  # TODO(M3): track via auth events
+        storms_in_period=int(storms_in_period or 0),
+        monitored_addresses=int(monitored_addresses or 0),
+        impact_reports_generated=int(impact_reports_generated or 0),
+        last_active_at=last_active_at,
     )
 
 
