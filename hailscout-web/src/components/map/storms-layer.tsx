@@ -480,8 +480,11 @@ export function StormsLayer({
 
     const stormById = new Map(storms.map((s) => [s.id, s]));
 
-    const onEnter = (e: MapLayerMouseEvent) => {
-      map.getCanvas().style.cursor = "pointer";
+    // Build + show the popup for whatever feature is under the cursor RIGHT
+    // NOW. Called on both enter AND move so the size readout updates live as
+    // you sweep across a swath — previously move only repositioned the popup,
+    // so the number never refreshed until you exited and re-entered.
+    const render = (e: MapLayerMouseEvent) => {
       const feat = e.features?.[0];
       if (!feat) return;
       const stormId =
@@ -542,9 +545,11 @@ export function StormsLayer({
         </div>`;
       popup.setLngLat(e.lngLat).setHTML(html).addTo(map);
     };
-    const onMove = (e: MapLayerMouseEvent) => {
-      popup.setLngLat(e.lngLat);
+    const onEnter = (e: MapLayerMouseEvent) => {
+      map.getCanvas().style.cursor = "pointer";
+      render(e);
     };
+    const onMove = render;
     const onLeave = () => {
       map.getCanvas().style.cursor = "";
       popup.remove();

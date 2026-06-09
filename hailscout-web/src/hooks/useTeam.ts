@@ -50,13 +50,16 @@ export function useTeam() {
     async (email: string, role = "member") => {
       if (!auth) return;
       const t = await getToken();
-      return apiClient.post<{ status: string; message: string }>(
+      const member = await apiClient.post<TeamMember>(
         "/v1/team/invite",
         { email, role },
         t || undefined,
       );
+      // The account is created immediately — refresh so it shows in the list.
+      await swr.mutate();
+      return member;
     },
-    [auth, getToken],
+    [auth, getToken, swr],
   );
 
   return {

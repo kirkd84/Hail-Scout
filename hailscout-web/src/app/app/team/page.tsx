@@ -37,13 +37,13 @@ export default function TeamPage() {
     setInviteFlash(null);
     try {
       await invite(inviteEmail.trim(), inviteRole);
-      setInviteFlash(`Invite sent to ${inviteEmail}`);
+      setInviteFlash(`Added ${inviteEmail} — they can sign in with Google or Microsoft.`);
       setInviteEmail("");
       setInviteOpen(false);
       setTimeout(() => setInviteFlash(null), 3000);
     } catch (e) {
       setInviteFlash(
-        e instanceof Error && e.message ? e.message : "Failed to send invite",
+        e instanceof Error && e.message ? e.message : "Couldn't add teammate",
       );
     } finally {
       setInviteBusy(false);
@@ -87,7 +87,7 @@ export default function TeamPage() {
               onClick={() => setInviteOpen((v) => !v)}
               className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-teal-900"
             >
-              + Invite teammate
+              + Add teammate
             </button>
           )}
         </div>
@@ -97,7 +97,7 @@ export default function TeamPage() {
         {inviteOpen && canManage && (
           <div className="rounded-xl border border-copper/40 bg-copper/5 p-5 space-y-3">
             <p className="font-mono-num text-[10px] uppercase tracking-wide-caps text-copper-700">
-              New invite
+              Add teammate
             </p>
             <div className="grid gap-3 md:grid-cols-[2fr_1fr_auto]">
               <input
@@ -122,11 +122,12 @@ export default function TeamPage() {
                 disabled={inviteBusy || !inviteEmail.includes("@")}
                 className="rounded-md bg-copper px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-copper-700 disabled:opacity-60"
               >
-                {inviteBusy ? "Sending…" : "Send invite"}
+                {inviteBusy ? "Adding…" : "Add teammate"}
               </button>
             </div>
             <p className="text-xs text-foreground/55">
-              The invitee gets an email link to join your workspace. Email delivery is queued in this preview — production will send invite emails.
+              We create their account right away — no email needed. They sign in
+              with the Google or Microsoft account for this email and they&apos;re in.
             </p>
           </div>
         )}

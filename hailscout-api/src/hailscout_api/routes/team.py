@@ -7,6 +7,7 @@ gated to admins/owners for write actions.
 
 from __future__ import annotations
 
+import secrets
 from datetime import datetime
 from typing import Optional
 
@@ -17,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from hailscout_api.auth.session import verify_access_token
 from hailscout_api.core import AuthenticationError, AuthorizationError, get_logger
-from hailscout_api.db.models.org import User
+from hailscout_api.db.models.org import Seat, User
 from hailscout_api.db.session import get_db_session
 from hailscout_api.services.audit import write_event
 
@@ -196,34 +197,64 @@ async def remove_team_member(
     return Response(status_code=204)
 
 
-@router.post("/team/invite", status_code=202)
-async def invite_team_member(
+@router.post("/team/invite", response_model=TeamMember, status_code=201)
+async def add_team_member(
     request: Request,
     body: TeamInvite,
     session: AsyncSession = Depends(get_db_session),
-) -> dict:
-    """Invite a teammate by email.
+) -> User:
+    """Add a teammate by email.
 
-    Stub: in production this sends an invite email and writes a
-    pending-invite row. For now we just accept the request and return
-    202, so the UI can show the invite as 'sent'.
+    We provision the account immediately (pre-staged, exactly like a
+    super-admin-created org admin): a ``users`` row with a placeholder
+    ``auth_subject`` that links to the real Google/Microsoft identity the
+    first time that email signs in. No invite email needed — they just sign
+    in with the matching work account. Idempotent for an email already on
+    this team; rejected if the email belongs to another workspace.
     """
     me = await _resolve_user(request, session)
     _require_admin(me)
     if body.role not in VALID_ROLES:
         raise HTTPException(status_code=422, detail=f"Invalid role: {body.role}")
 
-    logger.info(
-        "team.invite.requested",
+    email = str(body.email).lower()
+    existing = (
+        await session.execute(select(User).where(User.email == email))
+    ).scalars().first()
+    if existing is not None:
+        if existing.org_id != me.org_id:
+            raise HTTPException(
+                status_code=409,
+                detail="That email already belongs to another HailScout workspace.",
+            )
+        # Already on this team — idempotent.
+        return existing
+
+    member = User(
+        id=f"usr_{secrets.token_urlsafe(16)}",
+        email=email,
         org_id=me.org_id,
-        email=body.email,
         role=body.role,
-        invited_by=me.id,
+        is_super_admin=False,
+        auth_subject=f"pending_{secrets.token_urlsafe(8)}",
     )
-    return {
-        "status": "pending",
-        "email": body.email,
-        "role": body.role,
-        "org_id": me.org_id,
-        "message": "Invite recorded. Email delivery will land when email sending ships.",
-    }
+    session.add(member)
+    await session.flush()
+    session.add(Seat(org_id=me.org_id, user_id=member.id))
+    await session.commit()
+    await session.refresh(member)
+
+    await write_event(
+        session,
+        action="team.member_added",
+        org_id=me.org_id,
+        user_id=me.id,
+        subject_type="user",
+        subject_id=member.id,
+        metadata={"email": email, "role": body.role},
+    )
+    logger.info(
+        "team.member_added",
+        org_id=me.org_id, email=email, role=body.role, added_by=me.id,
+    )
+    return member

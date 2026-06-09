@@ -41,9 +41,24 @@ export function useViewportRaster({
   const key =
     enabled && bbox
       ? (() => {
-          const r = (n: number) => Math.round(n * 100) / 100;
+          // Render a margin BEYOND the visible viewport so panning/zooming
+          // stays covered by the current image while the next one loads —
+          // this is what kills the "swath vanishes for a few seconds" flicker.
+          const PAD = 0.35;
+          const [w, s, e, n] = bbox;
+          const dx = (e - w) * PAD;
+          const dy = (n - s) * PAD;
+          const clampLng = (v: number) => Math.max(-180, Math.min(180, v));
+          const clampLat = (v: number) => Math.max(-85, Math.min(85, v));
+          const padded = [
+            clampLng(w - dx),
+            clampLat(s - dy),
+            clampLng(e + dx),
+            clampLat(n + dy),
+          ];
+          const r = (x: number) => Math.round(x * 100) / 100;
           const qs = new URLSearchParams({
-            bbox: bbox.map(r).join(","),
+            bbox: padded.map(r).join(","),
             from,
             to,
           });
