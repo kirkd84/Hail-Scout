@@ -88,6 +88,10 @@ class User(Base):
     auth_subject: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     # Which provider linked the subject: 'google' | 'microsoft' | None.
     auth_provider: Mapped[str | None] = mapped_column(String(32))
+    # argon2id hash for email+password sign-in (LOGIN-STANDARD). Null for
+    # social-only accounts; set via the password-reset flow (which doubles
+    # as set-initial-password for invited users).
+    password_hash: Mapped[str | None] = mapped_column(String(255))
     # Account disable flag. Set by the HR provisioning API (and usable by any
     # future admin tooling). A disabled user is rejected at OAuth exchange and
     # has all refresh sessions revoked, so existing tokens stop working too.

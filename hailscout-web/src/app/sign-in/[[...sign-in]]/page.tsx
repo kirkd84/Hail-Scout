@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { ContourBg } from "@/components/brand/contour-bg";
 import { Wordmark } from "@/components/brand/wordmark";
+import { EmailSignInForm } from "@/components/auth/email-sign-in-form";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
 
 export default function SignInPage() {
@@ -14,6 +15,12 @@ export default function SignInPage() {
         <h1 className="mb-6 font-display text-2xl font-medium tracking-tight-display text-foreground">
           Sign in to HailScout
         </h1>
+        <EmailSignInForm />
+        <div className="my-5 flex w-full max-w-sm items-center gap-3 text-[10px] uppercase tracking-wide text-muted-foreground">
+          <span className="h-px flex-1 bg-border" />
+          or continue with
+          <span className="h-px flex-1 bg-border" />
+        </div>
         <Suspense fallback={null}>
           <OAuthButtons />
         </Suspense>

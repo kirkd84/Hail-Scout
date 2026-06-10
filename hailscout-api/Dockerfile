@@ -41,6 +41,7 @@ RUN pip install \
         'structlog>=24,<25' \
         'python-json-logger>=2.0,<3.0' \
         'PyJWT>=2.8,<3.0' \
+        'argon2-cffi>=23.1,<24.0' \
         'sentry-sdk>=1.40,<3.0' \
         'tenacity>=8.2,<9.0' \
         'svix>=1.30,<2.0' \
