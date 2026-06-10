@@ -24,6 +24,7 @@ import {
   type SourceFilter,
 } from "@/components/map/map-filters";
 import { SwathLegend } from "@/components/map/swath-legend";
+import { MobileMapControls } from "@/components/map/mobile-map-controls";
 import { MarkersLayer } from "@/components/map/markers-layer";
 import { DropModeToggle } from "@/components/map/drop-mode-toggle";
 import { AddressSearch } from "@/components/app/address-search";
@@ -310,60 +311,93 @@ export default function MapPage() {
       />
 
       <AddressSearch onResultsChange={handleAddressSearch} />
-      <StormPicker
-        map={map}
-        storms={storms}
-        scopeLabel={
-          viewportZoom > 7
-            ? "this area · 5 yr"
-            : viewportZoom > 5
-            ? "this region · 1 yr"
-            : "Recent · 30 d"
-        }
-        onStormClick={(s) => {
-          setSelectedStorm(s);
-          setShowStormDetail(true);
-        }}
-      />
 
-      <MapFilters
-        date={date}
-        size={size}
-        source={source}
-        specificDate={specificDate}
-        onDateChange={setDate}
-        onSizeChange={setSize}
-        onSourceChange={setSource}
-        onSpecificDateChange={setSpecificDate}
-      />
-      <SwathLegend
-        showUnverified={showUnverified}
-        onToggleUnverified={() => setShowUnverified((v) => !v)}
-      />
+      {/* ── Desktop control surface ─────────────────────────────────────
+          Nine floating widgets are fine on a 27" monitor and unusable on
+          a phone. On mobile, everything below collapses into the single
+          MobileMapControls bottom sheet; only search + drop-pin + the
+          controls launcher float. */}
+      {!isMobile && (
+        <>
+          <StormPicker
+            map={map}
+            storms={storms}
+            scopeLabel={
+              viewportZoom > 7
+                ? "this area · 5 yr"
+                : viewportZoom > 5
+                ? "this region · 1 yr"
+                : "Recent · 30 d"
+            }
+            onStormClick={(s) => {
+              setSelectedStorm(s);
+              setShowStormDetail(true);
+            }}
+          />
+
+          <MapFilters
+            date={date}
+            size={size}
+            source={source}
+            specificDate={specificDate}
+            onDateChange={setDate}
+            onSizeChange={setSize}
+            onSourceChange={setSource}
+            onSpecificDateChange={setSpecificDate}
+          />
+          <SwathLegend
+            showUnverified={showUnverified}
+            onToggleUnverified={() => setShowUnverified((v) => !v)}
+          />
+          <StormActivityFeed map={map} />
+          <SweepTool map={map} />
+
+          <div className="pointer-events-none absolute inset-x-0 bottom-20 z-20 flex justify-center px-4">
+            <TimeScrubber
+              rangeStart={fromDate}
+              rangeEnd={toDate}
+              cursorMs={scrubberMs}
+              onCursorChange={setScrubberMs}
+            />
+          </div>
+          <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex justify-center px-4">
+            <div className="pointer-events-auto flex items-center gap-2">
+              <BasemapToggle value={basemap} onChange={setBasemap} />
+              <ViewModeToggle value={viewMode} onChange={setViewMode} />
+            </div>
+          </div>
+        </>
+      )}
+
+      {isMobile && (
+        <MobileMapControls
+          viewMode={viewMode}
+          onViewMode={setViewMode}
+          basemap={basemap}
+          onBasemap={setBasemap}
+          date={date}
+          onDateChange={setDate}
+          size={size}
+          onSizeChange={setSize}
+          source={source}
+          onSourceChange={setSource}
+          specificDate={specificDate}
+          onSpecificDateChange={setSpecificDate}
+          showUnverified={showUnverified}
+          onToggleUnverified={() => setShowUnverified((v) => !v)}
+          storms={storms}
+          onStormClick={(s) => {
+            setSelectedStorm(s);
+            setShowStormDetail(true);
+          }}
+        />
+      )}
 
       <DropModeToggle
         active={dropMode}
         onToggle={() => setDropMode((v) => !v)}
         count={markers.length}
       />
-
-      <StormActivityFeed map={map} />
-      <SweepTool map={map} />
-
-      <div className="pointer-events-none absolute inset-x-0 bottom-20 z-20 flex justify-center px-4">
-        <TimeScrubber
-          rangeStart={fromDate}
-          rangeEnd={toDate}
-          cursorMs={scrubberMs}
-          onCursorChange={setScrubberMs}
-        />
-      </div>
-      <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex justify-center px-4">
-        <div className="pointer-events-auto flex items-center gap-2">
-          <BasemapToggle value={basemap} onChange={setBasemap} />
-          <ViewModeToggle value={viewMode} onChange={setViewMode} />
-        </div>
-      </div>
 
       <Sheet open={showResults} onOpenChange={setShowResults}>
         <SheetContent

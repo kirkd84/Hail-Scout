@@ -25,11 +25,18 @@ export function StormActivityFeed({ map }: Props) {
   const [open, setOpen] = useState(false);
   const [tick, setTick] = useState(0);
 
+  // DEMO-ONLY: this feed renders STORM_FIXTURES (fake storms, some marked
+  // "Live now"). Until it's rewired to live /v1/storms data it must never
+  // show on production — invented live storms is a trust killer.
+  const demo = process.env.NEXT_PUBLIC_USE_FIXTURES === "1";
+
   // Re-render every 30s so time-ago labels stay fresh
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 30_000);
     return () => clearInterval(id);
   }, []);
+
+  if (!demo) return null;
 
   const live: StormFixture[] = [];
   const recent: StormFixture[] = [];

@@ -10,7 +10,8 @@ export type SourceFilter = "all" | "MRMS" | "NEXRAD";
 
 // `days` is used by dateFilterToCutoff; `hours` lets "live" cleanly
 // resolve to a sub-day cutoff without making `days` a float.
-const DATE_OPTIONS: {
+// Exported so the mobile control sheet renders the same options.
+export const DATE_OPTIONS: {
   id: DateFilter;
   label: string;
   days: number | null;
@@ -23,14 +24,14 @@ const DATE_OPTIONS: {
   { id: "all", label: "All",    days: null },
 ];
 
-const SIZE_OPTIONS: { id: SizeFilter; label: string; min: number }[] = [
+export const SIZE_OPTIONS: { id: SizeFilter; label: string; min: number }[] = [
   { id: "any",  label: "Any size", min: 0 },
   { id: "1.0",  label: "≥ 1.0″",   min: 1.0  },
   { id: "1.75", label: "≥ 1.75″",  min: 1.75 },
   { id: "2.5",  label: "≥ 2.5″",   min: 2.5  },
 ];
 
-const SOURCE_OPTIONS: { id: SourceFilter; label: string }[] = [
+export const SOURCE_OPTIONS: { id: SourceFilter; label: string }[] = [
   { id: "all",    label: "All sources" },
   { id: "MRMS",   label: "MRMS (1 km)" },
   { id: "NEXRAD", label: "NEXRAD (150 m)" },
