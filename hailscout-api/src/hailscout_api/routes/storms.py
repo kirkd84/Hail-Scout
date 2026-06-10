@@ -212,6 +212,12 @@ async def get_viewport_raster(
     )
     all_swaths: list[dict] = []
     for st in storms:
+        # SPC ground reports are POINT observations stored with a tiny
+        # ~1.5km placeholder box — burning them into the surface scatters
+        # confetti dots over the real radar swaths. They render as green
+        # ground-report markers instead.
+        if st.get("source") == "SPC-LSR":
+            continue
         all_swaths.extend(st.get("swaths") or [])
 
     raster = render_storm_raster(

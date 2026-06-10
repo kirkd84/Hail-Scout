@@ -116,7 +116,12 @@ def ingest_grib_file(grib_path: str, ts: datetime) -> dict:
 
 # ----- subcommands -----
 def cmd_live(_: argparse.Namespace) -> int:
-    client = MRMSClient(bucket_name=settings.noaa_mrms_bucket)
+    # Pass the configured product — this was silently falling back to the
+    # client's instantaneous default, ignoring MRMS_PRODUCT entirely.
+    client = MRMSClient(
+        bucket_name=settings.noaa_mrms_bucket,
+        product=settings.mrms_product,
+    )
     grib_path, key, ts = client.fetch_latest()
     try:
         summary = ingest_grib_file(grib_path, ts)
@@ -161,7 +166,19 @@ def cmd_backfill(args: argparse.Namespace) -> int:
             session.commit()
         log.info("backfill_reset_done")
 
-    iowa = IowaArchiveClient()
+    # Derive the mtarchive path from the configured product: the archive
+    # directory drops the resolution suffix, the filename keeps it. Iowa
+    # mirrors only the instantaneous + 24h-max MESH products — for anything
+    # else (e.g. the live loop's 30-min max) fall back to instantaneous so
+    # historical backfills keep working. Recent dates (~72h) can be
+    # re-ingested at the richer product straight from the NOAA S3 bucket.
+    product = settings.mrms_product
+    subdir = product[:-6] if product.endswith("_00.50") else product
+    if subdir not in ("MESH", "MESH_Max_1440min"):
+        log.warning("backfill_product_not_archived",
+                    configured=product, using="MESH_00.50")
+        subdir, product = "MESH", "MESH_00.50"
+    iowa = IowaArchiveClient(archive_subdir=subdir, file_prefix=product)
     cur = since
     n_ok, n_fail, n_empty = 0, 0, 0
     step_idx = 0

@@ -16,12 +16,20 @@ class Settings(BaseSettings):
 
     # NOAA MRMS (anonymous public bucket — no creds needed)
     noaa_mrms_bucket: str = "noaa-mrms-pds"
-    # Switched from MESH_Max_1440min_00.50 (24h rolling max) to MESH_00.50
-    # (instantaneous, 2-min cadence). The rolling-max product produced one
-    # daily snapshot per cell that can't be tracked across time; the
-    # instantaneous product produces the per-volume-scan data that real
-    # storm-cell tracking (Phase 17) needs.
-    mrms_product: str = "MESH_00.50"
+    # MESH product selection — third iteration, each fixing the last:
+    #   MESH_Max_1440min (24h max): one untrackable daily blob per cell.
+    #   MESH_00.50 (instantaneous): trackable, but a 2-min snapshot only
+    #     covers the storm's footprint AT that instant — sampled every ~5
+    #     min by the live loop, a moving storm unions into disconnected
+    #     beads ("a series of circles"), nothing like the real track.
+    #   MESH_Max_30min (current): publishes every ~2 min like the
+    #     instantaneous product (cell tracking still works), but each file
+    #     paints everywhere hail fell in the last 30 min — consecutive
+    #     pulls overlap heavily, so the union is the TRUE continuous storm
+    #     ribbon, the swath IHM/HailStrike render.
+    # NOTE: mtarchive (Iowa) mirrors only MESH + MESH_Max_1440min, so deep
+    # backfills fall back to the instantaneous product (see cmd_backfill).
+    mrms_product: str = "MESH_Max_30min_00.50"
 
     # NEXRAD Level II — anonymous public mirror via Unidata.
     # The original NOAA bucket `noaa-nexrad-level2` revoked anonymous

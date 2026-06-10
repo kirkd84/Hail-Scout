@@ -111,6 +111,9 @@ function buildCentroidFC(storms: StormWithSwaths[]): GeoJSON.FeatureCollection {
 function buildBandsFC(storms: StormWithSwaths[]): GeoJSON.FeatureCollection {
   const features: GeoJSON.Feature[] = [];
   for (const s of storms) {
+    // Ground reports are point observations (tiny placeholder boxes) —
+    // they render as green centroid markers, not as swath polygons.
+    if (s.source === "SPC-LSR") continue;
     if (!s.swaths) continue;
     for (const sw of s.swaths) {
       if (!sw.geometry) continue;
