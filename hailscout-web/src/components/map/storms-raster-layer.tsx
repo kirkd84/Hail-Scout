@@ -24,6 +24,17 @@ const SLOTS = [
   { src: "hs-raster-1", layer: "hs-raster-layer-1" },
 ] as const;
 
+/** First symbol (label) layer in the basemap style — swaths are inserted
+ * beneath it so street/city labels stay crisp ON TOP of the surface,
+ * the way HailStrike/IHM render. Undefined → layer goes on top (fallback). */
+export function firstSymbolLayerId(map: MapLibreMap): string | undefined {
+  try {
+    return map.getStyle().layers?.find((l) => l.type === "symbol")?.id;
+  } catch {
+    return undefined;
+  }
+}
+
 interface Props {
   map: MapLibreMap | null;
   raster?: ViewportRaster;
@@ -88,19 +99,25 @@ export function StormsRasterLayer({
           [number, number],
         ],
       });
-      map.addLayer({
-        id: ns.layer,
-        type: "raster",
-        source: ns.src,
-        paint: {
-          "raster-opacity": visible ? opacity : 0,
-          // Linear resampling = the smooth interpolation between grid cells.
-          "raster-resampling": "linear",
-          // No fade — the new image pops straight in over the old one, which
-          // is still beneath it until we retire it below. Zero-gap swap.
-          "raster-fade-duration": 0,
+      // Insert beneath the basemap's first label layer so streets/cities
+      // render crisp ON TOP of the swath. Inserting the new slot at the
+      // same anchor lands it above the old slot (correct for the swap).
+      map.addLayer(
+        {
+          id: ns.layer,
+          type: "raster",
+          source: ns.src,
+          paint: {
+            "raster-opacity": visible ? opacity : 0,
+            // Linear resampling = the smooth interpolation between grid cells.
+            "raster-resampling": "linear",
+            // No fade — the new image pops straight in over the old one, which
+            // is still beneath it until we retire it below. Zero-gap swap.
+            "raster-fade-duration": 0,
+          },
         },
-      });
+        firstSymbolLayerId(map),
+      );
       activeRef.current = next;
 
       // Retire the PREVIOUS slot once the new raster has rendered.

@@ -60,10 +60,26 @@ export function useViewportRaster({
             clampLat(n + dy),
           ];
           const r = (x: number) => Math.round(x * 100) / 100;
+          // Screen-resolution raster: width × devicePixelRatio, rounded to
+          // 256 so window resizes don't churn the cache key. The padded
+          // bbox is ~1.9× the viewport, so add headroom before capping.
+          const px =
+            typeof window !== "undefined"
+              ? Math.min(
+                  2048,
+                  Math.max(
+                    1024,
+                    Math.round(
+                      (window.innerWidth * (window.devicePixelRatio || 1) * 1.4) / 256,
+                    ) * 256,
+                  ),
+                )
+              : 1536;
           const qs = new URLSearchParams({
             bbox: padded.map(r).join(","),
             from,
             to,
+            width: String(px),
           });
           if (minSize != null && minSize > 0) qs.set("min_size", String(minSize));
           if (source) qs.set("source", source);

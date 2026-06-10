@@ -41,9 +41,13 @@ log = structlog.get_logger()
 
 SPC_BASE = "https://www.spc.noaa.gov/climo/reports"
 
-# CSV "Time" field is HHMM UTC. Reports cross midnight UTC are still
-# filed under the start-of-day's CSV, so an LSR with Time=0030 on the
-# file dated 260518 is at 2026-05-18T00:30 UTC.
+# CSV "Time" field is HHMM UTC. SPC daily files cover the CONVECTIVE
+# day: 12:00 UTC on the file date through 11:59 UTC the NEXT day. So a
+# row with Time=0030 in the file dated 260518 happened at
+# 2026-05-19T00:30 UTC (the evening of the 18th, US local time) — any
+# HH < 12 belongs to the day AFTER the file date. Getting this wrong
+# stamps evening-local reports 24h early, which silently breaks the
+# ±30-min LSR↔radar linker for every post-midnight-UTC report.
 TIME_RE = re.compile(r"^\s*(?P<hh>\d{1,2})(?P<mm>\d{2})\s*$")
 
 
@@ -82,7 +86,11 @@ def _parse_size(raw: str) -> Optional[float]:
 
 
 def _parse_time(raw: str, date: datetime) -> Optional[datetime]:
-    """Combine HHMM-of-day with the file's UTC date into a full ts."""
+    """Combine HHMM-of-day with the file's UTC date into a full ts.
+
+    SPC files are convective-day scoped (12Z → 11:59Z next day), so an
+    HH < 12 row rolls over to the day after the file date.
+    """
     m = TIME_RE.match(raw or "")
     if not m:
         return None
@@ -90,7 +98,10 @@ def _parse_time(raw: str, date: datetime) -> Optional[datetime]:
     mm = int(m.group("mm"))
     if hh > 23 or mm > 59:
         return None
-    return date.replace(hour=hh, minute=mm, second=0, microsecond=0)
+    ts = date.replace(hour=hh, minute=mm, second=0, microsecond=0)
+    if hh < 12:
+        ts += timedelta(days=1)
+    return ts
 
 
 _OFFICE_RE = re.compile(r"\(([A-Z]{3})\)\s*$")

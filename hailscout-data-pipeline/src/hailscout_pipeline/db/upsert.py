@@ -112,14 +112,20 @@ def _write_swaths(session: Session, storm_id: str,
             stmt = insert_stmt.on_conflict_do_update(
                 constraint="uq_storm_category",
                 set_={
-                    # ST_Multi(ST_Union(existing, incoming)) — accumulates
-                    # the cell's footprint over time. PostGIS handles the
-                    # geometry coercion; we keep MultiPolygon as the
-                    # storage type so the column constraint holds.
+                    # ST_Multi(Simplify(ST_Union(existing, incoming))) —
+                    # accumulates the cell's footprint over time. The
+                    # simplify (0.001° ≈ 100m, far below the ~1km product
+                    # resolution) caps vertex growth: without it a 12h
+                    # tracked storm unions 360 pixel-stair-step snapshots
+                    # into a megabyte geometry that every reader (map,
+                    # linker ST_Contains, raster) then pays for.
                     "geom_multipolygon": func.ST_Multi(
-                        func.ST_Union(
-                            HailSwath.geom_multipolygon,
-                            insert_stmt.excluded.geom_multipolygon,
+                        func.ST_SimplifyPreserveTopology(
+                            func.ST_Union(
+                                HailSwath.geom_multipolygon,
+                                insert_stmt.excluded.geom_multipolygon,
+                            ),
+                            0.001,
                         )
                     ),
                     "updated_at": datetime.now(timezone.utc),
@@ -438,10 +444,15 @@ def upsert_nexrad_cell(session: Session, cell) -> dict:  # noqa: ANN001
     stmt = insert_stmt.on_conflict_do_update(
         constraint="uq_storm_category",
         set_={
+            # Same simplify-capped union as the MRMS track path — see
+            # _write_swaths for why the 0.001° simplify matters.
             "geom_multipolygon": func.ST_Multi(
-                func.ST_Union(
-                    HailSwath.geom_multipolygon,
-                    insert_stmt.excluded.geom_multipolygon,
+                func.ST_SimplifyPreserveTopology(
+                    func.ST_Union(
+                        HailSwath.geom_multipolygon,
+                        insert_stmt.excluded.geom_multipolygon,
+                    ),
+                    0.001,
                 )
             ),
             "updated_at": datetime.now(timezone.utc),
@@ -509,8 +520,19 @@ def upsert_lsr_report(session: Session, report) -> dict:  # noqa: ANN001
 
     existing = session.query(Storm).filter(Storm.id == storm_id).first()
     if existing:
-        # Re-ingest of same LSR — refresh updated_at, leave geometry
-        # alone (the report didn't move).
+        # Re-ingest of the same LSR. The live loop re-pulls today+yesterday
+        # every ~20 min, so the overwhelmingly common case is "nothing
+        # changed" — skip the writes entirely then. On an outbreak day this
+        # avoids rewriting hundreds of rows (storm + swath + commit) per
+        # pull, which was pure WAL churn and log noise.
+        if abs((existing.max_hail_size_in or 0.0) - report.size_in) < 1e-6:
+            return {
+                "storm_id": storm_id,
+                "category": category,
+                "size_in": report.size_in,
+                "location": f"{report.location}, {report.state}",
+                "skipped": True,
+            }
         existing.max_hail_size_in = report.size_in
         existing.updated_at = datetime.now(timezone.utc)
         session.flush()

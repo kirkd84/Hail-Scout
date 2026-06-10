@@ -80,8 +80,11 @@ def parse_mesh_grib(grib_path: str, timestamp: datetime) -> MeshGrid:
         var = ds[var_names[0]]
         log.info("grib_variable", name=var_names[0], shape=tuple(var.shape))
 
-        # mm → inches; sentinel negatives → 0
+        # mm → inches; sentinel negatives → 0. NaNs (bitmap-packed missing
+        # data) → 0 too: a NaN would sail through the < / > guards below
+        # and reach the DB as a NaN max via arr.max().
         arr = np.asarray(var.values, dtype=np.float32) / 25.4
+        arr = np.nan_to_num(arr, nan=0.0)
         arr = np.where(arr < 0, 0.0, arr)
         # MRMS noise floor — pixels above MAX_PLAUSIBLE_INCHES are radar
         # artifacts, not hail. Zero them so they don't pollute the storm

@@ -297,6 +297,13 @@ def cmd_lsr(args: argparse.Namespace) -> int:
                 n_ok += 1
             except Exception as e:
                 n_fail += 1
+                # Roll back so one bad report (dup-id race, bad geometry)
+                # doesn't poison the session and silently fail the rest of
+                # the range with PendingRollbackError.
+                try:
+                    session.rollback()
+                except Exception:
+                    pass
                 log.warning("lsr_upsert_failed",
                             id=report.synthetic_id,
                             location=report.location,

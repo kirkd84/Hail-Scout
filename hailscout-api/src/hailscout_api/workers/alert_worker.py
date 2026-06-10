@@ -61,11 +61,15 @@ _last_full_sweep_at: float = 0.0
 
 
 def _full_sweep_interval_s() -> int:
-    raw = os.environ.get("LSR_FULL_SWEEP_INTERVAL_S", "10800")  # 3h default
+    # Daily by default. The full sweep loops every LSR in ~6 years with two
+    # queries each — at post-backfill scale (~100k LSR rows) that's far too
+    # heavy for the old 3h cadence. The 2-day incremental link still runs
+    # every tick, so fresh storms confirm within minutes either way.
+    raw = os.environ.get("LSR_FULL_SWEEP_INTERVAL_S", "86400")
     try:
         return max(0, int(raw))
     except ValueError:
-        return 10800
+        return 86400
 
 
 def _full_sweep_days() -> int:
@@ -123,9 +127,12 @@ async def _one_pass() -> dict:
                     "screen": full_screen,
                 }
                 log.warning("alert_worker.full_sweep_done %s", full_sweep_summary)
+                # Mark success only — a crashed sweep retries in ~15 min
+                # instead of silently waiting out the whole interval.
+                _last_full_sweep_at = now
             except Exception:
                 log.exception("alert_worker.full_sweep_failed")
-        _last_full_sweep_at = now
+                _last_full_sweep_at = now - max(0.0, float(interval) - 900.0)
 
     # ── Per-tick incremental ──
     async with factory() as session:

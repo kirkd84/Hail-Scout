@@ -9,11 +9,21 @@ colorized raster, server-side:
 
   1. Burn each size band (smallest first, so larger sits on top) into a
      single-channel value image at the band's size in inches.
-  2. Gaussian-blur the value image — this bridges the hard 0.25" band
-     steps into a continuous gradient (the key to the smooth look).
-  3. Map values through a hail color ramp → RGBA, with alpha rising
-     with size and fully transparent below the smallest band.
-  4. Encode PNG. The caller pairs it with geographic bounds so the web
+  2. Morphological close to fill pinholes inside severe cores.
+  3. PEAK-PRESERVING multi-scale smoothing: the value surface is the
+     per-pixel MAX of three Gaussian blurs (tight / medium / wide).
+     A single blur averages small severe cores down toward zero — a
+     10px 1.5" core blurred at r=13 reads ~0.5" and vanishes below the
+     0.75" color floor (the "washed-out pale dots" failure). Max-of-
+     scales keeps cores at full intensity (tight blur), smooths band
+     steps (medium), and adds the wide feathered skirt that visually
+     bridges neighboring cells into a continuous storm track (wide) —
+     the HailStrike/IHM ribbon look.
+  4. Map values through a hail color ramp → RGBA. Alpha FEATHERS in
+     from ~0.30" up to the smallest band instead of cutting hard at
+     0.75", so swath edges fade out organically instead of ending in a
+     cookie-cutter rim.
+  5. Encode PNG. The caller pairs it with geographic bounds so the web
      renders it as a MapLibre image/raster source with linear
      resampling (smooth on zoom).
 
@@ -29,7 +39,7 @@ from dataclasses import dataclass
 from typing import Any, Iterable
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 from hailscout_api.core import get_logger
 
@@ -37,17 +47,23 @@ logger = get_logger(__name__)
 
 
 # Target raster width in pixels. Height derives from the bbox aspect.
-# 768 is plenty for a single storm — the blur + linear resampling carry
-# the smoothness, so we don't need a huge image.
-_TARGET_WIDTH = 768
-_MAX_DIM = 1024
+# Per-storm rasters default lower; the viewport endpoint passes the
+# client's screen-derived width (up to _MAX_DIM).
+_TARGET_WIDTH = 1024
+_MAX_DIM = 2048
 _MIN_DIM = 64
 
-# Blur radius as a fraction of the raster's smaller dimension. This is
-# what melts the band stair-steps into a gradient; tuned so a typical
-# storm reads smooth without washing out the core.
-_BLUR_FRAC = 0.012
-_BLUR_MIN_PX = 2.0
+# Smoothing parameters as fractions of the raster's smaller dimension.
+#   dilate — grayscale dilation applied BEFORE the medium blur. Pre-
+#            growing each cell compensates for the blur averaging small
+#            cores down toward zero, so peak intensity survives — and
+#            the blur then rounds the grown squares into organic blobs.
+#   medium — melts the 0.25" band stair-steps AND the raw ~1km MRMS
+#            pixel squares into a smooth gradient
+#   wide   — soft outer skirt; visually links nearby cells into a track
+_DILATE_FRAC = 0.008
+_BLUR_MED_FRAC = 0.012
+_BLUR_WIDE_FRAC = 0.032
 
 # Pad the bbox so the blurred edge has room to fade to transparent
 # instead of getting clipped at the image border.
@@ -57,6 +73,14 @@ _PAD_FRAC = 0.06
 # the post-QC plausible ceiling, so the channel never saturates on real
 # hail while keeping good resolution across the meaningful range.
 _SCALE_MAX_IN = 4.0
+
+# Alpha feather: fully transparent below _FEATHER_START_IN, ramping up
+# to _ALPHA_AT_BASE at the smallest ramp stop (0.75"), then rising to
+# _ALPHA_MAX at the top of the ramp. This is what turns the hard 0.75"
+# contour rim into an organic fade.
+_FEATHER_START_IN = 0.30
+_ALPHA_AT_BASE = 145
+_ALPHA_MAX = 235
 
 
 # Continuous hail color ramp (inches → RGB). Anchored to the same
@@ -99,29 +123,43 @@ def _lerp(a: int, b: int, t: float) -> int:
     return int(round(a + (b - a) * t))
 
 
-def _color_for(inches: float) -> tuple[int, int, int, int]:
-    """Map a hail size (inches) to RGBA via the ramp. Alpha rises with
-    size; below the smallest stop it's fully transparent."""
-    if inches < _RAMP[0][0]:
-        return (0, 0, 0, 0)
-    # Clamp to top
+def _rgb_for(inches: float) -> tuple[int, int, int]:
+    """RGB from the ramp; clamps below to the first stop's color (the
+    feathered fringe wears the palest swath color, never a new hue)."""
+    if inches <= _RAMP[0][0]:
+        return _RAMP[0][1]
     if inches >= _RAMP[-1][0]:
-        r, g, b = _RAMP[-1][1]
-        return (r, g, b, 235)
+        return _RAMP[-1][1]
     for i in range(len(_RAMP) - 1):
         lo_v, lo_c = _RAMP[i]
         hi_v, hi_c = _RAMP[i + 1]
         if lo_v <= inches < hi_v:
             t = (inches - lo_v) / (hi_v - lo_v)
-            r = _lerp(lo_c[0], hi_c[0], t)
-            g = _lerp(lo_c[1], hi_c[1], t)
-            b = _lerp(lo_c[2], hi_c[2], t)
-            # Alpha 150 → 235 across the size range for a glow that
-            # intensifies with severity.
-            frac = (inches - _RAMP[0][0]) / (_RAMP[-1][0] - _RAMP[0][0])
-            a = int(150 + 85 * max(0.0, min(1.0, frac)))
-            return (r, g, b, a)
-    return (0, 0, 0, 0)
+            return (
+                _lerp(lo_c[0], hi_c[0], t),
+                _lerp(lo_c[1], hi_c[1], t),
+                _lerp(lo_c[2], hi_c[2], t),
+            )
+    return _RAMP[-1][1]
+
+
+def _color_for(inches: float) -> tuple[int, int, int, int]:
+    """RGBA for a hail size. Alpha feathers in from _FEATHER_START_IN,
+    reaches _ALPHA_AT_BASE at the smallest band, and climbs with
+    severity to _ALPHA_MAX."""
+    if inches < _FEATHER_START_IN:
+        return (0, 0, 0, 0)
+    base = _RAMP[0][0]
+    r, g, b = _rgb_for(inches)
+    if inches < base:
+        t = (inches - _FEATHER_START_IN) / (base - _FEATHER_START_IN)
+        # Smoothstep so the fade eases in instead of ramping linearly.
+        t = t * t * (3 - 2 * t)
+        return (r, g, b, int(round(_ALPHA_AT_BASE * t)))
+    frac = (inches - base) / (_RAMP[-1][0] - base)
+    frac = max(0.0, min(1.0, frac))
+    a = int(round(_ALPHA_AT_BASE + (_ALPHA_MAX - _ALPHA_AT_BASE) * frac))
+    return (r, g, b, a)
 
 
 def _build_lut() -> "np.ndarray":
@@ -202,9 +240,8 @@ def render_storm_raster(
     # raster isn't stretched).
     mid_lat = (min_lat + max_lat) / 2.0
     aspect = (span_lng * math.cos(math.radians(mid_lat))) / span_lat
-    width = target_width
-    height = int(round(width / aspect)) if aspect > 0 else target_width
-    width = max(_MIN_DIM, min(_MAX_DIM, width))
+    width = max(_MIN_DIM, min(_MAX_DIM, target_width))
+    height = int(round(width / aspect)) if aspect > 0 else width
     height = max(_MIN_DIM, min(_MAX_DIM, height))
 
     def to_px(lng: float, lat: float) -> tuple[float, float]:
@@ -226,33 +263,52 @@ def render_storm_raster(
             if len(pts) >= 3:
                 draw.polygon(pts, fill=fill_val)
 
-    # 1b. Morphological CLOSE (dilate then erode) to fill the small
-    #     transparent pinholes the raw swath polygons leave inside a
-    #     severe core (cone-of-silence, beam blockage, inter-cell gaps).
-    #     Without this the core shows basemap-colored pockets; IHM fills
-    #     them, so we do too. Iterated 3×3 max/min gives a controllable
-    #     close radius without a slow large-kernel rank filter.
-    close_r = max(4, min(18, int(min(width, height) * 0.018)))
+    # 2. Morphological CLOSE (dilate then erode) to fill the small
+    #    transparent pinholes the raw swath polygons leave inside a
+    #    severe core (cone-of-silence, beam blockage, inter-cell gaps).
+    #    Kept modest — the wide blur scale below handles larger gap-
+    #    bridging, so the close only needs to plug true pinholes.
+    close_r = max(2, min(8, int(min(width, height) * 0.008)))
     for _ in range(close_r):
         value_img = value_img.filter(ImageFilter.MaxFilter(3))
     for _ in range(close_r):
         value_img = value_img.filter(ImageFilter.MinFilter(3))
 
-    # 2. Gaussian blur to melt the band steps into a gradient.
-    blur_px = max(_BLUR_MIN_PX, min(width, height) * _BLUR_FRAC)
-    value_img = value_img.filter(ImageFilter.GaussianBlur(radius=blur_px))
+    # 3. Peak-preserving smoothing, two layers max-composited:
+    #    CORE  = blur(dilate(img)) — the dilation pre-grows every cell so
+    #            the blur can't average small severe cores down below the
+    #            color floor (the old washed-out-dots failure), and the
+    #            blur rounds the grown ~1km pixel squares into organic
+    #            blobs while melting band steps into gradients.
+    #    SKIRT = wide blur of the raw image — a faint feathered apron
+    #            that visually links neighboring cells into a continuous
+    #            storm track, the HailStrike/IHM ribbon look.
+    m = float(min(width, height))
+    d = max(2, int(round(m * _DILATE_FRAC)))
+    r_med = max(4.0, m * _BLUR_MED_FRAC)
+    r_wide = max(10.0, m * _BLUR_WIDE_FRAC)
+    core = value_img
+    for _ in range(d):
+        core = core.filter(ImageFilter.MaxFilter(3))
+    core = core.filter(ImageFilter.GaussianBlur(radius=r_med))
+    skirt = value_img.filter(ImageFilter.GaussianBlur(radius=r_wide))
+    value_img = ImageChops.lighter(core, skirt)
 
-    # 3. Colorize → RGBA, vectorized via a precomputed 256-entry LUT.
-    #    Far faster than a per-pixel Python loop on a ~768×500 image.
+    # 4. Colorize → RGBA, vectorized via a precomputed 256-entry LUT.
+    #    Far faster than a per-pixel Python loop.
     lut = _build_lut()  # (256, 4) uint8
     vals = np.asarray(value_img, dtype=np.uint8)
     rgba = lut[vals]  # (h, w, 4) uint8
     out = Image.fromarray(rgba, mode="RGBA")
 
     buf = io.BytesIO()
-    out.save(buf, format="PNG", optimize=True)
+    # No `optimize` — at up to 2048px it costs hundreds of ms for a few
+    # percent size win; the image is mostly transparent and compresses
+    # well at the default level anyway.
+    out.save(buf, format="PNG", compress_level=6)
     logger.info("storm_raster_rendered", width=width, height=height,
-                bands=len(bands), peak_in=peak, blur_px=round(blur_px, 1))
+                bands=len(bands), peak_in=peak,
+                smooth_px=(d, round(r_med, 1), round(r_wide, 1)))
     return StormRaster(
         png_bytes=buf.getvalue(),
         min_lng=min_lng, min_lat=min_lat, max_lng=max_lng, max_lat=max_lat,

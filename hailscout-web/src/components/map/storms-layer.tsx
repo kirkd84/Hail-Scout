@@ -24,6 +24,7 @@ import type { Map as MapLibreMap, MapLayerMouseEvent } from "maplibre-gl";
 import type { StormWithSwaths } from "@/hooks/useStorms";
 import { hailColor } from "@/lib/hail";
 import { nearestMetro } from "@/lib/metros";
+import { firstSymbolLayerId } from "@/components/map/storms-raster-layer";
 
 const SOURCE_BANDS = "hs-live-bands";
 const SOURCE_CENTROIDS = "hs-live-centroids";
@@ -175,6 +176,11 @@ export function StormsLayer({
         data: { type: "FeatureCollection", features: [] },
       });
 
+      // Paint the swath bands BENEATH the basemap's label layers so
+      // street/city names stay crisp on top — the HailStrike/IHM look.
+      // Centroids + date labels intentionally go on top (no anchor).
+      const labelAnchor = firstSymbolLayerId(map);
+
       // Invisible probe fill — always rendered (opacity 0) so hover/click
       // hit-testing works in every view mode, including smooth where the
       // visible bands are hidden. Added first so it sits beneath the
@@ -184,7 +190,7 @@ export function StormsLayer({
         type: "fill",
         source: SOURCE_BANDS,
         paint: { "fill-opacity": 0 },
-      });
+      }, labelAnchor);
 
       // Polish notes:
       //  - GLOW layer: an oversized blurred stroke painted UNDER the
@@ -232,7 +238,7 @@ export function StormsLayer({
             3.0,  0.36,
           ],
         },
-      });
+      }, labelAnchor);
 
       map.addLayer({
         id: LAYER_FILL,
@@ -273,7 +279,7 @@ export function StormsLayer({
           // glow underneath does most of the smoothing visually.
           "fill-antialias": true,
         },
-      });
+      }, labelAnchor);
 
       map.addLayer({
         id: LAYER_LINE,
@@ -303,7 +309,7 @@ export function StormsLayer({
           "line-blur": 0.3,
           "line-opacity": 0.75,
         },
-      });
+      }, labelAnchor);
 
       // Centroid source + layers — painted ON TOP of polygons.
       map.addSource(SOURCE_CENTROIDS, {

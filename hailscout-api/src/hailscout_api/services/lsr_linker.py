@@ -103,14 +103,18 @@ async def link_recent_lsrs(
         # that band's storm.
         window_lo = lsr.start_time - _TIME_WINDOW
         window_hi = lsr.start_time + _TIME_WINDOW
+        # Interval OVERLAP, not start-time proximity: tracked storms
+        # accumulate for hours under one row whose start_time is the track
+        # birth — an LSR filed 45+ min into a long-lived supercell must
+        # still match while the storm is active.
         match_row = (
             await session.execute(
                 select(Storm, HailSwath.hail_size_category)
                 .join(HailSwath, HailSwath.storm_id == Storm.id)
                 .where(and_(
                     Storm.source != "SPC-LSR",
-                    Storm.start_time >= window_lo,
                     Storm.start_time <= window_hi,
+                    Storm.end_time >= window_lo,
                     ST_Contains(HailSwath.geom_multipolygon, lsr.centroid_geom),
                 ))
                 # Largest band at the point wins (handles overlapping cells

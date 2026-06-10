@@ -150,6 +150,12 @@ async def get_viewport_raster(
                     "The map sends this when 'Show unverified' is on so the "
                     "footprint matches reality; cells stay flagged on hover.",
     ),
+    width: int = Query(
+        1536, ge=256, le=2048,
+        description="Raster width in px. The client passes its screen "
+                    "width × devicePixelRatio so the surface stays crisp "
+                    "on retina displays instead of upscaling a small image.",
+    ),
     session: AsyncSession = Depends(get_db_session),
 ) -> StormRasterResponse:
     """One smooth hail raster for every storm in the viewport (Phase 25).
@@ -185,7 +191,7 @@ async def get_viewport_raster(
 
     raster = render_storm_raster(
         all_swaths, (min_lon, min_lat, max_lon, max_lat),
-        pad=False, target_width=1024,
+        pad=False, target_width=width,
     )
     if raster is None:
         # Nothing in view — return a 1x1 transparent pixel so the client
