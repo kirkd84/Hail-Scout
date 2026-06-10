@@ -134,8 +134,17 @@ export function StormsRasterLayer({
       }
     };
 
-    if (map.isStyleLoaded()) apply();
-    else map.once("style.load", apply);
+    if (map.isStyleLoaded()) {
+      apply();
+      return;
+    }
+    map.once("style.load", apply);
+    // Remove the queued apply if the raster changes (or we unmount)
+    // before the style finishes loading — a stale apply firing after
+    // cleanup would re-add an orphaned source/layer.
+    return () => {
+      map.off("style.load", apply);
+    };
   }, [map, raster, styleEpoch, opacity, visible]);
 
   // Visibility / opacity toggle without re-adding (acts on the active slot).

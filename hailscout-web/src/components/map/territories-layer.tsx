@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { Map as MapLibreMap, GeoJSONSource } from "maplibre-gl";
 import type { Territory } from "@/hooks/useTerritories";
 
@@ -24,6 +24,11 @@ function colorFor(t: Territory, idx: number): string {
 }
 
 export function TerritoriesLayer({ map, territories }: Props) {
+  // Bumped when a basemap style swap wipes + recreates the source, so the
+  // data effect re-pushes features into the fresh (empty) source. Without
+  // this, territories vanished after any basemap toggle.
+  const [styleEpoch, setStyleEpoch] = useState(0);
+
   useEffect(() => {
     if (!map) return;
     const setup = () => {
@@ -71,12 +76,20 @@ export function TerritoriesLayer({ map, territories }: Props) {
     if (map.isStyleLoaded()) setup();
     else map.once("style.load", setup);
 
-    const onStyle = () => { if (!map.getSource(SOURCE_ID)) setup(); };
+    const onStyle = () => {
+      if (!map.getSource(SOURCE_ID)) {
+        setup();
+        setStyleEpoch((e) => e + 1);
+      }
+    };
     map.on("styledata", onStyle);
-    return () => { map.off("styledata", onStyle); };
+    return () => {
+      map.off("styledata", onStyle);
+      map.off("style.load", setup);
+    };
   }, [map]);
 
-  // Push features
+  // Push features (re-runs after a basemap swap via styleEpoch).
   useEffect(() => {
     if (!map) return;
     const src = map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
@@ -95,7 +108,7 @@ export function TerritoriesLayer({ map, territories }: Props) {
       })),
     };
     src.setData(fc);
-  }, [map, territories]);
+  }, [map, territories, styleEpoch]);
 
   return null;
 }

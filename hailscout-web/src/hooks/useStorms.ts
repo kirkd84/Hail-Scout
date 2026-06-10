@@ -213,7 +213,14 @@ export function useStorms(args: UseStormsArgs) {
   const { data, error, isLoading, mutate } = useSWR<ApiStormsListResponse>(
     swrKey,
     (url: string) => apiClient.get<ApiStormsListResponse>(url),
-    { revalidateOnFocus: false, dedupingInterval: 60_000, shouldRetryOnError: false },
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 60_000,
+      shouldRetryOnError: false,
+      // Live feed: new MRMS cells land every ~2 min during active weather,
+      // and the legend promises a 2-min refresh — keep it true.
+      refreshInterval: 120_000,
+    },
   );
 
   if (fixtureMode) {

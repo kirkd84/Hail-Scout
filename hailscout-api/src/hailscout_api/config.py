@@ -7,6 +7,7 @@ on Field. Configure via ``model_config`` instead.
 
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -139,6 +140,11 @@ class Settings(BaseSettings):
     ]
 
 
+@lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Get application settings."""
+    """Get application settings (cached — env is static per process).
+
+    Called on hot paths (every token verify, AI/geocoder gates); without
+    the cache pydantic-settings re-parses the environment + .env each call.
+    """
     return Settings()

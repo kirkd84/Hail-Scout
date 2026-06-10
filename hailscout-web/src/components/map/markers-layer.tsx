@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import type { Map as MapLibreMap, MapMouseEvent } from "maplibre-gl";
 import { MARKER_STATUSES, type Marker } from "@/lib/markers";
 
@@ -22,7 +22,10 @@ interface Props {
  * cream-and-copper bubbles with a count label; click a cluster to zoom in.
  */
 export function MarkersLayer({ map, markers, onMarkerClick }: Props) {
-  const handlersRef = useRef<{ click?: (e: MapMouseEvent) => void; clusterClick?: (e: MapMouseEvent) => void }>({});
+  // Bumped when a basemap style swap wipes + recreates the source, so the
+  // data effect re-pushes markers into the fresh (empty) source. Without
+  // this, markers vanished after any basemap toggle.
+  const [styleEpoch, setStyleEpoch] = useState(0);
 
   // Initial layer creation
   useEffect(() => {
@@ -113,67 +116,74 @@ export function MarkersLayer({ map, markers, onMarkerClick }: Props) {
         },
       });
 
-      // Click on a cluster -> zoom in
-      const clusterClick = (e: MapMouseEvent) => {
-        const features = map.queryRenderedFeatures(e.point, { layers: [CLUSTER_LAYER] });
-        if (features.length === 0) return;
-        const feat = features[0];
-        const clusterId = feat.properties?.cluster_id;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const src = map.getSource(SOURCE_ID) as any;
-        if (!src || clusterId === undefined) return;
-        src.getClusterExpansionZoom(clusterId, (err: Error | null, zoom: number) => {
-          if (err) return;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const coords = (feat.geometry as any).coordinates as [number, number];
-          map.easeTo({ center: coords, zoom: Math.min(zoom + 0.5, 16), duration: 600 });
-        });
-      };
-      map.on("click", CLUSTER_LAYER, clusterClick);
-      handlersRef.current.clusterClick = clusterClick;
-
-      // Click on an individual marker
-      const click = (e: MapMouseEvent) => {
-        const features = map.queryRenderedFeatures(e.point, { layers: [DOT_LAYER] });
-        if (features.length > 0) {
-          const id = features[0].properties?.id as string | undefined;
-          if (id) {
-            e.preventDefault();
-            onMarkerClick?.(id);
-          }
-        }
-      };
-      map.on("click", click);
-      handlersRef.current.click = click;
-
-      // Cursor feedback
-      const enter = () => { map.getCanvas().style.cursor = "pointer"; };
-      const leave = () => { map.getCanvas().style.cursor = ""; };
-      map.on("mouseenter", DOT_LAYER, enter);
-      map.on("mouseleave", DOT_LAYER, leave);
-      map.on("mouseenter", CLUSTER_LAYER, enter);
-      map.on("mouseleave", CLUSTER_LAYER, leave);
     };
+
+    // Listeners are bound ONCE here (not inside addLayers): layer-scoped
+    // MapLibre listeners are keyed by layer id and keep working after a
+    // basemap style swap recreates the layer — re-binding them in
+    // addLayers stacked a duplicate set per swap, so one click fired N
+    // handlers after N basemap toggles.
+    const clusterClick = (e: MapMouseEvent) => {
+      const features = map.queryRenderedFeatures(e.point, { layers: [CLUSTER_LAYER] });
+      if (features.length === 0) return;
+      const feat = features[0];
+      const clusterId = feat.properties?.cluster_id;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const src = map.getSource(SOURCE_ID) as any;
+      if (!src || clusterId === undefined) return;
+      src.getClusterExpansionZoom(clusterId, (err: Error | null, zoom: number) => {
+        if (err) return;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const coords = (feat.geometry as any).coordinates as [number, number];
+        map.easeTo({ center: coords, zoom: Math.min(zoom + 0.5, 16), duration: 600 });
+      });
+    };
+    const click = (e: MapMouseEvent) => {
+      const features = map.queryRenderedFeatures(e.point, { layers: [DOT_LAYER] });
+      if (features.length > 0) {
+        const id = features[0].properties?.id as string | undefined;
+        if (id) {
+          e.preventDefault();
+          onMarkerClick?.(id);
+        }
+      }
+    };
+    const enter = () => { map.getCanvas().style.cursor = "pointer"; };
+    const leave = () => { map.getCanvas().style.cursor = ""; };
 
     if (map.isStyleLoaded()) addLayers();
     else map.once("style.load", addLayers);
 
+    map.on("click", CLUSTER_LAYER, clusterClick);
+    map.on("click", click);
+    map.on("mouseenter", DOT_LAYER, enter);
+    map.on("mouseleave", DOT_LAYER, leave);
+    map.on("mouseenter", CLUSTER_LAYER, enter);
+    map.on("mouseleave", CLUSTER_LAYER, leave);
+
     const onStyle = () => {
-      if (!map.getSource(SOURCE_ID)) addLayers();
+      if (!map.getSource(SOURCE_ID)) {
+        addLayers();
+        setStyleEpoch((e) => e + 1);
+      }
     };
     map.on("styledata", onStyle);
 
     return () => {
       map.off("styledata", onStyle);
-      if (handlersRef.current.click) map.off("click", handlersRef.current.click);
-      if (handlersRef.current.clusterClick) {
-        map.off("click", CLUSTER_LAYER, handlersRef.current.clusterClick);
-      }
+      map.off("style.load", addLayers);
+      map.off("click", CLUSTER_LAYER, clusterClick);
+      map.off("click", click);
+      map.off("mouseenter", DOT_LAYER, enter);
+      map.off("mouseleave", DOT_LAYER, leave);
+      map.off("mouseenter", CLUSTER_LAYER, enter);
+      map.off("mouseleave", CLUSTER_LAYER, leave);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map]);
 
-  // Push marker data into the source
+  // Push marker data into the source (re-runs after a basemap swap via
+  // styleEpoch so the recreated source isn't left empty).
   useEffect(() => {
     if (!map) return;
     const src = map.getSource(SOURCE_ID);

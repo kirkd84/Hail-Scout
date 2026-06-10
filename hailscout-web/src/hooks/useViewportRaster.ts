@@ -2,6 +2,7 @@
 
 import useSWR from "swr";
 import { apiClient } from "@/lib/api";
+import { useAuth } from "@/hooks/useAuth";
 
 export interface ViewportRaster {
   storm_id: string;
@@ -88,10 +89,23 @@ export function useViewportRaster({
         })()
       : null;
 
+  const { getToken } = useAuth();
   const { data, error, isLoading } = useSWR<ViewportRaster>(
     key,
-    (url: string) => apiClient.get<ViewportRaster>(url),
-    { revalidateOnFocus: false, dedupingInterval: 30_000, keepPreviousData: true },
+    // Authenticated fetch: the API caps raster width at 1024 for anonymous
+    // callers (CPU-abuse guard) — signed-in users get full retina res.
+    async (url: string) => {
+      const t = await getToken();
+      return apiClient.get<ViewportRaster>(url, t || undefined);
+    },
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 30_000,
+      keepPreviousData: true,
+      // Track the storms list's 2-min live refresh so the smooth surface
+      // doesn't lag the cells/centroids during active weather.
+      refreshInterval: 120_000,
+    },
   );
 
   return { raster: data, error, isLoading };

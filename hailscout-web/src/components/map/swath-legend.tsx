@@ -118,7 +118,9 @@ export function SwathLegend({
             </div>
           )}
           <p className="mt-3 pt-2 border-t border-border text-[10px] text-muted-foreground leading-relaxed">
-            Same color scale as HailTrace and Interactive Hail Maps. Refreshes every 2 min during active storms.
+            Industry-standard size bins — penny to softball, the same vocabulary
+            as HailTrace and IHM. Live feed refreshes every 2 min during active
+            storms.
           </p>
         </div>
       )}

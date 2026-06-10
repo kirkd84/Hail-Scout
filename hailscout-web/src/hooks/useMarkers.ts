@@ -75,13 +75,18 @@ export function useMarkers() {
   useEffect(() => {
     if (!auth) return;
     if (typeof window === "undefined") return;
-    if (localStorage.getItem(MIGRATED_KEY) === "1") return;
+    // Truthy check covers both "1" (done) and "pending" (in flight) — the
+    // hook mounts several times at once on the map page, and the sentinel
+    // must be set SYNCHRONOUSLY before the await or every instance passes
+    // the guard and bulk-POSTs the same rows in parallel (duplicates).
+    if (localStorage.getItem(MIGRATED_KEY)) return;
 
     const localRows = markersStore.list();
     if (localRows.length === 0) {
       localStorage.setItem(MIGRATED_KEY, "1");
       return;
     }
+    localStorage.setItem(MIGRATED_KEY, "pending");
     (async () => {
       try {
         const t = await getToken();
@@ -101,7 +106,8 @@ export function useMarkers() {
         localStorage.setItem(MIGRATED_KEY, "1");
         await swr.mutate();
       } catch {
-        // Try again on next mount
+        // Clear the pending sentinel so the next mount retries.
+        localStorage.removeItem(MIGRATED_KEY);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps

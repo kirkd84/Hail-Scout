@@ -209,7 +209,10 @@ async def refresh(
     user = (
         await session.execute(select(User).where(User.id == sess.user_id))
     ).scalar_one_or_none()
-    if user is None:
+    # Re-check is_disabled here too (exchange/login already do): disabling
+    # a user revokes their sessions, but refresh must not be the one path
+    # that would keep minting access tokens if that revocation ever raced.
+    if user is None or user.is_disabled:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found."
         )
@@ -367,11 +370,14 @@ async def forgot_password(
     """
     email = body.email.lower().strip()
 
-    # Modest abuse brake reusing the durable lockout counter: a flood of
-    # forgot requests for one address counts like failures and locks out.
-    if await is_locked(session, email):
+    # Abuse brake on a SEPARATE namespaced counter. This used to share the
+    # login-lockout counter — which let an unauthenticated attacker POST
+    # forgot-password 5x and lock the victim out of password sign-in.
+    # Namespacing keeps the brake without weaponizing the endpoint.
+    guard_key = f"forgot:{email}"[:255]
+    if await is_locked(session, guard_key):
         return {"ok": True, "message": "If your email is registered, check your inbox."}
-    await record_failure(session, email)
+    await record_failure(session, guard_key)
 
     user = (
         await session.execute(select(User).where(User.email == email))

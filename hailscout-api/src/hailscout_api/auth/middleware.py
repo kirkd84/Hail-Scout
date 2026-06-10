@@ -53,9 +53,9 @@ def bearer_token(request: Request) -> str:
 async def extract_auth_context(request: Request) -> AuthContext:
     """Verify the access token and build the request's auth context.
 
-    ``sub`` is our internal user id; ``org_id`` rides in the token (we mint it
-    from ``user.org_id``), with an ``X-Org-Id`` header fallback retained for
-    future multi-org switching.
+    ``sub`` is our internal user id; ``org_id`` rides in the token (we mint
+    it from ``user.org_id``) and comes ONLY from the signed token — a
+    client-controlled header must never influence tenancy.
     """
     token = bearer_token(request)
     claims = verify_access_token(token)
@@ -66,7 +66,7 @@ async def extract_auth_context(request: Request) -> AuthContext:
         logger.warning("auth.token_missing_sub")
         raise AuthenticationError("Token missing required fields")
 
-    org_id = claims.get("org_id") or request.headers.get("X-Org-Id") or ""
+    org_id = claims.get("org_id") or ""
 
     return AuthContext(
         user_id=user_id,

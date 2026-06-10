@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import time as _time
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from hailscout_api.auth.middleware import extract_auth_context
 from hailscout_api.core import get_logger
 from hailscout_api.db.session import get_db_session
 from hailscout_api.schemas.storm import (
@@ -137,8 +139,17 @@ async def storms_at_point(
     )
 
 
+# Short-TTL viewport-raster cache. Rendering is CPU-bound Pillow work on a
+# public route — identical map views (several reps watching the same metro,
+# or a hammering client) reuse one render instead of re-burning the image.
+_raster_cache: dict[tuple, tuple[float, StormRasterResponse]] = {}
+_RASTER_TTL_S = 120.0
+_RASTER_CACHE_MAX = 32
+
+
 @router.get("/storms/raster", response_model=StormRasterResponse)
 async def get_viewport_raster(
+    request: Request,
     bbox: str = Query(..., description="minlon,minlat,maxlon,maxlat"),
     from_date: str = Query(..., alias="from"),
     to_date: str = Query(..., alias="to"),
@@ -178,6 +189,20 @@ async def get_viewport_raster(
     from_dt = _parse_iso_dt(from_date, "from")
     to_dt = _parse_iso_dt(to_date, "to")
 
+    # Anti-abuse: the render cost scales with width, so the full-res knob
+    # is reserved for signed-in callers; anonymous traffic is capped.
+    try:
+        await extract_auth_context(request)
+    except Exception:
+        width = min(width, 1024)
+
+    cache_key = (bbox, from_date, to_date, min_size, source,
+                 include_unconfirmed, width)
+    now = _time.monotonic()
+    hit = _raster_cache.get(cache_key)
+    if hit and hit[0] > now:
+        return hit[1]
+
     storms = await query_storms_in_bbox(
         session, min_lon, min_lat, max_lon, max_lat, from_dt, to_dt,
         limit=200, include_swaths=True, swath_simplify_tolerance=0.0,
@@ -196,26 +221,34 @@ async def get_viewport_raster(
     if raster is None:
         # Nothing in view — return a 1x1 transparent pixel so the client
         # can still place (and clear) the layer without special-casing.
-        import base64 as _b64
         empty = (
             "data:image/png;base64,"
             "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk"
             "+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
         )
-        return StormRasterResponse(
+        resp = StormRasterResponse(
             storm_id="viewport", image=empty,
             coordinates=[[min_lon, max_lat], [max_lon, max_lat],
                          [max_lon, min_lat], [min_lon, min_lat]],
             width=1, height=1, peak_in=0.0,
         )
+    else:
+        b64 = base64.b64encode(raster.png_bytes).decode("ascii")
+        resp = StormRasterResponse(
+            storm_id="viewport",
+            image=f"data:image/png;base64,{b64}",
+            coordinates=raster.bounds_lnglat(),
+            width=raster.width, height=raster.height, peak_in=raster.peak_in,
+        )
 
-    b64 = base64.b64encode(raster.png_bytes).decode("ascii")
-    return StormRasterResponse(
-        storm_id="viewport",
-        image=f"data:image/png;base64,{b64}",
-        coordinates=raster.bounds_lnglat(),
-        width=raster.width, height=raster.height, peak_in=raster.peak_in,
-    )
+    # Cache + bound the cache size (drop expired first, then oldest).
+    if len(_raster_cache) >= _RASTER_CACHE_MAX:
+        for k in [k for k, v in _raster_cache.items() if v[0] <= now]:
+            _raster_cache.pop(k, None)
+        while len(_raster_cache) >= _RASTER_CACHE_MAX:
+            _raster_cache.pop(next(iter(_raster_cache)), None)
+    _raster_cache[cache_key] = (now + _RASTER_TTL_S, resp)
+    return resp
 
 
 @router.get("/storms/stats", response_model=StormsStatsResponse)

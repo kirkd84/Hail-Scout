@@ -48,21 +48,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     token: null,
     exp: 0,
   });
+  // Single-flight: on first paint a dozen SWR hooks call getToken()
+  // simultaneously — without this they each hit /api/auth/token (and the
+  // API's /v1/auth/refresh behind it) in parallel.
+  const inflight = useRef<Promise<string | null> | null>(null);
 
   const fetchToken = useCallback(async (): Promise<string | null> => {
-    try {
-      const res = await fetch("/api/auth/token", { cache: "no-store" });
-      if (!res.ok) {
-        cache.current = { token: null, exp: 0 };
+    if (inflight.current) return inflight.current;
+    const p = (async (): Promise<string | null> => {
+      try {
+        const res = await fetch("/api/auth/token", { cache: "no-store" });
+        if (!res.ok) {
+          cache.current = { token: null, exp: 0 };
+          return null;
+        }
+        const data = (await res.json()) as { token: string | null };
+        const token = data.token ?? null;
+        cache.current = { token, exp: token ? decodeExpMs(token) : 0 };
+        return token;
+      } catch {
         return null;
+      } finally {
+        inflight.current = null;
       }
-      const data = (await res.json()) as { token: string | null };
-      const token = data.token ?? null;
-      cache.current = { token, exp: token ? decodeExpMs(token) : 0 };
-      return token;
-    } catch {
-      return null;
-    }
+    })();
+    inflight.current = p;
+    return p;
   }, []);
 
   const getToken = useCallback(async (): Promise<string | null> => {

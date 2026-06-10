@@ -86,8 +86,15 @@ async function fileToTriageImage(
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     const out = canvas.toDataURL("image/jpeg", 0.85);
     return { base64: stripPrefix(out), mediaType: "image/jpeg" };
-  } catch {
-    return { base64: stripPrefix(dataUrl), mediaType: file.type || "image/jpeg" };
+  } catch (err) {
+    // Canvas decode failed (commonly iPhone HEIC in Chrome). Only fall
+    // back to the raw bytes when the model can actually accept them —
+    // otherwise surface a clear error instead of a doomed giant POST.
+    const accepted = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (accepted.includes(file.type) && file.size < 3_500_000) {
+      return { base64: stripPrefix(dataUrl), mediaType: file.type };
+    }
+    throw err instanceof Error ? err : new Error("image decode failed");
   }
 }
 
@@ -107,6 +114,13 @@ export default function PhotoAiPage() {
       setPhotoMeta({ name: file.name, sizeKb: Math.round(file.size / 1024) });
       setResult(null);
       setErrorMsg("");
+      // Enforce the promised cap up front — a 40MB original would hang in
+      // the browser downscale and blow the request body limit.
+      if (file.size > 10 * 1024 * 1024) {
+        setErrorMsg("That photo is over 10 MB. Use a smaller export or a screenshot of it.");
+        setPhase("error");
+        return;
+      }
       setPhase("analyzing");
 
       try {
@@ -138,7 +152,9 @@ export default function PhotoAiPage() {
         } else if (err instanceof ApiError) {
           setErrorMsg("The model couldn't analyze that photo. Try a clearer, closer shot of the roof surface.");
         } else {
-          setErrorMsg("Something went wrong reading that image. Try a different photo.");
+          setErrorMsg(
+            "Couldn't read that image format (iPhone HEIC isn't supported in every browser). Convert it to JPG or PNG and try again.",
+          );
         }
         setPhase("error");
       }

@@ -116,6 +116,28 @@ function hitToStormShape(hit: ApiHailAtPointHit, lat: number, lng: number) {
  * Returns the legacy `HailAtAddressResponse` shape so existing
  * consumers (address-search, map page) keep working.
  */
+/**
+ * One-shot LIVE at-point lookup (no hook) — used by the map page's
+ * ?address= deep link. Real API only; no fixture substitution.
+ */
+export async function fetchStormsAtPoint(
+  lat: number,
+  lng: number,
+  pretty: string,
+): Promise<HailAtAddressResponse> {
+  const qs = new URLSearchParams({ lat: String(lat), lng: String(lng) });
+  const data = await apiClient.get<ApiHailAtPointListResponse>(
+    `/v1/storms/at-point?${qs}`,
+  );
+  return {
+    lat,
+    lng,
+    address: pretty,
+    storms: (data.hits ?? []).map((h) => hitToStormShape(h, lat, lng)),
+    events: [],
+  };
+}
+
 export function useStormsAtAddress(
   address?: string,
   options?: { lat?: number; lng?: number },
@@ -178,14 +200,16 @@ export function useStormsAtAddress(
         events: [],
       };
     } else if (!isLoading) {
-      // No live hits → fall back to fixture polygon hit-test so the
-      // demo isn't blank during the pre-data window.
-      const fixtureHits = fixturesAtPoint(resolved.lng, resolved.lat);
+      // Honest empty: a real lookup with no hail history returns NO
+      // storms. Fixture (fake) data only ever appears in explicit demo
+      // mode — never as a silent substitute for a live result, which
+      // would invent storms at a clean address.
+      const demo = process.env.NEXT_PUBLIC_USE_FIXTURES === "1";
       response = {
         lat: resolved.lat,
         lng: resolved.lng,
         address: resolved.pretty,
-        storms: fixtureHits,
+        storms: demo ? fixturesAtPoint(resolved.lng, resolved.lat) : [],
         events: [],
       };
     }

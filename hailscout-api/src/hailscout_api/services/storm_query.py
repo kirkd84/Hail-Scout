@@ -364,15 +364,18 @@ async def query_hail_at_point(
     # adjuster-facing defensibility statement. Scored on the at-point
     # size so the defensibility statement quotes the size that actually
     # fell here, not the storm's peak miles away.
-    attach_verification(out, size_key="size_at_point")
-
     # ── Fuse nearby SPC ground reports (LSRs) — the gold standard ───────
     # A radar swath frequently won't cover an exact address even when a
     # trained spotter reported large hail a mile away (e.g. a 1.5" Arvada
     # report next to a cell our MESH read at 1.0"). Surface ground reports
     # within a short radius as their own hits so "what hit this address"
     # reflects the best available truth, not radar alone.
-    GROUND_RADIUS_M = 6000.0  # ~3.7 mi — spotter fixes are town-relative
+    #
+    # The WHERE uses geometry-degrees ST_DWithin so the GiST index on
+    # centroid_geom is used — casting the COLUMN to Geography (the previous
+    # version) forced a full scan of every LSR row on a hot public route.
+    # The geography ST_Distance in the SELECT only runs on matches.
+    GROUND_RADIUS_DEG = 0.06  # ≈4.1 mi N-S; ~3.2 mi E-W at 40°N
     geog_centroid = cast(Storm.centroid_geom, Geography)
     geog_point = cast(point, Geography)
     lsr_stmt = (
@@ -385,7 +388,7 @@ async def query_hail_at_point(
             ST_Distance(geog_centroid, geog_point).label("dist_m"),
         )
         .where(Storm.source == "SPC-LSR")
-        .where(ST_DWithin(geog_centroid, geog_point, GROUND_RADIUS_M))
+        .where(ST_DWithin(Storm.centroid_geom, point, GROUND_RADIUS_DEG))
     )
     if from_date:
         lsr_stmt = lsr_stmt.where(Storm.start_time >= from_date)
@@ -393,8 +396,26 @@ async def query_hail_at_point(
         lsr_stmt = lsr_stmt.where(Storm.start_time <= to_date)
     lsr_stmt = lsr_stmt.order_by("dist_m").limit(limit)
 
+    def _already_confirmed_by(r) -> bool:
+        """True when a radar hit was already confirmed by an equivalent
+        report (same size, observed within ~31 min) — listing the raw LSR
+        row too would double-count one observation at this address."""
+        for d in out:
+            if not d.get("lsr_confirmed") or d.get("lsr_observed_size_in") is None:
+                continue
+            if abs(float(d["lsr_observed_size_in"]) - float(r.max_hail_size_in)) > 0.01:
+                continue
+            ts = d.get("lsr_observed_at")
+            if ts is not None and abs((ts - r.start_time).total_seconds()) <= 31 * 60:
+                return True
+        return False
+
+    n_ground = 0
     for r in (await session.execute(lsr_stmt)).all():
+        if _already_confirmed_by(r):
+            continue
         size = float(r.max_hail_size_in)
+        n_ground += 1
         out.append({
             "id": r.id,
             "start_time": r.start_time,
@@ -411,9 +432,14 @@ async def query_hail_at_point(
             "peak_dbz": None,
             "category_at_point": f"{size:.2f}",
             "size_at_point": size,
-            "verification": None,
             "distance_mi": round(float(r.dist_m) / 1609.34, 1),
         })
+
+    # Verification tiers for EVERYTHING — including the ground reports.
+    # (This used to run before the LSR fusion, so the strongest evidence
+    # class came back with verification=None while weaker radar hits got a
+    # full defensibility block.)
+    attach_verification(out, size_key="size_at_point")
 
     # Lead with ground reports (largest first), then radar hits in time order.
     ground = [d for d in out if d.get("source") == "SPC-LSR"]
@@ -422,7 +448,7 @@ async def query_hail_at_point(
     out = (ground + radar)[:limit]
 
     logger.info("Hail at point", lat=lat, lng=lng, hits=len(out),
-                ground_reports=len(ground))
+                ground_reports=n_ground)
     return out
 
 

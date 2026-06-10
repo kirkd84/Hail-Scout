@@ -45,6 +45,13 @@ async def triage_damage_endpoint(
     await extract_auth_context(request)
     # Tolerate a data: URL prefix.
     image = body.image_base64.split(",")[-1].strip()
+    # ~10MB binary ceiling (base64 carries 3 bytes per 4 chars). Bigger
+    # payloads waste model spend and get rejected upstream anyway.
+    if len(image) > 14_000_000:
+        raise HTTPException(
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            "Image too large — resize to under 10 MB and retry.",
+        )
     try:
         data = await triage_damage(image, body.media_type, body.context)
     except AINotConfigured as exc:

@@ -108,6 +108,11 @@ export default function MapPage() {
   // range — the map then scopes to exactly that UTC day.
   const [specificDate, setSpecificDate] = useState<string | null>(null);
 
+  // Memoized: dateFilterToCutoff derives from Date.now(), so calling it
+  // inline in JSX produced a new cutoff every render — invalidating the
+  // storms layer's filter memo and re-pushing full GeoJSON on every pan.
+  const dateCutoff = useMemo(() => dateFilterToCutoff(date), [date]);
+
   const fromDate = useMemo(() => {
     if (specificDate) return specificDate;
     const d = new Date();
@@ -217,15 +222,20 @@ export default function MapPage() {
     void (async () => {
       const r = await searchAddress(queryAddress);
       if (!r || cancelled) return;
-      const { fixturesAtPoint } = await import("@/lib/storm-fixtures");
-      const storms = fixturesAtPoint(r.lng, r.lat);
-      handleAddressSearch({
-        lat: r.lat,
-        lng: r.lng,
-        address: r.pretty,
-        storms,
-        events: [],
-      });
+      // LIVE at-point lookup — same data path as a typed search. (This
+      // used to hit-test demo fixtures, which could show invented storms
+      // for a deep-linked address.)
+      const { fetchStormsAtPoint } = await import("@/hooks/useStormsAtAddress");
+      try {
+        const results = await fetchStormsAtPoint(r.lat, r.lng, r.pretty);
+        if (!cancelled) handleAddressSearch(results);
+      } catch {
+        if (!cancelled) {
+          handleAddressSearch({
+            lat: r.lat, lng: r.lng, address: r.pretty, storms: [], events: [],
+          });
+        }
+      }
     })();
     return () => {
       cancelled = true;
@@ -268,7 +278,7 @@ export default function MapPage() {
         visible={viewMode === "cells" || viewMode === "smooth"}
         bandsHidden={viewMode === "smooth"}
         focusStormId={focusStormId}
-        startTimeMin={specificDate ? null : dateFilterToCutoff(date)}
+        startTimeMin={specificDate ? null : dateCutoff}
         minSizeIn={sizeFilterToMin(size)}
         startTimeMax={scrubberMs}
         onStormClick={(stormId) => {

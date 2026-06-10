@@ -152,9 +152,13 @@ def create_app() -> FastAPI:
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         log.exception("hailscout.unhandled_exception")
+        # Generic detail only — str(exc) on a DB/driver error can leak SQL,
+        # column names, or connection details to the caller. The full
+        # exception is in the server log above.
         return JSONResponse(
             status_code=500,
-            content={"error": "internal_server_error", "detail": str(exc)},
+            content={"error": "internal_server_error",
+                     "detail": "Internal server error."},
         )
 
     # Optional in-process alert/screen/link/sweep worker. When
