@@ -45,7 +45,11 @@ export async function GET() {
     res = await fetch(`${API_BASE}/v1/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: refresh }),
+      // rotate: we store the successor below, so opt in to rotation. The
+      // API keeps the presented token alive on a short grace fuse, which
+      // lets a concurrent second tab (same cookie) refresh too instead of
+      // 401ing into clearSessionCookies.
+      body: JSON.stringify({ refresh_token: refresh, rotate: true }),
     });
   } catch {
     return NextResponse.json({ token: null }, { status: 503 });
@@ -58,8 +62,8 @@ export async function GET() {
   const data = (await res.json()) as {
     access_token: string;
     expires_in: number;
-    // Present since the API started rotating refresh tokens (LOGIN-STANDARD
-    // §5): the token we just sent is now revoked, so persist its successor.
+    // Successor token (LOGIN-STANDARD §5): we asked for rotation, so the
+    // token we just sent expires in ~60s — persist its replacement.
     // Optional so this route also tolerates an older API build.
     refresh_token?: string | null;
   };
