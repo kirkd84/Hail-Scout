@@ -14,7 +14,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 
-from sqlalchemy import select
+from fastapi import HTTPException, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hailscout_api.auth.mfa_crypto import (
@@ -27,6 +28,12 @@ from hailscout_api.services.sms_sender import send_sms
 
 CODE_TTL = timedelta(minutes=5)
 MAX_ATTEMPTS = 5
+# Resend throttle: at most this many minted codes per user per window,
+# across purposes. Every "resend" inserts a fresh row, so an unthrottled
+# resend path is an SMS-pumping vector (texts cost money). Mirrors the
+# login lockout's 5-per-15-min shape.
+MAX_CHALLENGES_PER_WINDOW = 5
+CHALLENGE_WINDOW = timedelta(minutes=15)
 _ISSUER = "HailScout"
 
 ChallengePurpose = Literal["enroll", "login"]
@@ -55,7 +62,28 @@ async def create_and_send_challenge(
     Returns whether the gateway accepted the text (False also when SMS isn't
     configured — the code is logged in that case so the flow stays
     verifiable). The raw code never leaves this function except over SMS.
+
+    Raises 429 past MAX_CHALLENGES_PER_WINDOW codes per user per
+    CHALLENGE_WINDOW — checked here so every call site (login resend,
+    enrollment start, settings re-send) shares the one cap.
     """
+    window_start = datetime.now(timezone.utc) - CHALLENGE_WINDOW
+    recent = (
+        await session.execute(
+            select(func.count())
+            .select_from(MfaSmsChallenge)
+            .where(
+                MfaSmsChallenge.user_id == user_id,
+                MfaSmsChallenge.created_at >= window_start,
+            )
+        )
+    ).scalar_one()
+    if recent >= MAX_CHALLENGES_PER_WINDOW:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many codes requested. Wait a few minutes and try again.",
+        )
+
     code = generate_sms_code()
     session.add(
         MfaSmsChallenge(
