@@ -5,6 +5,7 @@
  *
  * Sections:
  *   • Profile      — account info + sign out
+ *   • Security     — SMS two-factor, recovery codes, remembered devices
  *   • Workspace    — branding card, default territory (future)
  *   • Integrations — Slack, future webhooks
  *   • Notifications— alert thresholds, tour resets
@@ -25,6 +26,7 @@ import { SmsAlertsCard } from "@/components/app/sms-alerts-card";
 import { PushAlertsCard } from "@/components/app/push-alerts-card";
 import { SlackCard } from "@/components/app/slack-card";
 import { ApiTokensCard } from "@/components/app/api-tokens-card";
+import { SecurityCard } from "@/components/app/security-card";
 import { cn } from "@/lib/utils";
 import {
   IconUser,
@@ -32,9 +34,10 @@ import {
   IconBolt,
   IconUsers,
   IconCommand,
+  IconPhone,
 } from "@/components/icons";
 
-type Tab = "profile" | "workspace" | "integrations" | "notifications" | "help";
+type Tab = "profile" | "security" | "workspace" | "integrations" | "notifications" | "help";
 
 const TABS: Array<{
   id: Tab;
@@ -43,6 +46,7 @@ const TABS: Array<{
   description: string;
 }> = [
   { id: "profile",       label: "Profile",       icon: IconUser,    description: "Email, password, sign-out" },
+  { id: "security",      label: "Security",      icon: IconPhone,   description: "Two-factor, remembered devices" },
   { id: "workspace",     label: "Workspace",     icon: IconSettings, description: "Org branding, defaults" },
   { id: "integrations",  label: "Integrations",  icon: IconBolt,    description: "Slack and webhooks" },
   { id: "notifications", label: "Notifications", icon: IconBolt,    description: "Alert thresholds" },
@@ -50,7 +54,14 @@ const TABS: Array<{
 ];
 
 function isTab(v: string | null): v is Tab {
-  return v === "profile" || v === "workspace" || v === "integrations" || v === "notifications" || v === "help";
+  return (
+    v === "profile" ||
+    v === "security" ||
+    v === "workspace" ||
+    v === "integrations" ||
+    v === "notifications" ||
+    v === "help"
+  );
 }
 
 export default function SettingsPage() {
@@ -126,6 +137,7 @@ function SettingsInner() {
 
           <div className="space-y-6 min-w-0">
             {tab === "profile" && <ProfileTab />}
+            {tab === "security" && <SecurityTab mfaNag={params.get("mfaNag") === "1"} />}
             {tab === "workspace" && <WorkspaceTab />}
             {tab === "integrations" && <IntegrationsTab />}
             {tab === "notifications" && <NotificationsTab />}
@@ -190,7 +202,7 @@ function ProfileTab() {
       <SectionCard
         eyebrow="Personal info"
         title="Account details"
-        description="Your identity is managed by your Google or Microsoft account. To change your name, password, or two-factor settings, update them with your provider."
+        description="Sign in with email+password or your Google/Microsoft account. Set or change your password from the sign-in page ('Forgot password?'); manage texted sign-in codes under Settings → Security."
       >
         <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
@@ -227,6 +239,19 @@ function ProfileTab() {
           </div>
         </dl>
       </SectionCard>
+    </>
+  );
+}
+
+function SecurityTab({ mfaNag }: { mfaNag: boolean }) {
+  return (
+    <>
+      <SecurityCard mfaNag={mfaNag} />
+      <SectionCard
+        eyebrow="Sessions"
+        title="How sign-in sessions work"
+        description="You stay signed in while you're active. Sessions end after 7 days of inactivity, and everyone re-authenticates at least every 90 days. Resetting your password signs you out everywhere and forgets remembered devices."
+      />
     </>
   );
 }
