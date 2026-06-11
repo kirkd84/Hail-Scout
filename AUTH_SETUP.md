@@ -65,12 +65,21 @@ API only needs the public client IDs (to validate token audience).
 
 | Variable | Value |
 |---|---|
-| `SESSION_JWT_SECRET` | **Strong random string** (see below) — signs our access tokens |
+| `SESSION_JWT_SECRET` | **Strong random string** (see below) — signs our access tokens; also keys the 2FA code HMAC + recovery-code encryption |
 | `GOOGLE_OAUTH_CLIENT_ID` | Same Google client ID (to validate token audience) |
 | `MICROSOFT_OAUTH_CLIENT_ID` | Same Azure client ID |
 | `MICROSOFT_OAUTH_TENANT` | `common` (match the web value) |
 | `SESSION_ACCESS_TTL_SECONDS` | optional, default `3600` (1h) |
-| `SESSION_REFRESH_TTL_DAYS` | optional, default `30` |
+| `SESSION_IDLE_DAYS` | optional, default `7` — refresh rotation slides this idle window |
+| `SESSION_MAX_DAYS` | optional, default `90` — absolute session cap from first sign-in |
+| `REPLINE_BASE_URL` | RepLine gateway base URL — SMS 2FA codes (LOGIN-STANDARD §8) |
+| `REPLINE_API_KEY` | RepLine API key with the `messages:send` scope |
+| `REPLINE_AGENT_ID` | RepLine sending agent (the FROM number) |
+
+> **SMS 2FA degrade:** until all three `REPLINE_*` vars are set, enrollment and
+> login codes are **logged by the API instead of texted** (search the Railway
+> logs for `sms.skipped_logged`) so the flow stays verifiable. Once configured,
+> codes are never logged.
 
 Generate `SESSION_JWT_SECRET`:
 
@@ -102,13 +111,36 @@ If you see *"No HailScout account exists for that email"*, the email isn't in th
 `users` table yet — add it via super-admin **Tenant management → create org/admin**,
 then sign in again.
 
-## 6. Security notes / future hardening
+## 6. Security notes
 
 - Access tokens are short-lived HS256 JWTs (`sub` = internal user id, + `email`,
-  `org_id`). Refresh tokens are opaque, stored **hashed** in `user_sessions`, and
-  **revocable** (sign-out flips `revoked_at`).
+  `org_id`, and `mfa_verified` / `scope: 'mfa_enroll'` when applicable). Refresh
+  tokens are opaque, stored **hashed** in `user_sessions`, and **revocable**
+  (sign-out flips `revoked_at`).
+- **Refresh rotation + session lifetime (LOGIN-STANDARD §5):** every
+  `/v1/auth/refresh` revokes the presented token and mints a successor — a
+  7-day idle sliding window clamped to a 90-day absolute cap anchored at the
+  original sign-in (`user_sessions.first_authenticated_at`); past the cap the
+  refresh answers `401 session_expired`.
 - Provider id_tokens are re-verified server-side (signature via provider JWKS +
   issuer + audience + expiry), so a compromised web tier can't forge identities.
-- Not yet done (fine for launch, worth adding later): refresh-token **rotation**
-  with reuse detection; passwordless **email magic-link** as a third sign-in
-  method (needs the Resend/email integration that's currently parked).
+
+## 7. SMS two-factor (LOGIN-STANDARD §4 — text codes only, no authenticator apps)
+
+- **Enroll** under Settings → Security: phone (E.164) → texted 6-digit code →
+  confirm → **10 single-use recovery codes** shown exactly once (AES-256-GCM at
+  rest). Texted codes are stored HMAC-only, 5-minute expiry, 5-attempt cap.
+- **Login**: single POST `/v1/auth/login { email, password, mfa_code? }` — an
+  enrolled account without a code gets a fresh code texted + `401 mfa_required`
+  (resubmitting without a code = resend). Recovery codes work in the same
+  field. MFA failures share the durable lockout counter (5 fails/15 min).
+- **Remember this device** (90 days): an httpOnly `hs_device_trust` cookie skips
+  the texted code — password still required. Revoked by Settings → Security →
+  "Forget all remembered devices", MFA-disable, and password reset.
+- **Enforcement**: `owner`/`admin` (and super-admins) must enroll for password
+  logins — 7-day grace window with a nag, then login yields an enroll-scoped
+  token usable only on the enrollment endpoints (`/mfa/enroll` page). **Social
+  sign-ins inherit the provider's MFA and are never double-prompted.**
+- Endpoints: `GET /v1/auth/mfa/status`, `POST /v1/auth/mfa/sms/start|verify|send`,
+  `POST /v1/auth/mfa/disable`, `POST /v1/auth/mfa/recovery/regenerate`,
+  `POST /v1/auth/mfa/trusted-devices/forget`.
