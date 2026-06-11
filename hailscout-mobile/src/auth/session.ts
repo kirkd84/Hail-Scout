@@ -74,14 +74,30 @@ export async function exchange(provider: string, idToken: string): Promise<Excha
   return res.json() as Promise<ExchangeResult>;
 }
 
-export async function refreshAccess(refresh: string): Promise<{ access_token: string; expires_in: number }> {
+export interface RefreshResult {
+  access_token: string;
+  expires_in: number;
+  /**
+   * Rotated refresh token (LOGIN-STANDARD session policy): the API revokes
+   * the token we just presented and returns its successor — callers MUST
+   * persist it or the next refresh will 401. Optional for compatibility
+   * with an older API build that didn't rotate.
+   */
+  refresh_token?: string | null;
+}
+
+export async function refreshAccess(refresh: string): Promise<RefreshResult> {
   const res = await fetch(`${API_BASE}/v1/auth/refresh`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refresh_token: refresh }),
   });
   if (!res.ok) throw new Error("session expired");
-  return res.json() as Promise<{ access_token: string; expires_in: number }>;
+  return res.json() as Promise<RefreshResult>;
+}
+
+export async function saveRefresh(refresh: string): Promise<void> {
+  await SecureStore.setItemAsync(REFRESH_KEY, refresh);
 }
 
 export async function logout(refresh: string): Promise<void> {

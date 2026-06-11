@@ -28,6 +28,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<session.SessionUser | null>(null);
   const [organization, setOrganization] = useState<session.SessionOrg | null>(null);
   const cache = useRef<{ token: string | null; exp: number }>({ token: null, exp: 0 });
+  // Single-flight: with refresh-token ROTATION, two concurrent refresh calls
+  // would race — the loser presents an already-revoked token and gets
+  // signed out. Funnel all callers through one in-flight promise.
+  const inflight = useRef<Promise<string | null> | null>(null);
 
   // On launch, try to mint a fresh access token from the stored refresh token.
   useEffect(() => {
@@ -38,8 +42,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       try {
-        const { access_token } = await session.refreshAccess(refresh);
+        const { access_token, refresh_token } = await session.refreshAccess(refresh);
         await session.saveAccess(access_token);
+        // The API rotates refresh tokens: the one we just used is revoked,
+        // so persist its successor or the next refresh would sign us out.
+        if (refresh_token) await session.saveRefresh(refresh_token);
         cache.current = { token: access_token, exp: session.decodeExpMs(access_token) };
         setIsSignedIn(true);
         try {
@@ -62,19 +69,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (cache.current.token && cache.current.exp - Date.now() > 60_000) {
       return cache.current.token;
     }
-    const refresh = await session.getRefresh();
-    if (!refresh) return null;
-    try {
-      const { access_token } = await session.refreshAccess(refresh);
-      await session.saveAccess(access_token);
-      cache.current = { token: access_token, exp: session.decodeExpMs(access_token) };
-      return access_token;
-    } catch {
-      await session.clearTokens();
-      cache.current = { token: null, exp: 0 };
-      setIsSignedIn(false);
-      return null;
-    }
+    if (inflight.current) return inflight.current;
+    const p = (async (): Promise<string | null> => {
+      try {
+        const refresh = await session.getRefresh();
+        if (!refresh) return null;
+        try {
+          const { access_token, refresh_token } = await session.refreshAccess(refresh);
+          await session.saveAccess(access_token);
+          if (refresh_token) await session.saveRefresh(refresh_token);
+          cache.current = { token: access_token, exp: session.decodeExpMs(access_token) };
+          return access_token;
+        } catch {
+          await session.clearTokens();
+          cache.current = { token: null, exp: 0 };
+          setIsSignedIn(false);
+          return null;
+        }
+      } finally {
+        inflight.current = null;
+      }
+    })();
+    inflight.current = p;
+    return p;
   }, []);
 
   const completeSignIn = useCallback(
