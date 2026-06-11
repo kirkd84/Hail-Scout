@@ -78,10 +78,11 @@ export interface RefreshResult {
   access_token: string;
   expires_in: number;
   /**
-   * Rotated refresh token (LOGIN-STANDARD session policy): the API revokes
-   * the token we just presented and returns its successor — callers MUST
-   * persist it or the next refresh will 401. Optional for compatibility
-   * with an older API build that didn't rotate.
+   * Successor refresh token (LOGIN-STANDARD session policy): we opt into
+   * rotation, so the token we just presented is left with only ~60s of
+   * life — callers MUST persist this replacement or the next refresh will
+   * 401. Optional for compatibility with an older API build that didn't
+   * rotate.
    */
   refresh_token?: string | null;
 }
@@ -90,7 +91,9 @@ export async function refreshAccess(refresh: string): Promise<RefreshResult> {
   const res = await fetch(`${API_BASE}/v1/auth/refresh`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refresh_token: refresh }),
+    // rotate: this build persists the successor (saveRefresh in callers),
+    // so opt in. Deployed builds that omit the flag keep their token.
+    body: JSON.stringify({ refresh_token: refresh, rotate: true }),
   });
   if (!res.ok) throw new Error("session expired");
   return res.json() as Promise<RefreshResult>;
