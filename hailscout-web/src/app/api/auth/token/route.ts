@@ -12,6 +12,7 @@ import {
   ACCESS_COOKIE,
   REFRESH_COOKIE,
   setAccessCookie,
+  setRefreshCookie,
   clearSessionCookies,
 } from "@/lib/auth/cookies";
 import { API_BASE } from "@/lib/auth/providers";
@@ -54,7 +55,17 @@ export async function GET() {
     return NextResponse.json({ token: null }, { status: 401 });
   }
 
-  const data = (await res.json()) as { access_token: string; expires_in: number };
+  const data = (await res.json()) as {
+    access_token: string;
+    expires_in: number;
+    // Present since the API started rotating refresh tokens (LOGIN-STANDARD
+    // §5): the token we just sent is now revoked, so persist its successor.
+    // Optional so this route also tolerates an older API build.
+    refresh_token?: string | null;
+  };
   await setAccessCookie(data.access_token, data.expires_in);
+  if (data.refresh_token) {
+    await setRefreshCookie(data.refresh_token);
+  }
   return NextResponse.json({ token: data.access_token });
 }
