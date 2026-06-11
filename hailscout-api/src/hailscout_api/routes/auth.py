@@ -69,6 +69,12 @@ class ExchangeRequest(BaseModel):
 
 class RefreshRequest(BaseModel):
     refresh_token: str
+    # Rotation opt-in (LOGIN-STANDARD §5). The DEPLOYED clients predate
+    # rotation — they type the response as {access_token, expires_in} and
+    # never store a successor, so rotating under them kills the session on
+    # their next refresh. Only clients that persist the returned
+    # refresh_token send rotate=true.
+    rotate: bool = False
 
 
 class LogoutRequest(BaseModel):
@@ -112,9 +118,10 @@ class TokenResponse(BaseModel):
 class RefreshResponse(BaseModel):
     access_token: str
     expires_in: int
-    # Rotated refresh token (LOGIN-STANDARD §5). Optional so older clients
-    # that ignore it keep working; new clients MUST store it — the token
-    # they sent has just been revoked.
+    # Successor refresh token (LOGIN-STANDARD §5) — present only when the
+    # client opted in with rotate=true; it MUST store it, because the token
+    # it presented is now on a short grace fuse. None for legacy
+    # non-rotating refreshes (their existing token keeps working).
     refresh_token: str | None = None
 
 
@@ -226,14 +233,19 @@ async def refresh(
     request: Request,
     session: AsyncSession = Depends(get_db_session),
 ):
-    """Rotate the refresh token and mint a fresh access token.
+    """Mint a fresh access token; slide or rotate the refresh session.
 
-    LOGIN-STANDARD §5: rotation slides a 7-day idle window (go quiet that
-    long and the session dies), clamped to a 90-day absolute cap anchored
-    at the chain's original sign-in (``first_authenticated_at``, carried
-    through rotations; legacy rows fall back to ``created_at``). Past the
-    cap → 401 ``session_expired``. Rotation makes refresh-token theft
-    self-limiting: a stolen token dies the moment anyone refreshes.
+    LOGIN-STANDARD §5: EVERY refresh slides a 7-day idle window (go quiet
+    that long and the session dies), clamped to a 90-day absolute cap
+    anchored at the chain's original sign-in (``first_authenticated_at``,
+    carried through rotations; legacy rows fall back to ``created_at``).
+    Past the cap → 401 ``session_expired``.
+
+    Rotation is opt-in (``rotate: true``): the client gets a successor
+    token and the presented one is left on a 60-second grace fuse rather
+    than revoked outright (see below). Deployed legacy clients never sent
+    the flag and never store successors, so for them the existing row
+    slides in place — no rotation, no surprise sign-out.
     """
     token_hash = hash_refresh_token(body.refresh_token)
     sess = (
@@ -249,8 +261,9 @@ async def refresh(
             detail="Invalid or expired session.",
         )
 
-    # Absolute session cap: the idle window slides, but the CHAIN dies
-    # session_max_days after the original sign-in no matter how active.
+    # Absolute session cap — applies to rotating AND non-rotating refreshes:
+    # the idle window slides, but the CHAIN dies session_max_days after the
+    # original sign-in no matter how active.
     chain_anchor = _as_aware(sess.first_authenticated_at or sess.created_at)
     absolute_deadline = absolute_session_deadline(chain_anchor)
     if now >= absolute_deadline:
@@ -275,24 +288,44 @@ async def refresh(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found."
         )
 
-    # Rotate: revoke this row, mint a successor carrying the chain anchor.
-    sess.revoked_at = now
     access, expires_in = mint_access_token(
         user_id=user.id, email=user.email, org_id=user.org_id
     )
+    # now + idle days, clamped to the chain's absolute deadline.
+    slid = min(refresh_expiry(), absolute_deadline)
+
+    if not body.rotate:
+        # Legacy non-rotating client (deployed mobile build, older BFFs):
+        # slide THIS row's idle window in place. Minting a successor would
+        # strand the client — it never stores one.
+        sess.expires_at = slid
+        if sess.first_authenticated_at is None:
+            # Backfill the chain anchor on legacy rows so the 90-day cap
+            # stays pinned to the original sign-in.
+            sess.first_authenticated_at = chain_anchor
+        await session.commit()
+        return RefreshResponse(access_token=access, expires_in=expires_in)
+
+    # Rotate: mint a successor carrying the chain anchor...
     new_raw_refresh = generate_refresh_token()
-    slid = refresh_expiry()  # now + idle days, clamped to the chain deadline
     session.add(
         UserSession(
             id=new_session_id(),
             user_id=user.id,
             refresh_token_hash=hash_refresh_token(new_raw_refresh),
-            expires_at=min(slid, absolute_deadline),
+            expires_at=slid,
             first_authenticated_at=chain_anchor,
             user_agent=(request.headers.get("user-agent") or "")[:512] or None,
             ip=_client_ip(request),
         )
     )
+    # ...and SHRINK the presented token instead of revoking it outright.
+    # Grace window: in the web BFF two tabs share one refresh cookie; both
+    # can present the same token concurrently. The loser of that race lands
+    # here within seconds — a hard revoke would 401 it into a forced logout.
+    # 60s of life lets it mint its own successor; after that the old token
+    # is naturally expired. min() so a nearly-dead token is never extended.
+    sess.expires_at = min(_as_aware(sess.expires_at), now + timedelta(seconds=60))
     await session.commit()
     return RefreshResponse(
         access_token=access, expires_in=expires_in, refresh_token=new_raw_refresh
