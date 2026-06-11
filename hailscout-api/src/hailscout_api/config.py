@@ -53,8 +53,14 @@ class Settings(BaseSettings):
     session_jwt_issuer: str = "hailscout"
     # Short-lived bearer the browser attaches to API calls.
     session_access_ttl_seconds: int = 3600  # 1 hour
-    # Long-lived, server-stored, revocable refresh/session lifetime.
+    # LEGACY (pre LOGIN-STANDARD session policy) — no longer read; kept so a
+    # stale SESSION_REFRESH_TTL_DAYS env var doesn't break boot.
     session_refresh_ttl_days: int = 30
+    # LOGIN-STANDARD §5 session lifetime: refresh rotation slides a 7-day
+    # idle window; the chain dies unconditionally 90 days after the original
+    # sign-in (anchored by user_sessions.first_authenticated_at).
+    session_idle_days: int = 7
+    session_max_days: int = 90
 
     # ------------------------------------------------------------------
     # External HR provisioning API (X-API-Key). Lets an outside HR system

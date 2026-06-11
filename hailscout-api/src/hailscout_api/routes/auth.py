@@ -13,11 +13,14 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from pydantic import BaseModel, EmailStr
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hailscout_api.auth.login_guard import clear_failures, is_locked, record_failure
+from hailscout_api.auth.mfa_challenge import create_and_send_challenge, verify_challenge
+from hailscout_api.auth.mfa_crypto import consume_recovery_code
 from hailscout_api.auth.oidc import verify_oidc_id_token
 from hailscout_api.auth.passwords import (
     DUMMY_HASH,
@@ -26,18 +29,31 @@ from hailscout_api.auth.passwords import (
     verify_password,
 )
 from hailscout_api.auth.session import (
+    absolute_session_deadline,
     generate_refresh_token,
     hash_refresh_token,
     mint_access_token,
     new_session_id,
     refresh_expiry,
 )
+from hailscout_api.auth.trusted_device import (
+    is_trusted_device,
+    mint_trusted_device,
+    revoke_all_trusted_devices,
+)
 from hailscout_api.core import AuthenticationError, get_logger
+from hailscout_api.db.models.mfa import UserMfaSecret
 from hailscout_api.db.models.org import Organization, User, UserSession
 from hailscout_api.db.models.password_auth import UserToken
 from hailscout_api.services.audit import write_event
 from hailscout_api.db.session import get_db_session
 from hailscout_api.services.password_reset_email import send_password_reset
+from hailscout_api.services.sms_sender import mask_phone
+
+# Org roles that MUST enroll in SMS 2FA for password logins (LOGIN-STANDARD §4
+# — roles mapping to OWNER/ADMIN; social sign-ins inherit provider MFA).
+MFA_REQUIRED_ROLES = {"owner", "admin"}
+MFA_GRACE_DAYS = 7
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -72,17 +88,34 @@ class OrgOut(BaseModel):
     plan_tier: str
 
 
+class MfaEnrollmentNag(BaseModel):
+    """Present during an un-enrolled owner/admin's grace window — the client
+    nags toward Settings → Security until they enroll."""
+
+    required: bool
+    deadline: str
+
+
 class TokenResponse(BaseModel):
     access_token: str
     expires_in: int
     refresh_token: str
     user: UserOut
     organization: OrgOut
+    # LOGIN-STANDARD §4 — both optional + additive (None for social logins
+    # and for accounts without MFA obligations).
+    mfa_enrollment: MfaEnrollmentNag | None = None
+    # Returned exactly once when the user ticked "remember this device".
+    device_trust_token: str | None = None
 
 
 class RefreshResponse(BaseModel):
     access_token: str
     expires_in: int
+    # Rotated refresh token (LOGIN-STANDARD §5). Optional so older clients
+    # that ignore it keep working; new clients MUST store it — the token
+    # they sent has just been revoked.
+    refresh_token: str | None = None
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -165,6 +198,7 @@ async def exchange(
             user_id=user.id,
             refresh_token_hash=hash_refresh_token(raw_refresh),
             expires_at=refresh_expiry(),
+            first_authenticated_at=datetime.now(timezone.utc),
             user_agent=(request.headers.get("user-agent") or "")[:512] or None,
             ip=_client_ip(request),
         )
@@ -189,9 +223,18 @@ async def exchange(
 @router.post("/refresh", response_model=RefreshResponse)
 async def refresh(
     body: RefreshRequest,
+    request: Request,
     session: AsyncSession = Depends(get_db_session),
-) -> RefreshResponse:
-    """Exchange a valid refresh token for a fresh access token."""
+):
+    """Rotate the refresh token and mint a fresh access token.
+
+    LOGIN-STANDARD §5: rotation slides a 7-day idle window (go quiet that
+    long and the session dies), clamped to a 90-day absolute cap anchored
+    at the chain's original sign-in (``first_authenticated_at``, carried
+    through rotations; legacy rows fall back to ``created_at``). Past the
+    cap → 401 ``session_expired``. Rotation makes refresh-token theft
+    self-limiting: a stolen token dies the moment anyone refreshes.
+    """
     token_hash = hash_refresh_token(body.refresh_token)
     sess = (
         await session.execute(
@@ -206,6 +249,21 @@ async def refresh(
             detail="Invalid or expired session.",
         )
 
+    # Absolute session cap: the idle window slides, but the CHAIN dies
+    # session_max_days after the original sign-in no matter how active.
+    chain_anchor = _as_aware(sess.first_authenticated_at or sess.created_at)
+    absolute_deadline = absolute_session_deadline(chain_anchor)
+    if now >= absolute_deadline:
+        sess.revoked_at = now
+        await session.commit()
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={
+                "error": "session_expired",
+                "detail": "Session expired. Please sign in again.",
+            },
+        )
+
     user = (
         await session.execute(select(User).where(User.id == sess.user_id))
     ).scalar_one_or_none()
@@ -217,10 +275,28 @@ async def refresh(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found."
         )
 
+    # Rotate: revoke this row, mint a successor carrying the chain anchor.
+    sess.revoked_at = now
     access, expires_in = mint_access_token(
         user_id=user.id, email=user.email, org_id=user.org_id
     )
-    return RefreshResponse(access_token=access, expires_in=expires_in)
+    new_raw_refresh = generate_refresh_token()
+    slid = refresh_expiry()  # now + idle days, clamped to the chain deadline
+    session.add(
+        UserSession(
+            id=new_session_id(),
+            user_id=user.id,
+            refresh_token_hash=hash_refresh_token(new_raw_refresh),
+            expires_at=min(slid, absolute_deadline),
+            first_authenticated_at=chain_anchor,
+            user_agent=(request.headers.get("user-agent") or "")[:512] or None,
+            ip=_client_ip(request),
+        )
+    )
+    await session.commit()
+    return RefreshResponse(
+        access_token=access, expires_in=expires_in, refresh_token=new_raw_refresh
+    )
 
 
 @router.post("/logout")
@@ -247,6 +323,14 @@ async def logout(
 class PasswordLoginRequest(BaseModel):
     email: EmailStr
     password: str
+    # Second factor — a texted 6-digit code or a recovery code. Only consulted
+    # (and only required) once the account has MFA enrolled.
+    mfa_code: str | None = Field(default=None, min_length=6, max_length=12)
+    # "Remember this device": when true + the code verifies, the response
+    # carries a device_trust_token. A live one presented here skips the code
+    # next time (password still required).
+    remember_device: bool = False
+    device_trust_token: str | None = Field(default=None, max_length=200)
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -266,13 +350,19 @@ async def password_login(
     body: PasswordLoginRequest,
     request: Request,
     session: AsyncSession = Depends(get_db_session),
-) -> TokenResponse:
+):
     """Email + password sign-in. Mints the exact same session as /exchange.
 
     Error behavior is deliberately uniform: unknown email, wrong password,
     social-only account (no password set), and disabled account all return
     the same 401 so nothing about the account leaks. Durable lockout: 5
-    failures / 15 min → locked 15 min (shared with the reset flow).
+    failures / 15 min → locked 15 min (shared with the reset flow; MFA
+    failures share the counter too).
+
+    Single-POST MFA (LOGIN-STANDARD §4): an enrolled account without
+    ``mfa_code`` gets a fresh code texted and 401 ``mfa_required``;
+    re-submitting without a code is the resend path; recovery codes are
+    accepted in the same field. A live ``device_trust_token`` skips the code.
     """
     email = body.email.lower().strip()
 
@@ -316,8 +406,148 @@ async def password_login(
             detail="Account is misconfigured (no organization).",
         )
 
+    # ── MFA gate (SMS text codes — LOGIN-STANDARD §4) ────────────────────
+    #
+    # Enrolled users get a one-time code texted to their phone. The
+    # mfa_required path is only reachable AFTER a correct password (so it
+    # leaks nothing to credential-stuffers) and it's what TRIGGERS the
+    # text. Re-submitting email+password with no code re-sends a fresh
+    # code — that's the "resend" path. Social sign-ins (/exchange) inherit
+    # the provider's own MFA and skip this entirely.
+    mfa_verified = False
+    new_device_trust_token: str | None = None
+    mfa_row = (
+        await session.execute(
+            select(UserMfaSecret).where(UserMfaSecret.user_id == user.id)
+        )
+    ).scalar_one_or_none()
+    if mfa_row is not None and mfa_row.enabled_at and mfa_row.phone_e164:
+        # A device the user previously chose to "remember" (and that's still
+        # live) skips the texted code — the password above was still required.
+        device_trusted = (
+            await is_trusted_device(session, user.id, body.device_trust_token)
+            if body.device_trust_token
+            else False
+        )
+        if device_trusted:
+            mfa_verified = True
+        else:
+            if not body.mfa_code:
+                await create_and_send_challenge(
+                    session, user.id, "login", mfa_row.phone_e164
+                )
+                masked = mask_phone(mfa_row.phone_e164)
+                return JSONResponse(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    content={
+                        "error": "mfa_required",
+                        "detail": f"We texted a 6-digit code to {masked}.",
+                        "phone": masked,
+                    },
+                )
+            challenge = await verify_challenge(session, user.id, "login", body.mfa_code)
+            used_recovery = (
+                False
+                if challenge.ok
+                else await consume_recovery_code(session, mfa_row, body.mfa_code)
+            )
+            if not challenge.ok and not used_recovery:
+                # MFA failures share the durable lockout counter with
+                # password failures (LOGIN-STANDARD §5 anti-abuse).
+                await record_failure(session, email)
+                await write_event(
+                    session,
+                    action="auth.password_login_mfa_failed",
+                    org_id=user.org_id,
+                    user_id=user.id,
+                    subject_type="user",
+                    subject_id=user.id,
+                    commit=False,
+                )
+                await session.commit()
+                return JSONResponse(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    content={
+                        "error": "invalid_mfa_code",
+                        "detail": "That code didn't match. Try a fresh one.",
+                    },
+                )
+            if used_recovery:
+                await write_event(
+                    session,
+                    action="auth.mfa_recovery_code_used",
+                    org_id=user.org_id,
+                    user_id=user.id,
+                    subject_type="user",
+                    subject_id=user.id,
+                    commit=False,
+                )
+            mfa_verified = True
+            if body.remember_device:
+                new_device_trust_token = await mint_trusted_device(
+                    session, user.id, request.headers.get("user-agent")
+                )
+
+    # ── MFA enrollment enforcement (owner/admin, password logins only) ──
+    #
+    # First such login starts a 7-day grace window (the client nags); past
+    # the deadline we mint a token that can ONLY drive enrollment — no
+    # refresh token, no app access. Sign in again after enrolling.
+    mfa_enrollment: MfaEnrollmentNag | None = None
+    if mfa_row is None or not mfa_row.enabled_at:
+        privileged = user.role in MFA_REQUIRED_ROLES or user.is_super_admin
+        if privileged:
+            now = datetime.now(timezone.utc)
+            grace_start = (
+                _as_aware(user.mfa_grace_started_at)
+                if user.mfa_grace_started_at
+                else None
+            )
+            if grace_start is None:
+                grace_start = now
+                user.mfa_grace_started_at = now
+            deadline = grace_start + timedelta(days=MFA_GRACE_DAYS)
+            if now > deadline:
+                enrollment_token, enroll_expires_in = mint_access_token(
+                    user_id=user.id,
+                    email=user.email,
+                    org_id=user.org_id,
+                    scope="mfa_enroll",
+                )
+                await clear_failures(session, email)  # password was correct
+                await write_event(
+                    session,
+                    action="auth.password_login_mfa_enrollment_required",
+                    org_id=user.org_id,
+                    user_id=user.id,
+                    subject_type="user",
+                    subject_id=user.id,
+                    commit=False,
+                )
+                await session.commit()
+                return JSONResponse(
+                    status_code=status.HTTP_200_OK,
+                    content={
+                        "mfa_enrollment_required": True,
+                        "enrollment_token": enrollment_token,
+                        "expires_in": enroll_expires_in,
+                        "user": {
+                            "id": user.id,
+                            "email": user.email,
+                            "role": user.role,
+                            "is_super_admin": user.is_super_admin,
+                        },
+                    },
+                )
+            mfa_enrollment = MfaEnrollmentNag(
+                required=True, deadline=deadline.isoformat()
+            )
+
     access, expires_in = mint_access_token(
-        user_id=user.id, email=user.email, org_id=user.org_id
+        user_id=user.id,
+        email=user.email,
+        org_id=user.org_id,
+        mfa_verified=mfa_verified,
     )
     raw_refresh = generate_refresh_token()
     session.add(
@@ -326,6 +556,7 @@ async def password_login(
             user_id=user.id,
             refresh_token_hash=hash_refresh_token(raw_refresh),
             expires_at=refresh_expiry(),
+            first_authenticated_at=datetime.now(timezone.utc),
             user_agent=(request.headers.get("user-agent") or "")[:512] or None,
             ip=_client_ip(request),
         )
@@ -354,6 +585,8 @@ async def password_login(
             is_super_admin=user.is_super_admin,
         ),
         organization=OrgOut(id=org.id, name=org.name, plan_tier=org.plan_tier),
+        mfa_enrollment=mfa_enrollment,
+        device_trust_token=new_device_trust_token,
     )
 
 
@@ -459,6 +692,9 @@ async def reset_password(
     ).scalars()
     for s in stale_sessions:
         s.revoked_at = now
+    # ...and forget every remembered device — a reset implies "I may be
+    # compromised", so the next sign-in must pass the texted code again.
+    await revoke_all_trusted_devices(session, user.id)
     await clear_failures(session, user.email)
     await write_event(
         session,

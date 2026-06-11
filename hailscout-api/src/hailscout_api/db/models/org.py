@@ -92,6 +92,13 @@ class User(Base):
     # social-only accounts; set via the password-reset flow (which doubles
     # as set-initial-password for invited users).
     password_hash: Mapped[str | None] = mapped_column(String(255))
+    # MFA enrollment grace window for owner/admin roles on PASSWORD logins
+    # (LOGIN-STANDARD §4). Set on the first such login after enforcement
+    # shipped; once now > this + grace days, password login yields an
+    # enroll-scoped token only. Social logins are never gated.
+    mfa_grace_started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
     # Account disable flag. Set by the HR provisioning API (and usable by any
     # future admin tooling). A disabled user is rejected at OAuth exchange and
     # has all refresh sessions revoked, so existing tokens stop working too.
@@ -135,6 +142,13 @@ class UserSession(Base):
         DateTime(timezone=True), nullable=False
     )
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # When this session CHAIN began. Refresh rotation inserts new rows but
+    # carries this anchor forward, so the chain dies SESSION_MAX_DAYS after
+    # the original sign-in no matter how active it is (LOGIN-STANDARD §5).
+    # Null on legacy rows → fall back to created_at.
+    first_authenticated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
     created_at: Mapped[datetime] = created_at_column()
     user_agent: Mapped[str | None] = mapped_column(String(512))
     ip: Mapped[str | None] = mapped_column(String(64))

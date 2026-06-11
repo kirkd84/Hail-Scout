@@ -42,8 +42,21 @@ def _secret() -> str:
 # ── Access tokens (stateless JWT) ────────────────────────────────────────────
 
 
-def mint_access_token(*, user_id: str, email: str, org_id: str) -> tuple[str, int]:
-    """Mint a short-lived access JWT. Returns ``(token, expires_in_seconds)``."""
+def mint_access_token(
+    *,
+    user_id: str,
+    email: str,
+    org_id: str,
+    scope: str | None = None,
+    mfa_verified: bool | None = None,
+) -> tuple[str, int]:
+    """Mint a short-lived access JWT. Returns ``(token, expires_in_seconds)``.
+
+    ``scope='mfa_enroll'`` mints the restricted enrollment-only token
+    (LOGIN-STANDARD §4): rejected everywhere except the MFA enrollment
+    endpoints. ``mfa_verified`` marks a session that passed app-level 2FA at
+    sign-in (dropped on refresh — absence means "unverified", not "failed").
+    """
     settings = get_settings()
     ttl = settings.session_access_ttl_seconds
     now = datetime.now(timezone.utc)
@@ -56,11 +69,19 @@ def mint_access_token(*, user_id: str, email: str, org_id: str) -> tuple[str, in
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(seconds=ttl)).timestamp()),
     }
+    if scope:
+        payload["scope"] = scope
+    if mfa_verified:
+        payload["mfa_verified"] = True
     return jwt.encode(payload, _secret(), algorithm=_ALGO), ttl
 
 
-def verify_access_token(token: str) -> dict[str, Any]:
-    """Verify + decode our access token. Raises ``AuthenticationError``."""
+def verify_access_token(token: str, *, allow_mfa_enroll: bool = False) -> dict[str, Any]:
+    """Verify + decode our access token. Raises ``AuthenticationError``.
+
+    Scoped tokens (``scope: 'mfa_enroll'``) are rejected unless the caller
+    explicitly allows them — only the MFA enrollment endpoints do.
+    """
     settings = get_settings()
     try:
         claims: dict[str, Any] = jwt.decode(
@@ -74,6 +95,11 @@ def verify_access_token(token: str) -> dict[str, Any]:
         raise AuthenticationError("Invalid or expired session token") from exc
     if claims.get("typ") != "access":
         raise AuthenticationError("Not an access token")
+    scope = claims.get("scope")
+    if scope is not None and not (allow_mfa_enroll and scope == "mfa_enroll"):
+        raise AuthenticationError(
+            "This token is restricted to two-factor enrollment"
+        )
     return claims
 
 
@@ -95,5 +121,16 @@ def hash_refresh_token(raw: str) -> str:
 
 
 def refresh_expiry() -> datetime:
-    days = get_settings().session_refresh_ttl_days
+    """Idle-window expiry for a NEW session row (LOGIN-STANDARD §5).
+
+    Refresh rotation slides this window; the chain also dies unconditionally
+    ``session_max_days`` after the original sign-in (see
+    :func:`absolute_session_deadline`).
+    """
+    days = get_settings().session_idle_days
     return datetime.now(timezone.utc) + timedelta(days=days)
+
+
+def absolute_session_deadline(first_authenticated_at: datetime) -> datetime:
+    """The hard end of a session chain: anchor + ``session_max_days`` (90)."""
+    return first_authenticated_at + timedelta(days=get_settings().session_max_days)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from hailscout_api.db.base import Base
 from hailscout_api.db.models.canvass import Marker, MonitoredAddress
+from hailscout_api.db.models.mfa import MfaSmsChallenge, TrustedDevice, UserMfaSecret
 from hailscout_api.db.models.ops import Alert, ContactExport, ImpactReport
 from hailscout_api.db.models.org import Organization, Seat, User
 from hailscout_api.db.models.parcel import Contact, Parcel
@@ -24,4 +25,7 @@ __all__ = [
     "ImpactReport",
     "ContactExport",
     "Alert",
+    "UserMfaSecret",
+    "MfaSmsChallenge",
+    "TrustedDevice",
 ]

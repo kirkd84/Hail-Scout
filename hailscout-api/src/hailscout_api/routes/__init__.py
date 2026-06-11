@@ -6,6 +6,7 @@ from hailscout_api.routes import (
     audit,
     auth,
     contacts_crm,
+    mfa,
     public,
     territories,
     integrations,
@@ -29,6 +30,7 @@ from hailscout_api.routes import (
 __all__ = [
     "health",
     "auth",
+    "mfa",
     "me",
     "storms",
     "hail",

@@ -50,15 +50,21 @@ def bearer_token(request: Request) -> str:
     return token
 
 
-async def extract_auth_context(request: Request) -> AuthContext:
+async def extract_auth_context(
+    request: Request, *, allow_mfa_enroll: bool = False
+) -> AuthContext:
     """Verify the access token and build the request's auth context.
 
     ``sub`` is our internal user id; ``org_id`` rides in the token (we mint
     it from ``user.org_id``) and comes ONLY from the signed token — a
     client-controlled header must never influence tenancy.
+
+    Enrollment-scoped tokens (``scope: 'mfa_enroll'``, minted when an
+    owner/admin's MFA grace window lapsed) are rejected here by default;
+    only the MFA enrollment endpoints pass ``allow_mfa_enroll=True``.
     """
     token = bearer_token(request)
-    claims = verify_access_token(token)
+    claims = verify_access_token(token, allow_mfa_enroll=allow_mfa_enroll)
 
     user_id = claims.get("sub")
     email = claims.get("email") or ""
