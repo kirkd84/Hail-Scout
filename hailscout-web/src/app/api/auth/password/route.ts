@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import {
   DEVICE_TRUST_COOKIE,
+  clearSessionCookies,
   setAccessCookie,
   setDeviceTrustCookie,
   setSessionCookies,
@@ -81,9 +82,12 @@ export async function POST(req: NextRequest) {
 
   // Owner/admin whose MFA-enrollment grace window lapsed: the API returns an
   // enrollment-scoped token (usable ONLY on the MFA enrollment endpoints).
-  // Store it as the access cookie — without a refresh cookie — and send the
-  // browser to the dedicated enroll page.
+  // Drop any previous session's cookies first (this person just proved a
+  // password — a stale refresh cookie from an earlier sign-in must not
+  // outlive the enroll flow), then store the enroll token as the access
+  // cookie with no refresh cookie, and send them to the enroll page.
   if (res.ok && data?.mfa_enrollment_required && data?.enrollment_token) {
+    await clearSessionCookies();
     await setAccessCookie(data.enrollment_token, data.expires_in ?? 3600);
     return NextResponse.json({ mfa_enrollment_required: true });
   }
