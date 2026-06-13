@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { AuthProvider } from "@/hooks/useAuth";
 import { Inter, Fraunces, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
@@ -60,6 +61,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>
         <ServiceWorkerRegistrar />
+        <Script
+          src="https://pensnap.com/suite/switcher.js"
+          data-current="hailscout"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
