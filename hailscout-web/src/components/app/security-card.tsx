@@ -23,6 +23,34 @@ const primaryBtn =
 const ghostBtn =
   "inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-60";
 
+/**
+ * Phone-input UX helpers (US-default). The MFA API still receives E.164
+ * ("+1XXXXXXXXXX"); these only shape what the user types and sees.
+ */
+
+/** Live-format keystrokes to US "(xxx) xxx-xxxx"; a leading "+" stays raw. */
+function formatUsPhone(v: string): string {
+  if (v.trim().startsWith("+")) return "+" + v.replace(/[^\d]/g, "");
+  const d = v.replace(/\D/g, "").slice(0, 10);
+  if (!d) return "";
+  if (d.length < 4) return `(${d}`;
+  if (d.length < 7) return `(${d.slice(0, 3)}) ${d.slice(3)}`;
+  return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+}
+
+/** Normalize the typed value to E.164, or null if it isn't a valid number. */
+function toE164(v: string): string | null {
+  v = v.trim();
+  if (v.startsWith("+")) {
+    const e = "+" + v.slice(1).replace(/\D/g, "");
+    return /^\+[1-9]\d{7,14}$/.test(e) ? e : null;
+  }
+  const d = v.replace(/\D/g, "");
+  if (d.length === 10) return "+1" + d;
+  if (d.length === 11 && d.startsWith("1")) return "+" + d;
+  return null;
+}
+
 function ErrorNote({ msg }: { msg: string | null }) {
   if (!msg) return null;
   return (
@@ -110,9 +138,14 @@ export function MfaEnrollFlow({
   const start = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    const e164 = toE164(phone);
+    if (!e164) {
+      setError("Enter a 10-digit US mobile number, e.g. (555) 123-4567.");
+      return;
+    }
     setBusy(true);
     try {
-      const res = await smsStart(phone.trim());
+      const res = await smsStart(e164);
       setMaskedPhone(res.phone);
       setNotice(
         res.sent
@@ -129,9 +162,14 @@ export function MfaEnrollFlow({
 
   const resend = async () => {
     setError(null);
+    const e164 = toE164(phone);
+    if (!e164) {
+      setError("Enter a 10-digit US mobile number, e.g. (555) 123-4567.");
+      return;
+    }
     setBusy(true);
     try {
-      await smsStart(phone.trim());
+      await smsStart(e164);
       setNotice("New code sent.");
     } catch (err) {
       setError(apiErrorMessage(err, "Could not resend the code."));
@@ -167,14 +205,14 @@ export function MfaEnrollFlow({
           type="tel"
           inputMode="tel"
           autoComplete="tel"
-          placeholder="+15551234567"
+          placeholder="(555) 123-4567"
           required
           value={phone}
-          onChange={(e) => setPhone(e.target.value)}
+          onChange={(e) => setPhone(formatUsPhone(e.target.value))}
         />
         <p className="text-xs text-muted-foreground">
-          We&apos;ll text a 6-digit code here at each sign-in. Use international
-          format (+1 for the US).
+          We&apos;ll text your codes to this number. (Outside the US? Start with
+          a +.)
         </p>
         <ErrorNote msg={error} />
         <button type="submit" className={primaryBtn} disabled={busy}>
