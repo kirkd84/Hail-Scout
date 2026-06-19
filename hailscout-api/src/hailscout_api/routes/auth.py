@@ -210,6 +210,9 @@ async def exchange(
             ip=_client_ip(request),
         )
     )
+    # Stamp last successful sign-in (read back by the HR provisioning status
+    # endpoint as lastLoginAt).
+    user.last_login_at = datetime.now(timezone.utc)
     await session.commit()
 
     logger.info("auth.exchange.ok", user_id=user.id, provider=provider)
@@ -595,6 +598,9 @@ async def password_login(
         )
     )
     await clear_failures(session, email)
+    # Stamp last successful sign-in (read back by the HR provisioning status
+    # endpoint as lastLoginAt).
+    user.last_login_at = datetime.now(timezone.utc)
     await write_event(
         session,
         action="auth.password_login",

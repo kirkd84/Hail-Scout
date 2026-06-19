@@ -65,6 +65,10 @@ class UserStatusResponse(BaseModel):
     email: str
     exists: bool
     active: bool
+    # Most recent successful sign-in as an ISO-8601 string, or null when the
+    # user was provisioned but has never signed in. Lets the HR Portal tell an
+    # invited account from an active one. Additive to {email, exists, active}.
+    lastLoginAt: str | None = None  # noqa: N815 — matches the HR contract key
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -246,8 +250,13 @@ async def user_status(
 
     exists = user is not None
     active = exists and not user.is_disabled
+    last_login_at = (
+        user.last_login_at.isoformat() if user is not None and user.last_login_at else None
+    )
 
     logger.info(
         "provision.status", org_id=org_id, email=normalized, exists=exists, active=active
     )
-    return UserStatusResponse(email=normalized, exists=exists, active=active)
+    return UserStatusResponse(
+        email=normalized, exists=exists, active=active, lastLoginAt=last_login_at
+    )

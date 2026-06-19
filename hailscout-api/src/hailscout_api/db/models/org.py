@@ -106,6 +106,10 @@ class User(Base):
         Boolean, default=False, nullable=False, server_default="false"
     )
     disabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Most recent successful sign-in (OAuth exchange or password login). Null
+    # until the first sign-in; lets the HR provisioning status endpoint
+    # distinguish an invited-but-never-signed-in account from an active one.
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = created_at_column()
     updated_at: Mapped[datetime] = updated_at_column()
 
