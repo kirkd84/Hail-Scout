@@ -1,7 +1,8 @@
 """Tables backing SMS 2FA (LOGIN-STANDARD §4 — text codes only, no apps).
 
-``user_mfa_secrets``    one row per enrolled user: the verified phone (E.164)
-                        plus AES-256-GCM-encrypted recovery codes.
+``user_mfa_secrets``    one row per enrolled user: the verified phone (E.164).
+                        (``recovery_codes_encrypted`` is a retired, dormant
+                        column — never read or written; kept for data safety.)
 ``mfa_sms_challenges``  short-lived one-time texted codes. The raw 6-digit
                         code is never stored — only its HMAC-SHA256; 5-minute
                         expiry, 5-attempt cap, single-use.
@@ -21,7 +22,7 @@ from hailscout_api.db.base import Base, created_at_column, updated_at_column
 
 
 class UserMfaSecret(Base):
-    """Per-user SMS 2FA enrollment: verified phone + encrypted recovery codes."""
+    """Per-user SMS 2FA enrollment: the verified second-factor phone."""
 
     __tablename__ = "user_mfa_secrets"
 
@@ -32,8 +33,9 @@ class UserMfaSecret(Base):
     )
     # The verified second-factor phone, E.164 (e.g. "+15551234567").
     phone_e164: Mapped[str | None] = mapped_column(String(20))
-    # JSON list of the 10 one-time recovery codes, AES-256-GCM encrypted with
-    # a key derived from the app signing secret. Rewritten on every consume.
+    # RETIRED, dormant column (recovery codes removed — LOGIN-STANDARD §4). No
+    # code reads or writes it; new enrollments leave it NULL. Retained (not
+    # dropped) so existing rows keep their data — see models docstring.
     recovery_codes_encrypted: Mapped[str | None] = mapped_column(Text)
     enabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = created_at_column()

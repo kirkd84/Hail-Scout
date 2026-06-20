@@ -2,10 +2,9 @@
 
     GET  /v1/auth/mfa/status                  enrolled? + masked phone
     POST /v1/auth/mfa/sms/start    {phone}    text a code to verify the phone
-    POST /v1/auth/mfa/sms/verify   {code}     confirm enrollment → recovery codes
+    POST /v1/auth/mfa/sms/verify   {code}     confirm enrollment → done
     POST /v1/auth/mfa/sms/send                text a code to the enrolled phone
-    POST /v1/auth/mfa/disable      {code}     texted code or recovery → turn off
-    POST /v1/auth/mfa/recovery/regenerate {code} → fresh recovery codes
+    POST /v1/auth/mfa/disable      {code}     texted code → turn off
     POST /v1/auth/mfa/trusted-devices/forget  revoke every remembered device
 
 The login challenge itself lives in routes/auth.py (login texts a code when
@@ -16,7 +15,6 @@ everything else needs a full session.
 
 from __future__ import annotations
 
-import json
 import re
 from datetime import datetime, timezone
 
@@ -26,11 +24,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hailscout_api.auth.mfa_challenge import create_and_send_challenge, verify_challenge
-from hailscout_api.auth.mfa_crypto import (
-    consume_recovery_code,
-    encrypt_secret,
-    generate_recovery_codes,
-)
 from hailscout_api.auth.middleware import AuthContext, extract_auth_context
 from hailscout_api.auth.trusted_device import (
     count_trusted_devices,
@@ -56,7 +49,7 @@ class StartRequest(BaseModel):
 
 
 class CodeRequest(BaseModel):
-    code: str = Field(min_length=6, max_length=12)
+    code: str = Field(min_length=6, max_length=6)
 
 
 class StatusResponse(BaseModel):
@@ -74,12 +67,7 @@ class SendResponse(BaseModel):
 
 class VerifyResponse(BaseModel):
     ok: bool
-    recovery_codes: list[str]
     relogin_required: bool
-
-
-class RecoveryCodesResponse(BaseModel):
-    recovery_codes: list[str]
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -91,16 +79,6 @@ async def _mfa_row(session: AsyncSession, user_id: str) -> UserMfaSecret | None:
             select(UserMfaSecret).where(UserMfaSecret.user_id == user_id)
         )
     ).scalar_one_or_none()
-
-
-async def _verify_code_or_recovery(
-    session: AsyncSession, row: UserMfaSecret, code: str
-) -> bool:
-    """Accept either a freshly-texted login code or a recovery code."""
-    result = await verify_challenge(session, row.user_id, "login", code)
-    if result.ok:
-        return True
-    return await consume_recovery_code(session, row, code)
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
@@ -155,7 +133,7 @@ async def mfa_sms_verify(
     request: Request,
     session: AsyncSession = Depends(get_db_session),
 ) -> VerifyResponse:
-    """Confirm enrollment with the texted code → recovery codes (shown once)."""
+    """Confirm enrollment with the texted code → two-factor is on."""
     auth = await extract_auth_context(request, allow_mfa_enroll=True)
     result = await verify_challenge(session, auth.user_id, "enroll", body.code)
     if not result.ok or not result.target_phone:
@@ -166,14 +144,16 @@ async def mfa_sms_verify(
         )
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg)
 
-    recovery_codes = generate_recovery_codes()
     now = datetime.now(timezone.utc)
     row = await _mfa_row(session, auth.user_id)
     if row is None:
         row = UserMfaSecret(user_id=auth.user_id)
         session.add(row)
     row.phone_e164 = result.target_phone
-    row.recovery_codes_encrypted = encrypt_secret(json.dumps(recovery_codes))
+    # Recovery codes were retired (LOGIN-STANDARD §4): SMS 2FA is bound to a
+    # phone number, which survives device loss via carrier SIM reissue. The
+    # recovery_codes_encrypted column is left dormant — never read or written.
+    row.recovery_codes_encrypted = None
     row.enabled_at = now
     await write_event(
         session,
@@ -189,7 +169,6 @@ async def mfa_sms_verify(
 
     return VerifyResponse(
         ok=True,
-        recovery_codes=recovery_codes,
         relogin_required=auth.claims.get("scope") == "mfa_enroll",
     )
 
@@ -199,7 +178,7 @@ async def mfa_sms_send(
     request: Request,
     session: AsyncSession = Depends(get_db_session),
 ) -> SendResponse:
-    """Text a fresh code to the enrolled phone (settings: disable/regenerate)."""
+    """Text a fresh code to the enrolled phone (settings: disable)."""
     auth = await extract_auth_context(request)
     row = await _mfa_row(session, auth.user_id)
     if row is None or not row.enabled_at or not row.phone_e164:
@@ -217,12 +196,13 @@ async def mfa_disable(
     request: Request,
     session: AsyncSession = Depends(get_db_session),
 ) -> dict[str, bool]:
-    """Turn 2FA off (requires a fresh texted code or a recovery code)."""
+    """Turn 2FA off (requires a fresh texted code)."""
     auth = await extract_auth_context(request)
     row = await _mfa_row(session, auth.user_id)
     if row is None or not row.enabled_at:
         return {"ok": True, "already_disabled": True}
-    if not await _verify_code_or_recovery(session, row, body.code):
+    challenge = await verify_challenge(session, auth.user_id, "login", body.code)
+    if not challenge.ok:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="That code didn't match.",
@@ -243,40 +223,6 @@ async def mfa_disable(
     await session.commit()
     logger.info("auth.mfa.disabled", user_id=auth.user_id)
     return {"ok": True}
-
-
-@router.post("/recovery/regenerate", response_model=RecoveryCodesResponse)
-async def mfa_recovery_regenerate(
-    body: CodeRequest,
-    request: Request,
-    session: AsyncSession = Depends(get_db_session),
-) -> RecoveryCodesResponse:
-    """Mint a fresh set of 10 recovery codes (invalidates the old set)."""
-    auth = await extract_auth_context(request)
-    row = await _mfa_row(session, auth.user_id)
-    if row is None or not row.enabled_at:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Two-factor is not on.",
-        )
-    if not await _verify_code_or_recovery(session, row, body.code):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="That code didn't match.",
-        )
-    recovery_codes = generate_recovery_codes()
-    row.recovery_codes_encrypted = encrypt_secret(json.dumps(recovery_codes))
-    await write_event(
-        session,
-        action="auth.mfa_recovery_regenerated",
-        org_id=auth.org_id or None,
-        user_id=auth.user_id,
-        subject_type="user",
-        subject_id=auth.user_id,
-        commit=False,
-    )
-    await session.commit()
-    return RecoveryCodesResponse(recovery_codes=recovery_codes)
 
 
 @router.post("/trusted-devices/forget")

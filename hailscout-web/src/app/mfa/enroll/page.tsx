@@ -41,7 +41,7 @@ export default function MfaEnrollPage() {
           <p className="mt-1 text-sm text-muted-foreground">
             Your role requires a texted sign-in code for password logins, and
             the enrollment grace period has ended. Verify your mobile number
-            below, save your recovery codes, then sign in again.
+            below, then sign in again.
           </p>
           <div className="mt-5">
             <MfaEnrollFlow onDone={() => void finish()} />

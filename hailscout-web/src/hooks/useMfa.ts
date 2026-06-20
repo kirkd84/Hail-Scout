@@ -60,21 +60,20 @@ export function useMfa() {
   );
 
   /**
-   * Confirm enrollment → one-time recovery codes. Deliberately does NOT
-   * revalidate status here: the enroll flow must stay mounted to show the
-   * codes exactly once — callers refresh via `refresh()` on done.
+   * Confirm enrollment → two-factor is on. Deliberately does NOT revalidate
+   * status here: the enroll flow controls its own success transition —
+   * callers refresh via `refresh()` on done.
    */
   const smsVerify = useCallback(
     (code: string) =>
       call<{
         ok: boolean;
-        recovery_codes: string[];
         relogin_required: boolean;
       }>("/v1/auth/mfa/sms/verify", { code }),
     [call],
   );
 
-  /** Text a fresh code to the ENROLLED phone (for disable / regenerate). */
+  /** Text a fresh code to the ENROLLED phone (for disable). */
   const smsSend = useCallback(
     () => call<{ sent: boolean; phone: string }>("/v1/auth/mfa/sms/send", {}),
     [call],
@@ -87,14 +86,6 @@ export function useMfa() {
       return res;
     },
     [call, swr],
-  );
-
-  const regenerateRecovery = useCallback(
-    (code: string) =>
-      call<{ recovery_codes: string[] }>("/v1/auth/mfa/recovery/regenerate", {
-        code,
-      }),
-    [call],
   );
 
   const forgetTrustedDevices = useCallback(async () => {
@@ -111,7 +102,6 @@ export function useMfa() {
     smsVerify,
     smsSend,
     disable,
-    regenerateRecovery,
     forgetTrustedDevices,
   };
 }

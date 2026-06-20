@@ -65,7 +65,7 @@ API only needs the public client IDs (to validate token audience).
 
 | Variable | Value |
 |---|---|
-| `SESSION_JWT_SECRET` | **Strong random string** (see below) — signs our access tokens; also keys the 2FA code HMAC + recovery-code encryption |
+| `SESSION_JWT_SECRET` | **Strong random string** (see below) — signs our access tokens; also keys the 2FA code HMAC |
 | `GOOGLE_OAUTH_CLIENT_ID` | Same Google client ID (to validate token audience) |
 | `MICROSOFT_OAUTH_CLIENT_ID` | Same Azure client ID |
 | `MICROSOFT_OAUTH_TENANT` | `common` (match the web value) |
@@ -128,12 +128,13 @@ then sign in again.
 ## 7. SMS two-factor (LOGIN-STANDARD §4 — text codes only, no authenticator apps)
 
 - **Enroll** under Settings → Security: phone (E.164) → texted 6-digit code →
-  confirm → **10 single-use recovery codes** shown exactly once (AES-256-GCM at
-  rest). Texted codes are stored HMAC-only, 5-minute expiry, 5-attempt cap.
+  confirm → done. Texted codes are stored HMAC-only, 5-minute expiry,
+  5-attempt cap. (No recovery/backup codes — SMS 2FA is bound to a phone
+  number, which survives device loss via carrier SIM reissue.)
 - **Login**: single POST `/v1/auth/login { email, password, mfa_code? }` — an
   enrolled account without a code gets a fresh code texted + `401 mfa_required`
-  (resubmitting without a code = resend). Recovery codes work in the same
-  field. MFA failures share the durable lockout counter (5 fails/15 min).
+  (resubmitting without a code = resend). MFA failures share the durable
+  lockout counter (5 fails/15 min).
 - **Remember this device** (90 days): an httpOnly `hs_device_trust` cookie skips
   the texted code — password still required. Revoked by Settings → Security →
   "Forget all remembered devices", MFA-disable, and password reset.
@@ -142,5 +143,4 @@ then sign in again.
   token usable only on the enrollment endpoints (`/mfa/enroll` page). **Social
   sign-ins inherit the provider's MFA and are never double-prompted.**
 - Endpoints: `GET /v1/auth/mfa/status`, `POST /v1/auth/mfa/sms/start|verify|send`,
-  `POST /v1/auth/mfa/disable`, `POST /v1/auth/mfa/recovery/regenerate`,
-  `POST /v1/auth/mfa/trusted-devices/forget`.
+  `POST /v1/auth/mfa/disable`, `POST /v1/auth/mfa/trusted-devices/forget`.

@@ -11,9 +11,9 @@ import Link from "next/link";
  *
  * SMS 2FA: the code field stays hidden until the API answers `mfa_required`
  * (correct password on an enrolled account — that answer is also what texts
- * the code). Submitting again without a code re-sends a fresh one. Recovery
- * codes are accepted in the same field. "Remember this device" stores a
- * 90-day httpOnly trust cookie so this browser skips the code next time.
+ * the code). Submitting again without a code re-sends a fresh one. "Remember
+ * this device" stores a 90-day httpOnly trust cookie so this browser skips
+ * the code next time.
  */
 export function EmailSignInForm() {
   const router = useRouter();
@@ -135,7 +135,7 @@ export function EmailSignInForm() {
             inputMode="numeric"
             autoComplete="one-time-code"
             autoFocus
-            placeholder="6-digit code (or a recovery code)"
+            placeholder="6-digit code"
             value={mfaCode}
             onChange={(e) => setMfaCode(e.target.value)}
             className="w-full rounded-md border border-border bg-card px-4 py-3 text-sm text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
