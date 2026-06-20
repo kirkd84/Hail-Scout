@@ -20,18 +20,44 @@ const ROLE_TONE: Record<string, { color: string; bg: string; ring: string }> = {
 
 export default function TeamPage() {
   const { me } = useMe();
-  const { members, updateRole, remove, invite, isLoading, error } = useTeam();
+  const { members, updateRole, remove, resetMfa, invite, isLoading, error } = useTeam();
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<Role>("member");
   const [inviteFlash, setInviteFlash] = useState<string | null>(null);
   const [inviteBusy, setInviteBusy] = useState(false);
+  const [mfaBusyId, setMfaBusyId] = useState<string | null>(null);
+  const [mfaFlash, setMfaFlash] = useState<string | null>(null);
 
   const myId = me?.user?.id;
   const myRole = me?.user?.role;
   const canManage = myRole === "owner" || myRole === "admin" || me?.user?.is_super_admin === true;
   const canRemove = myRole === "owner" || me?.user?.is_super_admin === true;
+
+  const handleResetMfa = async (m: TeamMember) => {
+    if (
+      !confirm(
+        `Reset two-factor for ${m.email}?\n\nThis un-enrolls their 2FA and signs them out everywhere. ` +
+          `They'll set it up again on their next sign-in. Use this when they've lost access to their phone.`,
+      )
+    ) {
+      return;
+    }
+    setMfaBusyId(m.id);
+    setMfaFlash(null);
+    try {
+      await resetMfa(m.id);
+      setMfaFlash(`Two-factor reset for ${m.email}. They'll re-enroll on next sign-in.`);
+      setTimeout(() => setMfaFlash(null), 4000);
+    } catch (e) {
+      setMfaFlash(
+        e instanceof Error && e.message ? e.message : "Couldn't reset two-factor",
+      );
+    } finally {
+      setMfaBusyId(null);
+    }
+  };
 
   const handleInvite = async () => {
     setInviteBusy(true);
@@ -139,9 +165,15 @@ export default function TeamPage() {
           </div>
         )}
 
+        {mfaFlash && (
+          <div className="rounded-md border border-copper/30 bg-copper/5 px-4 py-3 text-sm text-copper-700">
+            {mfaFlash}
+          </div>
+        )}
+
         {/* Members list */}
         <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="grid grid-cols-[3fr_140px_1fr_60px] border-b border-border bg-secondary/40 text-[11px] font-mono uppercase tracking-wide-caps text-foreground/65">
+          <div className="grid grid-cols-[3fr_140px_1fr_150px] border-b border-border bg-secondary/40 text-[11px] font-mono uppercase tracking-wide-caps text-foreground/65">
             <div className="px-5 py-3">Member</div>
             <div className="px-5 py-3">Role</div>
             <div className="px-5 py-3">Joined</div>
@@ -153,7 +185,7 @@ export default function TeamPage() {
               {[0, 1, 2].map((i) => (
                 <div
                   key={i}
-                  className="grid grid-cols-[3fr_140px_1fr_60px] items-center border-b border-border/60"
+                  className="grid grid-cols-[3fr_140px_1fr_150px] items-center border-b border-border/60"
                 >
                   <div className="px-5 py-3 flex items-center gap-3">
                     <Skeleton width={36} height={36} rounded="full" />
@@ -183,7 +215,7 @@ export default function TeamPage() {
               <div
                 key={m.id}
                 className={cn(
-                  "grid grid-cols-[3fr_140px_1fr_60px] items-center hover:bg-secondary/30 transition-colors",
+                  "grid grid-cols-[3fr_140px_1fr_150px] items-center hover:bg-secondary/30 transition-colors",
                   i < members.length - 1 ? "border-b border-border/60" : "",
                 )}
               >
@@ -226,7 +258,18 @@ export default function TeamPage() {
                 <div className="px-5 py-3 text-xs text-muted-foreground">
                   {new Date(m.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                 </div>
-                <div className="px-5 py-3 flex justify-end opacity-60 hover:opacity-100">
+                <div className="px-5 py-3 flex items-center justify-end gap-3">
+                  {canManage && !isMe && (
+                    <button
+                      type="button"
+                      onClick={() => void handleResetMfa(m)}
+                      disabled={mfaBusyId === m.id}
+                      title="Un-enroll this teammate's two-factor so they can set it up again (use when they've lost their phone)"
+                      className="text-[11px] font-mono uppercase tracking-wide-caps text-copper/80 hover:text-copper-700 disabled:opacity-50"
+                    >
+                      {mfaBusyId === m.id ? "Resetting…" : "Reset 2FA"}
+                    </button>
+                  )}
                   {canRemove && !isMe && (
                     <button
                       type="button"
@@ -236,7 +279,7 @@ export default function TeamPage() {
                         }
                       }}
                       aria-label="Remove member"
-                      className="text-foreground/40 hover:text-destructive"
+                      className="text-foreground/40 hover:text-destructive opacity-60 hover:opacity-100"
                     >
                       <IconClose className="h-4 w-4" />
                     </button>

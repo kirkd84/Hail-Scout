@@ -13,22 +13,28 @@ from __future__ import annotations
 import secrets
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from hailscout_api.auth.middleware import bearer_token
+from hailscout_api.auth.session import verify_access_token
 from hailscout_api.auth.super_admin import require_super_admin
+from hailscout_api.core import AuthenticationError
 from hailscout_api.db.models.canvass import Marker, MonitoredAddress
+from hailscout_api.db.models.mfa import TrustedDevice, UserMfaSecret
 from hailscout_api.db.models.ops import ImpactReport
-from hailscout_api.db.models.org import Organization, Seat, User
+from hailscout_api.db.models.org import Organization, Seat, User, UserSession
 from hailscout_api.db.session import get_db_session
 from hailscout_api.schemas.admin import (
     OrgCreate,
     OrgSummary,
     OrgUsage,
+    ResetMfaResponse,
     SetSuperAdmin,
     UserSummary,
 )
+from hailscout_api.services.audit import write_event
 from hailscout_api.services.calibration import (
     compute_calibration,
     marketing_headline,
@@ -37,6 +43,54 @@ from hailscout_api.services.lsr_linker import link_recent_lsrs
 from hailscout_api.services.storm_screener import screen_recent_storms
 
 router = APIRouter(prefix="/admin")
+
+
+async def require_org_admin(
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+) -> User:
+    """Resolve the caller and require admin-grade authority over a tenant.
+
+    Authorized when the caller is a super-admin (cross-tenant) OR holds an
+    org ``owner`` / ``admin`` role. This is the same authority model the
+    ``/v1/team`` write endpoints use; routes that span tenants must still
+    scope by ``org_id`` against the resolved caller (see ``reset_user_mfa``).
+
+    401 if there's no valid authenticated user; 403 if the user lacks an
+    admin-grade role and is not a super-admin.
+    """
+    try:
+        token = bearer_token(request)
+        claims = verify_access_token(token)
+    except AuthenticationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc),
+        ) from exc
+
+    user_id = claims.get("sub")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token missing sub claim.",
+        )
+
+    user = (
+        await session.execute(select(User).where(User.id == user_id))
+    ).scalar_one_or_none()
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found in database.",
+        )
+
+    if not user.is_super_admin and user.role not in {"owner", "admin"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Owner or admin role required for this operation.",
+        )
+
+    return user
 
 
 def _generate_org_id() -> str:
@@ -283,6 +337,140 @@ async def set_super_admin(
     await session.refresh(target)
 
     return UserSummary.model_validate(target)
+
+
+@router.post("/users/{user_id}/reset-mfa", response_model=ResetMfaResponse)
+async def reset_user_mfa(
+    user_id: str,
+    request: Request,
+    actor: User = Depends(require_org_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> ResetMfaResponse:
+    """Break-glass: clear another user's SMS 2FA so they can re-enroll.
+
+    The rescue path for a teammate who is locked out of their second factor
+    (recovery codes were retired fleet-wide; the enrolled phone is
+    unreachable). This is intentionally NON-destructive — unlike
+    ``DELETE /team/{user_id}`` it does not remove the account; it only
+    un-enrolls 2FA:
+
+    * deletes the ``user_mfa_secrets`` row (clearing ``phone_e164`` and the
+      dormant ``recovery_codes_encrypted`` column with it),
+    * revokes every live refresh session (so any in-flight session that
+      already cleared 2FA is logged out and must re-authenticate),
+    * revokes every remembered ("trusted") device (a stale trusted browser
+      must not skip the second factor after the reset).
+
+    The user re-enrolls from Settings on their next privileged login.
+
+    Authz (account-takeover sensitive — gated strictly):
+    * super-admins may reset any user (cross-tenant, consistent with the
+      rest of ``/v1/admin``);
+    * an org owner/admin may reset ONLY users in their OWN org, and may NOT
+      reset a super-admin (no resetting a higher privilege than the app
+      already lets you manage);
+    * resetting yourself is refused — fix self-lockout via the normal
+      texted-code disable in Settings, not this break-glass lever.
+
+    Idempotent: resetting a user who isn't enrolled still revokes any
+    lingering sessions/trusted devices and returns 200 (``was_enrolled``
+    is false).
+    """
+    target = (
+        await session.execute(select(User).where(User.id == user_id))
+    ).scalar_one_or_none()
+    if target is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        )
+
+    # Self-lockout guard: this lever is for rescuing OTHER people. An admin
+    # who can still authenticate should disable 2FA the normal way.
+    if target.id == actor.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "You can't reset your own two-factor here. Disable it from "
+                "Settings with a texted code instead."
+            ),
+        )
+
+    # Tenant + privilege scoping for non-super-admins. Super-admins manage
+    # every org (same as the rest of this router) so they skip both checks.
+    if not actor.is_super_admin:
+        if target.org_id != actor.org_id:
+            # Don't reveal cross-tenant existence — 404, not 403.
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found.",
+            )
+        if target.is_super_admin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can't reset two-factor for a super-admin.",
+            )
+
+    now = datetime.now(timezone.utc)
+
+    # 1) Drop the MFA enrollment row entirely. Deleting it clears phone_e164
+    #    AND the dormant recovery_codes_encrypted column in one shot, leaving
+    #    the user fully un-enrolled (mfa_status → enrolled=false).
+    mfa_row = (
+        await session.execute(
+            select(UserMfaSecret).where(UserMfaSecret.user_id == target.id)
+        )
+    ).scalar_one_or_none()
+    was_enrolled = bool(mfa_row and mfa_row.enabled_at)
+    if mfa_row is not None:
+        await session.delete(mfa_row)
+
+    # 2) Revoke every live refresh session (same idiom as provision.disable):
+    #    a session that already passed 2FA must not survive the reset.
+    sessions_result = await session.execute(
+        update(UserSession)
+        .where(UserSession.user_id == target.id, UserSession.revoked_at.is_(None))
+        .values(revoked_at=now)
+    )
+    sessions_revoked = int(sessions_result.rowcount or 0)
+
+    # 3) Revoke remembered devices so a trusted browser can't skip the
+    #    second factor after re-enrollment (LOGIN-STANDARD §4).
+    devices_result = await session.execute(
+        update(TrustedDevice)
+        .where(
+            TrustedDevice.user_id == target.id,
+            TrustedDevice.revoked_at.is_(None),
+        )
+        .values(revoked_at=now)
+    )
+    trusted_devices_revoked = int(devices_result.rowcount or 0)
+
+    # 4) Append-only audit row (actor, target, action, ts) — the app's
+    #    standard write_event shape, matching auth.mfa_disabled etc.
+    await write_event(
+        session,
+        action="admin.mfa_reset",
+        org_id=target.org_id,
+        user_id=actor.id,
+        subject_type="user",
+        subject_id=target.id,
+        metadata={
+            "target_email": target.email,
+            "was_enrolled": was_enrolled,
+            "by_super_admin": bool(actor.is_super_admin),
+        },
+        commit=False,
+    )
+    await session.commit()
+
+    return ResetMfaResponse(
+        ok=True,
+        user_id=target.id,
+        was_enrolled=was_enrolled,
+        sessions_revoked=sessions_revoked,
+        trusted_devices_revoked=trusted_devices_revoked,
+    )
 
 
 @router.post("/lsr/link")

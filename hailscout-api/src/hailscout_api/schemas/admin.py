@@ -65,3 +65,15 @@ class SetSuperAdmin(BaseModel):
 
     user_email: EmailStr
     is_super_admin: bool
+
+
+class ResetMfaResponse(BaseModel):
+    """Result of an admin-initiated MFA reset (break-glass un-enroll)."""
+
+    ok: bool
+    user_id: str
+    # True when an enrolled secret was actually cleared; False on the
+    # idempotent no-op path (the user was not enrolled to begin with).
+    was_enrolled: bool
+    sessions_revoked: int
+    trusted_devices_revoked: int
