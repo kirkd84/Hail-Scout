@@ -20,7 +20,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from hailscout_api.auth.login_guard import clear_failures, is_locked, record_failure
 from hailscout_api.auth.mfa_challenge import create_and_send_challenge, verify_challenge
-from hailscout_api.auth.mfa_crypto import consume_recovery_code
 from hailscout_api.auth.oidc import verify_oidc_id_token
 from hailscout_api.auth.passwords import (
     DUMMY_HASH,
@@ -359,9 +358,9 @@ async def logout(
 class PasswordLoginRequest(BaseModel):
     email: EmailStr
     password: str
-    # Second factor — a texted 6-digit code or a recovery code. Only consulted
-    # (and only required) once the account has MFA enrolled.
-    mfa_code: str | None = Field(default=None, min_length=6, max_length=12)
+    # Second factor — the texted 6-digit code. Only consulted (and only
+    # required) once the account has MFA enrolled.
+    mfa_code: str | None = Field(default=None, min_length=6, max_length=6)
     # "Remember this device": when true + the code verifies, the response
     # carries a device_trust_token. A live one presented here skips the code
     # next time (password still required).
@@ -397,8 +396,8 @@ async def password_login(
 
     Single-POST MFA (LOGIN-STANDARD §4): an enrolled account without
     ``mfa_code`` gets a fresh code texted and 401 ``mfa_required``;
-    re-submitting without a code is the resend path; recovery codes are
-    accepted in the same field. A live ``device_trust_token`` skips the code.
+    re-submitting without a code is the resend path. A live
+    ``device_trust_token`` skips the code.
     """
     email = body.email.lower().strip()
 
@@ -482,12 +481,7 @@ async def password_login(
                     },
                 )
             challenge = await verify_challenge(session, user.id, "login", body.mfa_code)
-            used_recovery = (
-                False
-                if challenge.ok
-                else await consume_recovery_code(session, mfa_row, body.mfa_code)
-            )
-            if not challenge.ok and not used_recovery:
+            if not challenge.ok:
                 # MFA failures share the durable lockout counter with
                 # password failures (LOGIN-STANDARD §5 anti-abuse).
                 await record_failure(session, email)
@@ -507,16 +501,6 @@ async def password_login(
                         "error": "invalid_mfa_code",
                         "detail": "That code didn't match. Try a fresh one.",
                     },
-                )
-            if used_recovery:
-                await write_event(
-                    session,
-                    action="auth.mfa_recovery_code_used",
-                    org_id=user.org_id,
-                    user_id=user.id,
-                    subject_type="user",
-                    subject_id=user.id,
-                    commit=False,
                 )
             mfa_verified = True
             if body.remember_device:

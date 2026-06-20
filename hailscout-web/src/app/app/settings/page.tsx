@@ -5,7 +5,7 @@
  *
  * Sections:
  *   • Profile      — account info + sign out
- *   • Security     — SMS two-factor, recovery codes, remembered devices
+ *   • Security     — SMS two-factor, remembered devices
  *   • Workspace    — branding card, default territory (future)
  *   • Integrations — Slack, future webhooks
  *   • Notifications— alert thresholds, tour resets

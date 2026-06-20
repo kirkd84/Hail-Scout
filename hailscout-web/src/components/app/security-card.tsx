@@ -7,10 +7,9 @@ import { apiErrorMessage, useMfa } from "@/hooks/useMfa";
  * Settings → Security: SMS two-factor (LOGIN-STANDARD §4 — text codes only,
  * no authenticator apps).
  *
- *   • Enroll: phone → texted 6-digit code → confirm → recovery codes (once).
- *   • Enrolled: masked phone, regenerate recovery codes, turn off (both
- *     gated by a fresh texted code or a recovery code), and remembered-
- *     device management ("forget all devices").
+ *   • Enroll: phone → texted 6-digit code → confirm → done.
+ *   • Enrolled: masked phone, turn off (gated by a fresh texted code), and
+ *     remembered-device management ("forget all devices").
  *
  * Also rendered by /mfa/enroll for past-grace owners/admins holding the
  * restricted enrollment-scoped token (pass `enrollOnly`).
@@ -69,67 +68,17 @@ function Notice({ msg }: { msg: string | null }) {
   );
 }
 
-function RecoveryCodesPanel({
-  codes,
-  onDone,
-  doneLabel,
-}: {
-  codes: string[];
-  onDone: () => void;
-  doneLabel: string;
-}) {
-  const download = () => {
-    const blob = new Blob(
-      [
-        "HailScout recovery codes\n" +
-          "Each code signs you in once if you lose your phone. Store them somewhere safe.\n\n" +
-          codes.join("\n") +
-          "\n",
-      ],
-      { type: "text/plain" },
-    );
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "hailscout-recovery-codes.txt";
-    a.click();
-    URL.revokeObjectURL(a.href);
-  };
-
-  return (
-    <div className="space-y-3">
-      <p className="text-sm text-foreground">
-        Save your recovery codes — each one signs you in once if you ever lose
-        your phone. They won&apos;t be shown again:
-      </p>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-md border border-border bg-card p-3 font-mono text-xs">
-        {codes.map((rc) => (
-          <span key={rc}>{rc}</span>
-        ))}
-      </div>
-      <div className="flex items-center gap-3">
-        <button type="button" onClick={download} className={ghostBtn}>
-          Download .txt
-        </button>
-        <button type="button" onClick={onDone} className={primaryBtn}>
-          {doneLabel}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/** Phone → texted code → recovery codes. Used voluntarily and force-enroll. */
+/** Phone → texted code → done. Used voluntarily and force-enroll. */
 export function MfaEnrollFlow({
   onDone,
 }: {
   onDone: (reloginRequired: boolean) => void;
 }) {
   const { smsStart, smsVerify } = useMfa();
-  const [step, setStep] = useState<"phone" | "code" | "codes">("phone");
+  const [step, setStep] = useState<"phone" | "code" | "done">("phone");
   const [phone, setPhone] = useState("");
   const [maskedPhone, setMaskedPhone] = useState("");
   const [code, setCode] = useState("");
-  const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [reloginRequired, setReloginRequired] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -184,9 +133,11 @@ export function MfaEnrollFlow({
     setBusy(true);
     try {
       const res = await smsVerify(code.trim());
-      setRecoveryCodes(res.recovery_codes);
       setReloginRequired(res.relogin_required);
-      setStep("codes");
+      // Clear any transient "code sent"/"new code sent" notice so the success
+      // state shows clean — no stale banner left over from earlier steps.
+      setNotice(null);
+      setStep("done");
     } catch (err) {
       setError(apiErrorMessage(err, "That code didn't match. Check the text and try again."));
     } finally {
@@ -273,11 +224,18 @@ export function MfaEnrollFlow({
   return (
     <div className="space-y-3">
       <p className="text-sm font-medium text-foreground">Two-factor is on.</p>
-      <RecoveryCodesPanel
-        codes={recoveryCodes}
-        onDone={() => onDone(reloginRequired)}
-        doneLabel="Done"
-      />
+      <p className="text-sm text-muted-foreground">
+        {reloginRequired
+          ? "From now on we'll text a 6-digit code to your phone each time you sign in. Sign in again to continue."
+          : "From now on we'll text a 6-digit code to your phone each time you sign in."}
+      </p>
+      <button
+        type="button"
+        onClick={() => onDone(reloginRequired)}
+        className={primaryBtn}
+      >
+        {reloginRequired ? "Sign in again" : "Done"}
+      </button>
     </div>
   );
 }
@@ -309,8 +267,8 @@ function CodeGatedAction({
       const res = await onSend();
       setNotice(
         res.sent
-          ? `We texted a code to ${res.phone}. You can also use a recovery code.`
-          : "Texting is not fully configured — the code is in the server logs. A recovery code works too.",
+          ? `We texted a 6-digit code to ${res.phone}.`
+          : "Texting is not fully configured — the code is in the server logs.",
       );
       setOpen(true);
     } catch (err) {
@@ -367,7 +325,7 @@ function CodeGatedAction({
           autoComplete="one-time-code"
           autoFocus
           required
-          placeholder="Code or recovery code"
+          placeholder="6-digit code"
           value={code}
           onChange={(e) => setCode(e.target.value)}
         />
@@ -398,7 +356,6 @@ function CodeGatedAction({
 /** The full Settings → Security card. */
 export function SecurityCard({ mfaNag }: { mfaNag?: boolean }) {
   const mfa = useMfa();
-  const [freshCodes, setFreshCodes] = useState<string[] | null>(null);
   const [deviceNotice, setDeviceNotice] = useState<string | null>(null);
 
   return (
@@ -428,7 +385,7 @@ export function SecurityCard({ mfaNag }: { mfaNag?: boolean }) {
           <p className="text-sm text-muted-foreground">Loading…</p>
         )}
 
-        {!mfa.isLoading && !mfa.status?.enrolled && !freshCodes && (
+        {!mfa.isLoading && !mfa.status?.enrolled && (
           <MfaEnrollFlow onDone={() => void mfa.refresh()} />
         )}
 
@@ -458,61 +415,44 @@ export function SecurityCard({ mfaNag }: { mfaNag?: boolean }) {
               <Notice msg="The SMS gateway isn't configured yet — codes are written to the API logs instead of texted." />
             )}
 
-            {freshCodes ? (
-              <RecoveryCodesPanel
-                codes={freshCodes}
-                onDone={() => setFreshCodes(null)}
-                doneLabel="I saved them"
+            <div className="flex flex-col gap-3 border-t border-border pt-4">
+              <CodeGatedAction
+                label="Turn off two-factor"
+                confirmLabel="Turn off"
+                danger
+                onSend={mfa.smsSend}
+                onConfirm={async (code) => {
+                  await mfa.disable(code);
+                }}
               />
-            ) : (
-              <div className="flex flex-col gap-3 border-t border-border pt-4">
-                <CodeGatedAction
-                  label="Regenerate recovery codes"
-                  confirmLabel="Regenerate"
-                  onSend={mfa.smsSend}
-                  onConfirm={async (code) => {
-                    const res = await mfa.regenerateRecovery(code);
-                    setFreshCodes(res.recovery_codes);
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  className={ghostBtn}
+                  onClick={async () => {
+                    setDeviceNotice(null);
+                    try {
+                      await mfa.forgetTrustedDevices();
+                      setDeviceNotice(
+                        "All remembered devices forgotten — every device gets a texted code at its next sign-in.",
+                      );
+                    } catch (err) {
+                      setDeviceNotice(
+                        apiErrorMessage(err, "Could not forget devices."),
+                      );
+                    }
                   }}
-                />
-                <CodeGatedAction
-                  label="Turn off two-factor"
-                  confirmLabel="Turn off"
-                  danger
-                  onSend={mfa.smsSend}
-                  onConfirm={async (code) => {
-                    await mfa.disable(code);
-                  }}
-                />
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    className={ghostBtn}
-                    onClick={async () => {
-                      setDeviceNotice(null);
-                      try {
-                        await mfa.forgetTrustedDevices();
-                        setDeviceNotice(
-                          "All remembered devices forgotten — every device gets a texted code at its next sign-in.",
-                        );
-                      } catch (err) {
-                        setDeviceNotice(
-                          apiErrorMessage(err, "Could not forget devices."),
-                        );
-                      }
-                    }}
-                  >
-                    Forget all remembered devices
-                  </button>
-                  <Notice msg={deviceNotice} />
-                  <p className="text-xs text-muted-foreground">
-                    Devices where you ticked &quot;remember this device&quot; skip the
-                    texted code for 90 days. Forgetting them (or resetting your
-                    password) revokes that everywhere.
-                  </p>
-                </div>
+                >
+                  Forget all remembered devices
+                </button>
+                <Notice msg={deviceNotice} />
+                <p className="text-xs text-muted-foreground">
+                  Devices where you ticked &quot;remember this device&quot; skip the
+                  texted code for 90 days. Forgetting them (or resetting your
+                  password) revokes that everywhere.
+                </p>
               </div>
-            )}
+            </div>
           </>
         )}
       </div>
