@@ -46,6 +46,24 @@ export function useTeam() {
     [auth, getToken, swr],
   );
 
+  // Break-glass: clear a locked-out teammate's SMS 2FA so they can
+  // re-enroll. Non-destructive (the account stays) — un-enrolls 2FA,
+  // revokes their sessions + trusted devices, and is audit-logged
+  // server-side. Owner/admin only; same-tenant enforced by the API.
+  const resetMfa = useCallback(
+    async (userId: string) => {
+      if (!auth) return;
+      const t = await getToken();
+      await apiClient.post(
+        `/v1/admin/users/${userId}/reset-mfa`,
+        {},
+        t || undefined,
+      );
+      await swr.mutate();
+    },
+    [auth, getToken, swr],
+  );
+
   const invite = useCallback(
     async (email: string, role = "member") => {
       if (!auth) return;
@@ -69,6 +87,7 @@ export function useTeam() {
     refresh: swr.mutate,
     updateRole,
     remove,
+    resetMfa,
     invite,
   };
 }
