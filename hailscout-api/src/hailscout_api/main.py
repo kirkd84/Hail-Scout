@@ -13,6 +13,7 @@ from hailscout_api.config import get_settings
 from hailscout_api.core import setup_logging
 from hailscout_api.db import init_db
 from hailscout_api.routes import (
+    account,
     audit,
     auth,
     contacts_crm,
@@ -111,6 +112,7 @@ def create_app() -> FastAPI:
 
     v1 = APIRouter(prefix="/v1")
     v1.include_router(health.router, tags=["health"])
+    v1.include_router(account.router, tags=["account"])
     v1.include_router(auth.router, tags=["auth"])
     v1.include_router(mfa.router, tags=["mfa"])
     v1.include_router(me.router, tags=["user"])

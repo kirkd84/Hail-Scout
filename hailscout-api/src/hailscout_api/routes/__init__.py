@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from hailscout_api.routes import (
+    account,
     audit,
     auth,
     contacts_crm,
@@ -28,6 +29,7 @@ from hailscout_api.routes import (
 )
 
 __all__ = [
+    "account",
     "health",
     "auth",
     "mfa",
