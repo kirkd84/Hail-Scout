@@ -7,9 +7,6 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "ios": {
-        "resourceClass": "m1"
-      },
       "android": {
         "resourceClass": "medium"
       },
@@ -19,10 +16,6 @@
     },
     "preview": {
       "distribution": "internal",
-      "ios": {
-        "resourceClass": "m1",
-        "buildType": "ad-hoc"
-      },
       "android": {
         "resourceClass": "medium",
         "buildType": "apk"
@@ -33,10 +26,6 @@
     },
     "production": {
       "distribution": "store",
-      "ios": {
-        "resourceClass": "m1",
-        "buildType": "archive"
-      },
       "android": {
         "resourceClass": "medium",
         "buildType": "app-bundle"
@@ -48,17 +37,11 @@
   },
   "submit": {
     "production": {
-      "ios": {
-        "ascAppId": "YOUR_ASC_APP_ID"
-      },
       "android": {
         "track": "production"
       }
     },
     "preview": {
-      "ios": {
-        "ascAppId": "YOUR_ASC_APP_ID"
-      },
       "android": {
         "track": "internal"
       }

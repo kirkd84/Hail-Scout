@@ -16,7 +16,7 @@
     "ios": {
       "supportsTabletMode": true,
       "bundleIdentifier": "com.hailscout.app",
-      "deploymentTarget": "14.0",
+      "deploymentTarget": "15.1",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "HailScout needs access to your location to show the map and identify nearby hail damage.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "HailScout needs access to your location to show the map and identify nearby hail damage.",
@@ -44,7 +44,7 @@
         "expo-build-properties",
         {
           "ios": {
-            "deploymentTarget": "14.0"
+            "deploymentTarget": "15.1"
           },
           "android": {
             "compileSdkVersion": 35,
@@ -66,6 +66,11 @@
         }
       ]
     ],
-    "owner": "hailscout"
+    "owner": "kirkd84",
+    "extra": {
+      "eas": {
+        "projectId": "36ababd5-bab4-46fd-9f68-660b0593676b"
+      }
+    }
   }
 }
