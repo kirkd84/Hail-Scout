@@ -112,6 +112,8 @@ function adaptApiStorm(s: ApiStorm): MobileStorm {
     start_time: s.start_time,
     end_time: s.end_time,
     is_live: ageMs >= 0 && ageMs < 2 * 60 * 60 * 1000,
+    source: s.source,
+    lsr_confirmed: s.lsr_confirmed ?? false,
   };
 }
 
