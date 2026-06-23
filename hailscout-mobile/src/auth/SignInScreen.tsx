@@ -25,16 +25,25 @@ WebBrowser.maybeCompleteAuthSession();
 
 const SCOPES = ["openid", "profile", "email"];
 
+// expo-auth-session's Google provider THROWS during render if the platform
+// client id is undefined — which crashes the entire app on the sign-in screen.
+// Pass a harmless placeholder when unset so it never throws; the button stays
+// disabled until a real id is supplied via EXPO_PUBLIC_GOOGLE_*_CLIENT_ID.
+const GOOGLE_PLACEHOLDER = "unconfigured.apps.googleusercontent.com";
+
 export function SignInScreen() {
   const t = theme(useColorScheme());
   const { completeSignIn } = useAuth();
   const [busy, setBusy] = useState<null | "google" | "microsoft">(null);
   const [error, setError] = useState<string | null>(null);
 
+  const googleConfigured = !!(env.GOOGLE_ANDROID_CLIENT_ID || env.GOOGLE_IOS_CLIENT_ID);
+  const microsoftConfigured = !!env.MICROSOFT_CLIENT_ID;
+
   // Google — the provider helper manages the iOS/Android client IDs + id_token.
   const [, gRes, gPrompt] = Google.useAuthRequest({
-    iosClientId: env.GOOGLE_IOS_CLIENT_ID || undefined,
-    androidClientId: env.GOOGLE_ANDROID_CLIENT_ID || undefined,
+    iosClientId: env.GOOGLE_IOS_CLIENT_ID || GOOGLE_PLACEHOLDER,
+    androidClientId: env.GOOGLE_ANDROID_CLIENT_ID || GOOGLE_PLACEHOLDER,
     scopes: SCOPES,
   });
 
@@ -123,7 +132,7 @@ export function SignInScreen() {
           <ProviderButton
             label="Continue with Google"
             loading={busy === "google"}
-            disabled={busy !== null}
+            disabled={busy !== null || !googleConfigured}
             onPress={() => {
               setError(null);
               setBusy("google");
@@ -134,7 +143,7 @@ export function SignInScreen() {
           <ProviderButton
             label="Continue with Microsoft"
             loading={busy === "microsoft"}
-            disabled={busy !== null || !mReq}
+            disabled={busy !== null || !mReq || !microsoftConfigured}
             onPress={() => {
               setError(null);
               setBusy("microsoft");
@@ -143,10 +152,16 @@ export function SignInScreen() {
             t={t}
           />
           {error && <Text style={[styles.error, { color: t.destructive }]}>{error}</Text>}
-          <Text style={[styles.fine, { color: t.fgMuted }]}>
-            Use the Google or Microsoft account tied to your work email. No account?
-            Ask your administrator to add you.
-          </Text>
+          {!googleConfigured && !microsoftConfigured ? (
+            <Text style={[styles.fine, { color: t.accent }]}>
+              Sign-in isn’t enabled in this build yet — it’s coming in the next update.
+            </Text>
+          ) : (
+            <Text style={[styles.fine, { color: t.fgMuted }]}>
+              Use the Google or Microsoft account tied to your work email. No account?
+              Ask your administrator to add you.
+            </Text>
+          )}
         </View>
       </View>
     </View>
