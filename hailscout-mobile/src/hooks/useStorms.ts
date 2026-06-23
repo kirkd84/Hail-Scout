@@ -1,21 +1,29 @@
 /**
  * useStorms — mobile-side storm fetcher backed by the live API.
  *
- * Mirrors the web hook (hailscout-web/src/hooks/useStorms.ts) but trims
- * to what HomeScreen needs:
- *   - List of recent storms across CONUS
- *   - "live" tagging for events that started in the last 2 hours
+ * Mirrors the web hook. Returns:
+ *   - `storms`: centroid list (MobileStorm) for the Home + Map dot layer
+ *   - `swaths`: a GeoJSON FeatureCollection of hail-swath BAND polygons
+ *     (when `includeSwaths`), so the map can render real filled swaths —
+ *     not just centroid dots.
  *
- * Returns the same MobileStorm shape the screen used to import from
- * lib/storm-fixtures.ts so the call site only changes its import.
+ * NO fixture fallback: an empty API result returns an empty list (honest
+ * empty state), and an error surfaces as an error. Showing fabricated
+ * "live" storms to a field rep on bad signal is a trust killer — we
+ * removed exactly that from the web app.
  *
- * The /v1/storms endpoint is public — no token needed.
+ * /v1/storms is public — no token needed.
  */
 
 import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api";
 import type { MobileStorm } from "@/lib/storm-fixtures";
-import { STORMS as FIXTURE_STORMS } from "@/lib/storm-fixtures";
+
+interface ApiSwath {
+  id: string;
+  hail_size_category: string;
+  geometry: { type: "MultiPolygon"; coordinates: number[][][][] } | null;
+}
 
 interface ApiStorm {
   id: string;
@@ -25,6 +33,9 @@ interface ApiStorm {
   source: string;
   centroid: { type: "Point"; coordinates: [number, number] } | null;
   bbox: unknown;
+  lsr_confirmed?: boolean;
+  suspect?: boolean;
+  swaths?: ApiSwath[];
 }
 
 interface ApiStormsListResponse {
@@ -33,11 +44,12 @@ interface ApiStormsListResponse {
   total: number;
 }
 
-/**
- * Nearest-metro label. Inlined small lookup of major US metros so we
- * don't need a runtime geocode call. Always returns the closest one
- * (no distance cutoff), to match the web app's behavior.
- */
+// The 0.25" category ladder — swath bands sit on these floors.
+function catToMin(label: string): number {
+  const n = parseFloat(String(label).replace("+", ""));
+  return Number.isFinite(n) ? n : 0;
+}
+
 const METROS: Array<{ name: string; state: string; lat: number; lng: number }> = [
   { name: "Dallas", state: "TX", lat: 32.78, lng: -96.80 },
   { name: "Houston", state: "TX", lat: 29.76, lng: -95.37 },
@@ -77,11 +89,11 @@ function regionLabel(lng: number, lat: number): string {
   if (!Number.isFinite(lng) || !Number.isFinite(lat)) return "MRMS event";
   let best = METROS[0];
   let bestDist = Number.POSITIVE_INFINITY;
-  const MILES_PER_DEG = 69.0;
+  const MPD = 69.0;
   for (const m of METROS) {
-    const dLat = (lat - m.lat) * MILES_PER_DEG;
-    const meanLatRad = ((lat + m.lat) / 2) * (Math.PI / 180);
-    const dLng = (lng - m.lng) * MILES_PER_DEG * Math.cos(meanLatRad);
+    const dLat = (lat - m.lat) * MPD;
+    const meanLat = ((lat + m.lat) / 2) * (Math.PI / 180);
+    const dLng = (lng - m.lng) * MPD * Math.cos(meanLat);
     const d = Math.sqrt(dLat * dLat + dLng * dLng);
     if (d < bestDist) { bestDist = d; best = m; }
   }
@@ -90,8 +102,7 @@ function regionLabel(lng: number, lat: number): string {
 
 function adaptApiStorm(s: ApiStorm): MobileStorm {
   const [lng, lat] = s.centroid?.coordinates ?? [0, 0];
-  const startMs = new Date(s.start_time).getTime();
-  const ageMs = Date.now() - startMs;
+  const ageMs = Date.now() - new Date(s.start_time).getTime();
   return {
     id: s.id,
     city: regionLabel(lng, lat),
@@ -100,35 +111,63 @@ function adaptApiStorm(s: ApiStorm): MobileStorm {
     peak_size_in: s.max_hail_size_in,
     start_time: s.start_time,
     end_time: s.end_time,
-    is_live: ageMs >= 0 && ageMs < 2 * 60 * 60 * 1000, // last 2 hours
+    is_live: ageMs >= 0 && ageMs < 2 * 60 * 60 * 1000,
   };
 }
 
-interface UseStormsState {
-  storms: MobileStorm[];
-  isLoading: boolean;
-  error: Error | null;
-  usingFallback: boolean;
+/** Band polygons across all radar storms → one FeatureCollection, smallest
+ *  first so larger-hail bands stack on top. SPC-LSR rows are point reports
+ *  (placeholder boxes), excluded — they belong on a markers layer. */
+function buildSwathFC(apiStorms: ApiStorm[]): GeoJSON.FeatureCollection {
+  const features: GeoJSON.Feature[] = [];
+  for (const s of apiStorms) {
+    if (s.source === "SPC-LSR") continue;
+    for (const sw of s.swaths ?? []) {
+      if (!sw.geometry) continue;
+      features.push({
+        type: "Feature",
+        geometry: sw.geometry as GeoJSON.Geometry,
+        properties: {
+          storm_id: s.id,
+          min_size_in: catToMin(sw.hail_size_category),
+          suspect: s.suspect ? 1 : 0,
+        },
+      });
+    }
+  }
+  features.sort(
+    (a, b) =>
+      (Number(a.properties?.min_size_in) || 0) -
+      (Number(b.properties?.min_size_in) || 0),
+  );
+  return { type: "FeatureCollection", features };
 }
 
-/**
- * Fetches storms over a CONUS-wide bbox spanning the last 30 days by
- * default. Pull-to-refresh callers can call `refresh()` to re-trigger.
- */
+const EMPTY_FC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+
+interface UseStormsState {
+  storms: MobileStorm[];
+  swaths: GeoJSON.FeatureCollection;
+  isLoading: boolean;
+  error: Error | null;
+}
+
 export function useStorms(opts?: {
   bbox?: [number, number, number, number];
   daysBack?: number;
   limit?: number;
+  includeSwaths?: boolean;
 }): UseStormsState & { refresh: () => Promise<void> } {
   const bbox = opts?.bbox ?? ([-125, 24, -66, 50] as [number, number, number, number]);
   const daysBack = opts?.daysBack ?? 30;
   const limit = opts?.limit ?? 50;
+  const includeSwaths = opts?.includeSwaths ?? false;
 
   const [state, setState] = useState<UseStormsState>({
     storms: [],
+    swaths: EMPTY_FC,
     isLoading: true,
     error: null,
-    usingFallback: false,
   });
 
   const fetchStorms = async () => {
@@ -141,22 +180,27 @@ export function useStorms(opts?: {
         from: from.toISOString().slice(0, 10),
         to: to.toISOString().slice(0, 10),
         limit: String(limit),
+        include_unconfirmed: "true",
       });
-      const data = await apiRequest<ApiStormsListResponse>(`/v1/storms?${qs}`);
-      const mapped = data.storms.map(adaptApiStorm);
-      if (mapped.length === 0) {
-        // Fall back to fixtures so a quiet API doesn't leave a blank screen.
-        setState({ storms: FIXTURE_STORMS, isLoading: false, error: null, usingFallback: true });
-      } else {
-        setState({ storms: mapped, isLoading: false, error: null, usingFallback: false });
+      if (includeSwaths) {
+        qs.set("include", "swaths");
+        qs.set("simplify", "0.01");
       }
-    } catch (err) {
-      // Network / API error → fixture fallback, so the demo keeps working.
+      const data = await apiRequest<ApiStormsListResponse>(`/v1/storms?${qs}`);
       setState({
-        storms: FIXTURE_STORMS,
+        storms: data.storms.map(adaptApiStorm),
+        swaths: includeSwaths ? buildSwathFC(data.storms) : EMPTY_FC,
+        isLoading: false,
+        error: null,
+      });
+    } catch (err) {
+      // Honest failure — empty, not fabricated. The screens show a calm
+      // empty/offline state rather than fake storms.
+      setState({
+        storms: [],
+        swaths: EMPTY_FC,
         isLoading: false,
         error: err instanceof Error ? err : new Error(String(err)),
-        usingFallback: true,
       });
     }
   };
@@ -164,10 +208,7 @@ export function useStorms(opts?: {
   useEffect(() => {
     void fetchStorms();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bbox.join(","), daysBack, limit]);
+  }, [bbox.join(","), daysBack, limit, includeSwaths]);
 
-  return {
-    ...state,
-    refresh: fetchStorms,
-  };
+  return { ...state, refresh: fetchStorms };
 }

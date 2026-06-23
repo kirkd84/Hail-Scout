@@ -35,7 +35,9 @@ const DARK = {
   destructive:  "#E07A6E",
 } as const;
 
-export type Theme = typeof LIGHT;
+// Values widened to `string` so the dark + light palettes (which have
+// different literal hexes under `as const`) are both assignable to Theme.
+export type Theme = { readonly [K in keyof typeof LIGHT]: string };
 
 export function theme(scheme: ColorSchemeName | undefined): Theme {
   return scheme === "dark" ? DARK : LIGHT;

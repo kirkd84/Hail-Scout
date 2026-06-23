@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as Location from "expo-location";
 
 export type LocationPermissionStatus =
@@ -33,6 +33,7 @@ export function useUserLocation() {
     useState<LocationPermissionStatus>("undetermined");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const watchRef = useRef<Location.LocationSubscription | null>(null);
 
   const requestLocationPermission = async (): Promise<void> => {
     setIsLoading(true);
@@ -55,12 +56,16 @@ export function useUserLocation() {
           accuracy: location.coords.accuracy || 0,
         });
 
-        // Start watching for location updates
-        const subscription = Location.watchPositionAsync(
+        // Start watching for updates. Keep the handle so the unmount
+        // effect can stop it — this is an async action, NOT a hook cleanup,
+        // so returning a function here did nothing and broke the
+        // Promise<void> signature.
+        watchRef.current?.remove();
+        watchRef.current = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.High,
-            timeInterval: 5000, // Update every 5 seconds
-            distanceInterval: 10, // Or every 10 meters
+            timeInterval: 5000,
+            distanceInterval: 10,
           },
           (location) => {
             setUserLocation({
@@ -68,13 +73,8 @@ export function useUserLocation() {
               longitude: location.coords.longitude,
               accuracy: location.coords.accuracy || 0,
             });
-          }
+          },
         );
-
-        // Return unsubscribe function in cleanup
-        return () => {
-          subscription.then((sub) => sub.remove());
-        };
       } else {
         setPermissionStatus("denied");
       }
@@ -111,6 +111,9 @@ export function useUserLocation() {
       }
     })();
   }, []);
+
+  // Stop the location watch on unmount.
+  useEffect(() => () => { watchRef.current?.remove(); }, []);
 
   return {
     userLocation,

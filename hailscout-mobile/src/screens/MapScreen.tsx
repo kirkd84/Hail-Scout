@@ -14,6 +14,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { LocationButton } from "@/components/LocationButton";
 import { ColorLegend } from "@/components/ColorLegend";
 import type { MobileStorm } from "@/lib/storm-fixtures";
+import { apiRequest } from "@/lib/api";
 
 const DEFAULT_CENTER: [number, number] = [-98.58, 39.8];
 const DEFAULT_ZOOM = 4;
@@ -26,7 +27,9 @@ const STYLE_DARK  = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style
  * tap-target halo. Matches the web app's topographic palette so the
  * two platforms read consistent.
  */
-const HAIL_COLOR_STEPS: (number | string)[] = [
+// `any` — MapLibre RN's style-expression types are stricter than the
+// runtime; these are valid `step`/`interpolate` expressions.
+const HAIL_COLOR_STEPS: any = [
   "step",
   ["get", "peak_size_in"],
   "#5DCAA5",
@@ -38,6 +41,32 @@ const HAIL_COLOR_STEPS: (number | string)[] = [
   2.5,  "#5B2059",
   3.0,  "#1F1B33",
 ];
+
+/** Same ramp keyed on a swath band's min_size_in (the floor of the band). */
+const SWATH_COLOR_STEPS: any = [
+  "step",
+  ["get", "min_size_in"],
+  "#5DCAA5",
+  1.0,  "#E2B843",
+  1.25, "#D88A3D",
+  1.5,  "#C46434",
+  1.75, "#A8412D",
+  2.0,  "#822424",
+  2.5,  "#5B2059",
+  3.0,  "#1F1B33",
+];
+
+interface AtPointHit {
+  id: string;
+  source: string;
+  size_at_point: number | null;
+  max_hail_size_in: number;
+  lsr_confirmed?: boolean;
+  distance_mi?: number | null;
+  start_time: string;
+}
+interface AtPointResponse { lat: number; lng: number; hits: AtPointHit[]; total: number }
+interface AtPointResult { lat: number; lng: number; top: AtPointHit | null; total: number }
 
 function buildFeatureCollection(storms: MobileStorm[]): GeoJSON.FeatureCollection {
   return {
@@ -64,13 +93,41 @@ export function MapScreen() {
   const styleUrl = scheme === "dark" ? STYLE_DARK : STYLE_LIGHT;
 
   const { userLocation, permissionStatus, requestLocationPermission } = useUserLocation();
-  const cameraRef = useRef<MapLibreGL.Camera>(null);
+  const cameraRef = useRef<React.ElementRef<typeof MapLibreGL.Camera>>(null);
 
-  // 30 days CONUS — same window the home screen uses
-  const { storms } = useStorms({ daysBack: 30 });
+  // 30 days CONUS — same window the home screen uses. includeSwaths pulls
+  // the band polygons so we render real filled swaths, not just centroids.
+  const { storms, swaths } = useStorms({ daysBack: 30, includeSwaths: true });
   const fc = useMemo(() => buildFeatureCollection(storms), [storms]);
 
   const [selected, setSelected] = useState<MobileStorm | null>(null);
+  const [atPoint, setAtPoint] = useState<AtPointResult | null>(null);
+  const [atPointLoading, setAtPointLoading] = useState(false);
+
+  // Long-press anywhere → "what hit this spot?" via /v1/storms/at-point.
+  // Public endpoint; fuses radar swaths + nearby SPC ground reports.
+  const queryAtPoint = async (lng: number, lat: number) => {
+    setSelected(null);
+    setAtPoint(null);
+    setAtPointLoading(true);
+    try {
+      const d = await apiRequest<AtPointResponse>(
+        `/v1/storms/at-point?lat=${lat.toFixed(5)}&lng=${lng.toFixed(5)}`,
+      );
+      setAtPoint({ lat, lng, top: d.hits?.[0] ?? null, total: d.hits?.length ?? 0 });
+    } catch {
+      setAtPoint({ lat, lng, top: null, total: 0 });
+    } finally {
+      setAtPointLoading(false);
+    }
+  };
+  // Void handler (MapLibre's onLongPress expects () => void, not a Promise).
+  const onLongPress = (feature: GeoJSON.Feature) => {
+    const geom = feature?.geometry;
+    const coords = geom && geom.type === "Point" ? geom.coordinates : undefined;
+    if (!coords || coords.length < 2) return;
+    void queryAtPoint(coords[0], coords[1]);
+  };
 
   useEffect(() => {
     if (permissionStatus === "undetermined") void requestLocationPermission();
@@ -122,10 +179,11 @@ export function MapScreen() {
       <View style={styles.mapWrap}>
         <MapLibreGL.MapView
           style={StyleSheet.absoluteFill}
-          styleURL={styleUrl}
+          mapStyle={styleUrl}
           attributionEnabled
           logoEnabled={false}
-          onPress={() => setSelected(null)}
+          onPress={() => { setSelected(null); setAtPoint(null); }}
+          onLongPress={onLongPress}
         >
           <MapLibreGL.Camera
             ref={cameraRef}
@@ -135,6 +193,28 @@ export function MapScreen() {
           {userLocation && (
             <MapLibreGL.UserLocation visible animated showsUserHeadingIndicator />
           )}
+
+          {/* Hail SWATH bands — filled polygons, smallest-first stacking,
+              colored by band size. Declared before centroids so the dots
+              draw on top. Suspect (unverified) cells render dimmed. */}
+          <MapLibreGL.ShapeSource id="hs-swaths" shape={swaths}>
+            <MapLibreGL.FillLayer
+              id="hs-swaths-fill"
+              style={{
+                fillColor: SWATH_COLOR_STEPS,
+                fillOpacity: [
+                  "*",
+                  ["interpolate", ["linear"], ["get", "min_size_in"],
+                    0.75, 0.22, 1.0, 0.32, 1.5, 0.5, 2.0, 0.64, 3.0, 0.85],
+                  ["case", ["==", ["get", "suspect"], 1], 0.4, 1],
+                ] as any,
+              }}
+            />
+            <MapLibreGL.LineLayer
+              id="hs-swaths-line"
+              style={{ lineColor: SWATH_COLOR_STEPS, lineWidth: 0.6, lineOpacity: 0.45 }}
+            />
+          </MapLibreGL.ShapeSource>
 
           {/* Storm centroids: halo + solid dot, sized + colored by
               peak hail. ShapeSource feeds both layers. */}
@@ -154,7 +234,7 @@ export function MapScreen() {
                   0.75, 8,
                   1.75, 12,
                   3.0, 18,
-                ],
+                ] as any,
                 circleColor: HAIL_COLOR_STEPS,
                 circleOpacity: 0.18,
                 circleStrokeWidth: 0,
@@ -171,7 +251,7 @@ export function MapScreen() {
                   0.75, 4,
                   1.75, 5,
                   3.0, 7,
-                ],
+                ] as any,
                 circleColor: HAIL_COLOR_STEPS,
                 circleStrokeColor: "#FAF7F1",
                 circleStrokeWidth: 1.4,
@@ -182,7 +262,7 @@ export function MapScreen() {
         </MapLibreGL.MapView>
 
         <View style={[styles.fab, { backgroundColor: t.bgLift, borderColor: t.border }]}>
-          <LocationButton onPress={onMyLocation} hasLocation={!!userLocation} />
+          <LocationButton onPress={onMyLocation} />
         </View>
 
         <View style={[styles.legendWrap, { backgroundColor: t.bgLift, borderColor: t.border }]}>
@@ -227,6 +307,53 @@ export function MapScreen() {
                 <Text style={[styles.closeX, { color: t.fgMuted }]}>×</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        )}
+
+        {atPointLoading && (
+          <View style={[styles.cardWrap, { backgroundColor: t.bgLift, borderColor: t.border }]}>
+            <Text style={[styles.cardDate, { color: t.fgMuted }]}>Checking what hit here…</Text>
+          </View>
+        )}
+
+        {atPoint && !atPointLoading && (
+          <View style={[styles.cardWrap, { backgroundColor: t.bgLift, borderColor: t.border }]}>
+            {atPoint.top ? (
+              <View style={styles.cardRow}>
+                <View style={[styles.badge, { backgroundColor: peakColorHex(atPoint.top.size_at_point ?? atPoint.top.max_hail_size_in) }]}>
+                  <Text style={[styles.badgeSize, { color: badgeTextColor(atPoint.top.size_at_point ?? atPoint.top.max_hail_size_in) }]}>
+                    {(atPoint.top.size_at_point ?? atPoint.top.max_hail_size_in).toFixed(2)}″
+                  </Text>
+                  <Text style={[styles.badgeObj, { color: badgeTextColor(atPoint.top.size_at_point ?? atPoint.top.max_hail_size_in) }]}>
+                    {peakObjectLabel(atPoint.top.size_at_point ?? atPoint.top.max_hail_size_in)}
+                  </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.cardCity, { color: t.fg }]}>What hit here</Text>
+                  <Text style={[styles.cardDate, { color: t.fgMuted }]}>
+                    {atPoint.top.lsr_confirmed || atPoint.top.source === "SPC-LSR"
+                      ? "✓ Ground-confirmed"
+                      : "Radar-indicated"}
+                    {atPoint.top.distance_mi != null ? ` · ${atPoint.top.distance_mi} mi away` : ""}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => setAtPoint(null)} style={styles.closeBtn}>
+                  <Text style={[styles.closeX, { color: t.fgMuted }]}>×</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.cardRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.cardCity, { color: t.fg }]}>No hail on record here</Text>
+                  <Text style={[styles.cardDate, { color: t.fgMuted }]}>
+                    No storms hit this exact spot in the last 30 days.
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => setAtPoint(null)} style={styles.closeBtn}>
+                  <Text style={[styles.closeX, { color: t.fgMuted }]}>×</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         )}
       </View>
