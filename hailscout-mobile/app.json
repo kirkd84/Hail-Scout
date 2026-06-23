@@ -14,9 +14,8 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTabletMode": true,
+      "supportsTablet": true,
       "bundleIdentifier": "com.hailscout.app",
-      "deploymentTarget": "15.1",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "HailScout needs access to your location to show the map and identify nearby hail damage.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "HailScout needs access to your location to show the map and identify nearby hail damage.",
