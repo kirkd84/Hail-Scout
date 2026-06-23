@@ -5,12 +5,14 @@ import {
   StyleSheet,
   FlatList,
   RefreshControl,
+  Pressable,
   useColorScheme,
 } from "react-native";
 import { useAuth } from "@/auth/AuthProvider";
 import { theme, SPACING, RADIUS } from "@/lib/tokens";
 import { AppHeader } from "@/components/AppHeader";
 import { HailBadge } from "@/components/HailBadge";
+import { AddressLookupModal } from "@/components/AddressLookupModal";
 import { apiRequest } from "@/lib/api";
 
 interface AddressRow {
@@ -29,6 +31,7 @@ export function AddressesScreen() {
   const [rows, setRows] = useState<AddressRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [lookupOpen, setLookupOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!isSignedIn) return;
@@ -54,6 +57,13 @@ export function AddressesScreen() {
         subtitle="Synced from your desktop workspace"
       />
 
+      <Pressable
+        onPress={() => setLookupOpen(true)}
+        style={[styles.lookupBtn, { backgroundColor: t.bgLift, borderColor: t.border }]}
+      >
+        <Text style={[styles.lookupText, { color: t.accent }]}>＋  Look up an address</Text>
+      </Pressable>
+
       {loading && rows.length === 0 && (
         <Text style={[styles.center, { color: t.fgMuted }]}>Loading…</Text>
       )}
@@ -62,7 +72,7 @@ export function AddressesScreen() {
         <View style={styles.emptyWrap}>
           <Text style={[styles.emptyTitle, { color: t.fg }]}>Nothing to monitor.</Text>
           <Text style={[styles.emptyBody, { color: t.fgMuted }]}>
-            Save addresses on the desktop atlas — they&apos;ll appear here automatically.
+            Look up an address above, or save them on the desktop — they sync here automatically.
           </Text>
         </View>
       )}
@@ -95,6 +105,12 @@ export function AddressesScreen() {
           </View>
         )}
       />
+
+      <AddressLookupModal
+        visible={lookupOpen}
+        onClose={() => setLookupOpen(false)}
+        onSaved={load}
+      />
     </View>
   );
 }
@@ -117,4 +133,13 @@ const styles = StyleSheet.create({
   rowBody: { flex: 1, minWidth: 0 },
   title: { fontSize: 14, fontWeight: "500", letterSpacing: -0.2 },
   meta:  { fontSize: 11, marginTop: 4, fontFamily: "Courier", letterSpacing: 0.2 },
+  lookupBtn: {
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.sm,
+    borderWidth: 1,
+    borderRadius: RADIUS.lg,
+    paddingVertical: SPACING.md,
+    alignItems: "center",
+  },
+  lookupText: { fontSize: 14, fontWeight: "600", letterSpacing: 0.2 },
 });
