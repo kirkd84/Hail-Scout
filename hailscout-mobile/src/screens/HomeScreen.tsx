@@ -13,12 +13,15 @@ import { useStorms } from "@/hooks/useStorms";
 import { Card } from "@/components/Card";
 import { AppHeader } from "@/components/AppHeader";
 import { StormRow } from "@/components/StormRow";
+import { StormDetailModal } from "@/components/StormDetailModal";
+import type { MobileStorm } from "@/lib/storm-fixtures";
 
 export function HomeScreen() {
   const t = theme(useColorScheme());
   const { user } = useAuth();
   const [, setTick] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [detail, setDetail] = useState<MobileStorm | null>(null);
   const { storms, refresh } = useStorms({ daysBack: 30 });
 
   // Re-render every minute so timestamps stay fresh
@@ -95,6 +98,7 @@ export function HomeScreen() {
                   startTime={s.start_time}
                   peakSizeIn={s.peak_size_in}
                   isLive
+                  onPress={() => setDetail(s)}
                 />
               ))}
             </View>
@@ -116,6 +120,7 @@ export function HomeScreen() {
                 city={s.city}
                 startTime={s.start_time}
                 peakSizeIn={s.peak_size_in}
+                onPress={() => setDetail(s)}
               />
             ))}
           </View>
@@ -123,6 +128,12 @@ export function HomeScreen() {
 
         <View style={{ height: 32 }} />
       </ScrollView>
+
+      <StormDetailModal
+        storm={detail}
+        visible={!!detail}
+        onClose={() => setDetail(null)}
+      />
     </View>
   );
 }

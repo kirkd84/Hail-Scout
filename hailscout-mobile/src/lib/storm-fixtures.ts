@@ -13,6 +13,9 @@ export interface MobileStorm {
   start_time: string;
   end_time: string;
   is_live: boolean;
+  /** Optional enrichment from the live API (absent on demo fixtures). */
+  source?: string;
+  lsr_confirmed?: boolean;
 }
 
 const NOW = Date.now();

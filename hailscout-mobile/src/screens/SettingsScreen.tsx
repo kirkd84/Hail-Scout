@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Pressable,
   Linking,
+  Alert,
   useColorScheme,
 } from "react-native";
 import { useAuth } from "@/auth/AuthProvider";
@@ -42,6 +43,38 @@ export function SettingsScreen() {
             <Text style={[styles.linkValue, { color: t.fg }]}>hailscout.net/app  →</Text>
             <Text style={[styles.sub, { color: t.fgMuted }]}>
               Markers and addresses sync between mobile and web.
+            </Text>
+          </Pressable>
+        </Card>
+
+        {/* Account deletion — required by Google Play for any app with
+            sign-in. Opens the deletion-request flow on the web. */}
+        <Card>
+          <Pressable
+            onPress={() =>
+              Alert.alert(
+                "Delete account",
+                "This permanently removes your HailScout account and associated data. We'll open the deletion request page to continue.",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Continue",
+                    style: "destructive",
+                    onPress: () =>
+                      Linking.openURL("https://hailscout.net/account/delete"),
+                  },
+                ],
+              )
+            }
+          >
+            <Text style={[styles.linkLabel, { color: t.destructive }]}>
+              DELETE ACCOUNT
+            </Text>
+            <Text style={[styles.linkValue, { color: t.fg }]}>
+              Request account + data deletion  →
+            </Text>
+            <Text style={[styles.sub, { color: t.fgMuted }]}>
+              Permanently removes your account and the data tied to it.
             </Text>
           </Pressable>
         </Card>

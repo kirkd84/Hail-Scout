@@ -26,7 +26,11 @@
     },
     "android": {
       "package": "com.hailscout.app",
-      "compileSdkVersion": 34,
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0F4C5C"
+      },
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION"
@@ -43,8 +47,8 @@
             "deploymentTarget": "14.0"
           },
           "android": {
-            "compileSdkVersion": 34,
-            "targetSdkVersion": 34,
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
             "minSdkVersion": 26
           }
         }
