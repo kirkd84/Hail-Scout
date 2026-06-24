@@ -7,6 +7,10 @@ import React, {
   useState,
 } from "react";
 import * as session from "./session";
+import {
+  registerForPushNotifications,
+  unregisterPushNotifications,
+} from "@/lib/push";
 
 interface AuthState {
   isLoaded: boolean;
@@ -49,6 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (refresh_token) await session.saveRefresh(refresh_token);
         cache.current = { token: access_token, exp: session.decodeExpMs(access_token) };
         setIsSignedIn(true);
+        void registerForPushNotifications(async () => access_token);
         try {
           const me = await session.fetchMe(access_token);
           setUser(me.user);
@@ -102,11 +107,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(r.user);
       setOrganization(r.organization);
       setIsSignedIn(true);
+      void registerForPushNotifications(async () => r.access_token);
     },
     [],
   );
 
   const signOut = useCallback(async () => {
+    await unregisterPushNotifications(getToken);
     const refresh = await session.getRefresh();
     if (refresh) await session.logout(refresh);
     await session.clearTokens();
