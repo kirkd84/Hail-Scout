@@ -82,6 +82,9 @@ class Settings(BaseSettings):
     # client. List them here so mobile sign-in passes audience validation.
     google_oauth_audiences: list[str] = []
     microsoft_oauth_client_id: str = ""
+    # Extra accepted Microsoft audiences — the mobile app's native client ID
+    # differs from the web client ID; a token's `aud` is its own client.
+    microsoft_oauth_audiences: list[str] = []
     # Microsoft tenant: "common" (work + personal), "organizations",
     # "consumers", or a specific tenant GUID. Controls the accepted issuer.
     microsoft_oauth_tenant: str = "common"
