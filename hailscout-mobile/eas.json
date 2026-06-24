@@ -34,7 +34,7 @@
       },
       "env": {
         "ENVIRONMENT": "production",
-        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "56840761596-3i493qif5io7ce7q89srj7j5ogt3o3mg.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "56840761596-rql3q0d6qi9hqkah9ju4jh0eambq8m5u.apps.googleusercontent.com",
         "EXPO_PUBLIC_MICROSOFT_CLIENT_ID": "48039a18-75d7-4e75-969c-e7a9612abdb9"
       }
     }
