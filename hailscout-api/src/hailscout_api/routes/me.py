@@ -11,12 +11,14 @@ Implementation notes:
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
-from sqlalchemy import and_, select
+from fastapi import APIRouter, Depends, Request, Response
+from pydantic import BaseModel
+from sqlalchemy import and_, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hailscout_api.auth.middleware import extract_auth_context
 from hailscout_api.core import AuthenticationError, get_logger
+from hailscout_api.db.models.canvass import MobilePushToken
 from hailscout_api.db.models.org import Organization, Seat, User
 from hailscout_api.db.session import get_db_session
 from hailscout_api.schemas.me import MeResponse
@@ -82,3 +84,69 @@ async def get_current_user(
             for seat in seats
         ],
     )
+
+
+class PushTokenBody(BaseModel):
+    token: str
+    platform: str | None = None  # "ios" | "android"
+
+
+@router.post("/me/push-token", status_code=204)
+async def register_push_token(
+    request: Request,
+    body: PushTokenBody,
+    session: AsyncSession = Depends(get_db_session),
+) -> Response:
+    """Register (or refresh) this device's Expo push token for the signed-in
+    user. Idempotent on the token — re-registering just re-points it at the
+    current user/org (e.g. after a different user signs in on the device)."""
+    auth_context = await extract_auth_context(request)
+    user = (
+        await session.execute(select(User).where(User.id == auth_context.user_id))
+    ).scalars().first()
+    if not user:
+        raise AuthenticationError("User not found")
+
+    token = body.token.strip()
+    if not token:
+        return Response(status_code=204)
+
+    existing = (
+        await session.execute(
+            select(MobilePushToken).where(MobilePushToken.token == token)
+        )
+    ).scalars().first()
+    if existing is not None:
+        existing.user_id = user.id
+        existing.org_id = user.org_id
+        if body.platform:
+            existing.platform = body.platform
+    else:
+        session.add(
+            MobilePushToken(
+                token=token,
+                user_id=user.id,
+                org_id=user.org_id,
+                platform=body.platform,
+            )
+        )
+    await session.commit()
+    logger.info("me.push_token_registered", user_id=user.id)
+    return Response(status_code=204)
+
+
+@router.delete("/me/push-token", status_code=204)
+async def unregister_push_token(
+    request: Request,
+    body: PushTokenBody,
+    session: AsyncSession = Depends(get_db_session),
+) -> Response:
+    """Drop a device token (called on sign-out)."""
+    await extract_auth_context(request)  # require auth
+    token = body.token.strip()
+    if token:
+        await session.execute(
+            delete(MobilePushToken).where(MobilePushToken.token == token)
+        )
+        await session.commit()
+    return Response(status_code=204)

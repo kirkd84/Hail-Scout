@@ -141,6 +141,10 @@ class StormAlert(Base):
     push_sent_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # Mobile (Expo) push — the native app's device-token channel.
+    mobile_push_sent_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = created_at_column()
 
     def __repr__(self) -> str:
@@ -169,6 +173,33 @@ class PushSubscription(Base):
 
     def __repr__(self) -> str:
         return f"<PushSubscription(id={self.id}, user_id={self.user_id})>"
+
+
+class MobilePushToken(Base):
+    """An Expo push token for a signed-in mobile device (one per device).
+
+    Distinct from ``PushSubscription`` (browser web-push): the native app
+    registers an ``ExponentPushToken[...]`` which we relay through Expo's
+    push service (no FCM/APNs key server-side).
+    """
+
+    __tablename__ = "mobile_push_tokens"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    org_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # Expo push token, e.g. "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]".
+    token: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    platform: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)  # ios | android
+    created_at: Mapped[datetime] = created_at_column()
+    updated_at: Mapped[datetime] = updated_at_column()
+
+    def __repr__(self) -> str:
+        return f"<MobilePushToken(id={self.id}, user_id={self.user_id})>"
 
 
 class SavedReport(Base):

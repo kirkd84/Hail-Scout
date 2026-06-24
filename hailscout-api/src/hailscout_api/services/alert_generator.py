@@ -26,6 +26,7 @@ from sqlalchemy import and_, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hailscout_api.db.models.canvass import (
+    MobilePushToken,
     MonitoredAddress,
     PushSubscription,
     StormAlert,
@@ -36,6 +37,7 @@ from hailscout_api.services.email_alerts import (
     render_alert_email,
     send_alert_email,
 )
+from hailscout_api.services.expo_push import send_expo_push
 from hailscout_api.services.push_alerts import push_configured, send_web_push
 from hailscout_api.services.slack import format_alert_message, send_slack_alert
 from hailscout_api.services.sms_alerts import (
@@ -287,6 +289,45 @@ async def generate_alerts_for_org(
                     summary["push_sent"] += 1
             await session.commit()
 
+    # ── Fan out to mobile (Expo) push ──
+    # Device-level opt-in: anyone who installed the native app and granted
+    # permission registered a token, so we send regardless of the org's
+    # browser web-push toggle.
+    device_tokens = (
+        await session.execute(
+            select(MobilePushToken).where(MobilePushToken.org_id == org.id)
+        )
+    ).scalars().all()
+    if device_tokens:
+        all_tokens = [t.token for t in device_tokens]
+        for alert in delivery_targets:
+            if alert.mobile_push_sent_at is not None:
+                continue
+            addr = address_by_id.get(alert.monitored_address_id)
+            where = (
+                (addr.label or addr.address) if addr else None
+            ) or alert.storm_city or "a monitored address"
+            dead = await send_expo_push(
+                tokens=all_tokens,
+                title=f'{alert.peak_size_in:.2f}" hail — {where}',
+                body="New hail on a monitored address. Tap to verify and pull a report.",
+                data={
+                    "type": "storm_alert",
+                    "storm_id": alert.storm_id,
+                    "url": "/app/alerts",
+                },
+            )
+            # At least one live token delivered → mark sent (idempotent re-runs).
+            if len(dead) < len(all_tokens):
+                alert.mobile_push_sent_at = datetime.now(timezone.utc)
+                summary["mobile_push_sent"] += 1
+            for dt in device_tokens:
+                if dt.token in dead:
+                    await session.execute(
+                        delete(MobilePushToken).where(MobilePushToken.id == dt.id)
+                    )
+        await session.commit()
+
     return summary
 
 
@@ -297,6 +338,7 @@ def _empty_summary() -> dict:
         "email_sent": 0,
         "sms_sent": 0,
         "push_sent": 0,
+        "mobile_push_sent": 0,
         "skipped_already_delivered": 0,
     }
 
