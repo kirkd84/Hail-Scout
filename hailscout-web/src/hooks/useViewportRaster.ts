@@ -48,7 +48,12 @@ export function useViewportRaster({
           // Render a margin BEYOND the visible viewport so panning/zooming
           // stays covered by the current image while the next one loads —
           // this is what kills the "swath vanishes for a few seconds" flicker.
-          const PAD = 0.45;
+          // 0.75 → padded bbox ≈ 2.5× the viewport (linear), enough to keep the
+          // surface on screen through a full one-level zoom-OUT (2×) before the
+          // next raster arrives. (The old 0.45 → only ~1.9×, i.e. JUST under one
+          // zoom level — which is exactly why a single zoom-out revealed a bare
+          // ring and you had to wait for the refetch.)
+          const PAD = 0.75;
           const [w, s, e, n] = bbox;
           const dx = (e - w) * PAD;
           const dy = (n - s) * PAD;
@@ -62,8 +67,9 @@ export function useViewportRaster({
           ];
           const r = (x: number) => Math.round(x * 100) / 100;
           // Screen-resolution raster: width × devicePixelRatio, rounded to
-          // 256 so window resizes don't churn the cache key. The padded
-          // bbox is ~1.9× the viewport, so add headroom before capping.
+          // 256 so window resizes don't churn the cache key. The padded bbox is
+          // now ~2.5× the viewport, so add more headroom before the 2048 cap so
+          // the visible portion keeps its sharpness on big screens.
           const px =
             typeof window !== "undefined"
               ? Math.min(
@@ -71,7 +77,7 @@ export function useViewportRaster({
                   Math.max(
                     1024,
                     Math.round(
-                      (window.innerWidth * (window.devicePixelRatio || 1) * 1.4) / 256,
+                      (window.innerWidth * (window.devicePixelRatio || 1) * 1.9) / 256,
                     ) * 256,
                   ),
                 )
