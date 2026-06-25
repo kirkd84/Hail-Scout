@@ -326,11 +326,30 @@ def process_volume_scan(
         cell_lats = lats[cell_mask].astype(float)
         cell_lons = lons[cell_mask].astype(float)
 
-        pts = MultiPoint(list(zip(cell_lons.tolist(), cell_lats.tolist())))
-        # Convex hull is a fast, robust footprint for a swarm of gate
-        # centers. Alpha-shape would carve out the actual storm shape
-        # more tightly but adds an alphashape / cgal dependency.
-        footprint = pts.convex_hull
+        # Drop gates with non-finite coords. NEXRAD gate_latitude/longitude
+        # carry NaN for masked / out-of-range gates; feeding those into
+        # Shapely 2.x's collection constructor raises "ufunc
+        # 'create_collection' not supported ... casting 'safe'", which would
+        # otherwise kill the entire scan over one bad cell.
+        finite = np.isfinite(cell_lons) & np.isfinite(cell_lats)
+        if int(finite.sum()) < 3:
+            continue
+
+        try:
+            # Build from explicit Point objects (not raw coord tuples) so we
+            # never hit Shapely's array-coercion ufunc path.
+            pts = MultiPoint([
+                Point(float(x), float(y))
+                for x, y in zip(cell_lons[finite].tolist(), cell_lats[finite].tolist())
+            ])
+            # Convex hull is a fast, robust footprint for a swarm of gate
+            # centers. Alpha-shape would carve out the actual storm shape
+            # more tightly but adds an alphashape / cgal dependency.
+            footprint = pts.convex_hull
+        except Exception as exc:  # noqa: BLE001 — skip this cell, keep the scan
+            log.warning("nexrad_cell_geometry_skipped",
+                        station=station, cell_id=cell_id, error=str(exc))
+            continue
         if not isinstance(footprint, Polygon) or footprint.is_empty \
                 or footprint.area <= 0:
             continue
