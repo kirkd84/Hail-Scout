@@ -51,7 +51,10 @@ export default function MapPage() {
   const isMobile = useIsMobile();
   const { territories } = useTerritories();
   const [map, setMap] = useState<MapLibreMap | null>(null);
-  const [basemap, setBasemap] = useState<BasemapId>("atlas");
+  // Default to Streets (MapTiler Streets v2) — the clean, Google-Maps-like
+  // basemap. The cream "Atlas" (Voyager) style read as too branded/busy; reps
+  // expect a familiar street map. Switchable any time via the BasemapToggle.
+  const [basemap, setBasemap] = useState<BasemapId>("streets");
   const [date, setDate] = useState<DateFilter>("all");
   const [size, setSize] = useState<SizeFilter>("any");
   const [source, setSource] = useState<SourceFilter>("all");
