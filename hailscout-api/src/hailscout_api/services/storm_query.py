@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from geoalchemy2 import Geography
@@ -19,7 +19,7 @@ from geoalchemy2.functions import (
     ST_SetSRID,
     ST_SimplifyPreserveTopology,
 )
-from sqlalchemy import and_, cast, func, select
+from sqlalchemy import and_, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hailscout_api.core import get_logger
@@ -47,6 +47,7 @@ async def query_storms_in_bbox(
     min_hail_size_in: float | None = None,
     order: str = "recent",
     include_unconfirmed: bool = False,
+    dates: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Storms whose bbox intersects the query envelope, in date range.
 
@@ -81,6 +82,28 @@ async def query_storms_in_bbox(
     # full unfiltered set pass `include_unconfirmed=True`.
     if not include_unconfirmed:
         filters.append(Storm.suspect.is_(False))
+
+    # Specific-day selection (multi-select date picker). When the client
+    # sends an explicit set of UTC storm days, render ONLY those — each as
+    # a [day 00:00, next day 00:00) UTC window OR'd together. This is what
+    # lets a rep view one storm at a time, or check several days to see
+    # where an area was hit more than once. The from/to range still bounds
+    # the query; `dates` narrows within it.
+    if dates:
+        day_windows = []
+        for d in dates:
+            try:
+                start = datetime.strptime(d[:10], "%Y-%m-%d").replace(
+                    tzinfo=timezone.utc
+                )
+            except (ValueError, TypeError):
+                continue
+            end = start + timedelta(days=1)
+            day_windows.append(
+                and_(Storm.start_time >= start, Storm.start_time < end)
+            )
+        if day_windows:
+            filters.append(or_(*day_windows))
 
     # Sort: "recent" (default) = by start_time DESC; "peak" = by
     # max_hail_size_in DESC for "biggest events" leaderboards.

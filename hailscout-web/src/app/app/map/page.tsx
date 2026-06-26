@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import type { HailAtAddressResponse, Storm } from "@/lib/api-types";
@@ -14,12 +14,9 @@ import { TimeScrubber } from "@/components/map/time-scrubber";
 import { useStorms } from "@/hooks/useStorms";
 import { useViewportRaster } from "@/hooks/useViewportRaster";
 import { useStormRaster } from "@/hooks/useStormRaster";
-import { StormPicker } from "@/components/app/storm-picker";
+import { StormDatePicker } from "@/components/map/storm-date-picker";
 import {
-  MapFilters,
-  dateFilterToCutoff,
   sizeFilterToMin,
-  type DateFilter,
   type SizeFilter,
   type SourceFilter,
 } from "@/components/map/map-filters";
@@ -39,7 +36,6 @@ import { StormList } from "@/components/app/storm-list";
 import { StormDetailSheet } from "@/components/app/storm-detail-sheet";
 import { SaveAddressButton } from "@/components/app/save-address-button";
 import { WelcomeTour } from "@/components/app/welcome-tour";
-import { StormActivityFeed } from "@/components/map/storm-activity-feed";
 import { SweepTool } from "@/components/map/sweep-tool";
 import { TerritoriesLayer } from "@/components/map/territories-layer";
 import { useTerritories } from "@/hooks/useTerritories";
@@ -47,30 +43,35 @@ import { useSearchParams } from "next/navigation";
 import { searchAddress } from "@/lib/geocode";
 import { useMarkers } from "@/hooks/useMarkers";
 
+const utcDay = (iso: string) => new Date(iso).toISOString().slice(0, 10);
+
 export default function MapPage() {
   const isMobile = useIsMobile();
   const { territories } = useTerritories();
   const [map, setMap] = useState<MapLibreMap | null>(null);
   // Default to Streets (MapTiler Streets v2) — the clean, Google-Maps-like
-  // basemap. The cream "Atlas" (Voyager) style read as too branded/busy; reps
-  // expect a familiar street map. Switchable any time via the BasemapToggle.
+  // basemap. Switchable any time via the BasemapToggle.
   const [basemap, setBasemap] = useState<BasemapId>("streets");
-  const [date, setDate] = useState<DateFilter>("all");
   const [size, setSize] = useState<SizeFilter>("any");
   const [source, setSource] = useState<SourceFilter>("all");
   const [scrubberMs, setScrubberMs] = useState<number | null>(null);
-  // View mode: "cells" (per-cell polygons + centroids) or "heatmap"
-  // (density overlay). Visual A/B for showing the same data set in
-  // different ways. Heatmap is more compelling at low zoom; cells
-  // are more useful zoomed in.
+  // View mode: "cells" (per-cell polygons + centroids), "smooth" (raster
+  // surface), or "heatmap" (density overlay).
   const [viewMode, setViewMode] = useState<"cells" | "smooth" | "heatmap">("smooth");
   // Show suspect/low-confidence cells (flagged). ON by default so the
   // footprint reflects reality (closes the gap vs IHM); each unverified cell
-  // renders dimmed and is flagged on hover. Toggle lives in the legend.
+  // renders dimmed and is flagged on hover. Toggle lives in the picker's filters.
   const [showUnverified, setShowUnverified] = useState(true);
   // NEXRAD stations overlay — show by default when "NEXRAD" or "all"
   // is selected, hide for "MRMS only" to reduce visual noise.
   const showNexradStations = source !== "MRMS";
+
+  // Date selection model. "recent" auto-follows the most recent storm day in
+  // view (the default — one storm at a time). "custom" is the rep's
+  // hand-picked set: one day for a single storm, or several to overlay them
+  // and see where an area was hit more than once.
+  const [dateMode, setDateMode] = useState<"recent" | "custom">("recent");
+  const [customDates, setCustomDates] = useState<string[]>([]);
 
   const [searchResults, setSearchResults] = useState<HailAtAddressResponse | null>(null);
   const [showResults, setShowResults] = useState(false);
@@ -79,11 +80,11 @@ export default function MapPage() {
   const [showStormDetail, setShowStormDetail] = useState(false);
 
   // ── Viewport-driven storm fetch ──────────────────────────────────
-  // Track the map's current bounds + zoom level. When the user zooms
-  // into Colorado (or anywhere), useStorms re-fetches scoped to that
-  // bbox with a zoom-appropriate date window:
-  //   zoom < 5 (CONUS):           last 30 days   — fresh-events view
-  //   zoom 5-7 (state/region):    last 1 year    — seasonal sweep
+  // Track the map's current bounds + zoom level. The fetch always pulls the
+  // area's full history window (so the date picker can list every day that
+  // hit it); rendering is then scoped to the picker's selected day(s):
+  //   zoom < 5 (CONUS):           last 30 days
+  //   zoom 5-7 (state/region):    last 1 year
   //   zoom > 7 (city/county):     last 5 years   — full claim window
   const [viewportBbox, setViewportBbox] = useState<[number, number, number, number]>(
     [-125, 24, -66, 50],
@@ -108,17 +109,7 @@ export default function MapPage() {
     };
   }, [map]);
 
-  // A specific storm day chosen in the filter overrides the zoom-derived
-  // range — the map then scopes to exactly that UTC day.
-  const [specificDate, setSpecificDate] = useState<string | null>(null);
-
-  // Memoized: dateFilterToCutoff derives from Date.now(), so calling it
-  // inline in JSX produced a new cutoff every render — invalidating the
-  // storms layer's filter memo and re-pushing full GeoJSON on every pan.
-  const dateCutoff = useMemo(() => dateFilterToCutoff(date), [date]);
-
   const fromDate = useMemo(() => {
-    if (specificDate) return specificDate;
     const d = new Date();
     if (viewportZoom > 7) {
       d.setUTCFullYear(d.getUTCFullYear() - 5);
@@ -128,19 +119,13 @@ export default function MapPage() {
       d.setUTCDate(d.getUTCDate() - 30);
     }
     return d.toISOString().slice(0, 10);
-  }, [viewportZoom, specificDate]);
+  }, [viewportZoom]);
 
   const toDate = useMemo(() => {
-    if (specificDate) {
-      // The day after the picked date → captures the full UTC day.
-      const d = new Date(specificDate + "T00:00:00Z");
-      d.setUTCDate(d.getUTCDate() + 1);
-      return d.toISOString().slice(0, 10);
-    }
     const d = new Date();
     d.setUTCDate(d.getUTCDate() + 1); // include today
     return d.toISOString().slice(0, 10);
-  }, [specificDate]);
+  }, []);
 
   // Source filter goes server-side via /v1/storms?source= so we don't
   // pull rows just to drop them client-side.
@@ -156,16 +141,54 @@ export default function MapPage() {
     includeUnconfirmed: showUnverified,
   });
 
-  // Smooth raster surface (Phase 25) — one colorized image of every
-  // swath in view, fetched only when the smooth view mode is active.
+  // Distinct UTC storm days available in the current view, newest first.
+  const availableDates = useMemo(() => {
+    const set = new Set<string>();
+    for (const s of storms) set.add(utcDay(s.start_time));
+    return [...set].sort((a, b) => (a < b ? 1 : -1));
+  }, [storms]);
+
+  // The day(s) actually rendered. "recent" → just the newest day in view.
+  const selectedDates = useMemo(() => {
+    if (dateMode === "recent") {
+      return availableDates.length ? [availableDates[0]] : [];
+    }
+    return customDates;
+  }, [dateMode, availableDates, customDates]);
+
+  const toggleDate = (day: string) => {
+    setCustomDates((prev) => {
+      const base =
+        dateMode === "recent"
+          ? availableDates.length
+            ? [availableDates[0]]
+            : []
+          : prev;
+      return base.includes(day)
+        ? base.filter((d) => d !== day)
+        : [...base, day];
+    });
+    setDateMode("custom");
+  };
+
+  // Only the storms on the selected day(s) render on the map.
+  const visibleStorms = useMemo(() => {
+    if (!selectedDates.length) return [];
+    const set = new Set(selectedDates);
+    return storms.filter((s) => set.has(utcDay(s.start_time)));
+  }, [storms, selectedDates]);
+
+  // Smooth raster surface (Phase 25) — one colorized image, scoped to the
+  // selected day(s) via the `dates` param so only those storms burn in.
   const { raster: viewportRaster } = useViewportRaster({
     bbox: viewportBbox,
     from: fromDate,
     to: toDate,
     source: source === "all" ? null : source,
     minSize: size === "any" ? null : parseFloat(size),
-    enabled: viewMode === "smooth",
+    enabled: viewMode === "smooth" && selectedDates.length > 0,
     includeUnconfirmed: showUnverified,
+    dates: selectedDates,
   });
 
   // When a storm is selected, isolate it: fetch just its raster and
@@ -175,7 +198,7 @@ export default function MapPage() {
     viewMode === "smooth" ? focusStormId : null,
   );
   // In smooth mode, show the focused storm's raster when one is selected,
-  // otherwise the full viewport mosaic.
+  // otherwise the day-scoped viewport mosaic.
   const activeRaster = focusStormId && focusedRaster ? focusedRaster : viewportRaster;
 
   // Fly to the selected storm so the isolated swath is actually in view.
@@ -194,6 +217,54 @@ export default function MapPage() {
       /* degenerate bbox — ignore */
     }
   }, [map, showStormDetail, selectedStorm]);
+
+  // When the rep hand-picks a single day, frame that storm. Guarded by a ref
+  // so the 2-min storms refresh doesn't keep re-fitting (which would yank the
+  // map out from under them). Only fires on an explicit single-day pick.
+  const lastFitDayRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!map) return;
+    if (dateMode !== "custom" || selectedDates.length !== 1) {
+      if (selectedDates.length !== 1) lastFitDayRef.current = null;
+      return;
+    }
+    const day = selectedDates[0];
+    if (lastFitDayRef.current === day) return;
+    const dayStorms = storms.filter((s) => utcDay(s.start_time) === day);
+    if (!dayStorms.length) return;
+    lastFitDayRef.current = day;
+    let minLng = 180, minLat = 90, maxLng = -180, maxLat = -90;
+    for (const s of dayStorms) {
+      if (!s.bbox) continue;
+      minLng = Math.min(minLng, s.bbox.min_lng);
+      minLat = Math.min(minLat, s.bbox.min_lat);
+      maxLng = Math.max(maxLng, s.bbox.max_lng);
+      maxLat = Math.max(maxLat, s.bbox.max_lat);
+    }
+    if (minLng > maxLng) return;
+    try {
+      map.fitBounds(
+        [
+          [minLng, minLat],
+          [maxLng, maxLat],
+        ],
+        { padding: 90, duration: 900, maxZoom: 11 },
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [map, dateMode, selectedDates, storms]);
+
+  // Time scrubber only makes sense inside a single day (replay of one storm);
+  // hide it otherwise so it's not always-on clutter.
+  const singleDay = selectedDates.length === 1 ? selectedDates[0] : null;
+  const scrubberStart = singleDay ? `${singleDay}T00:00:00Z` : fromDate;
+  const scrubberEnd = useMemo(() => {
+    if (!singleDay) return toDate;
+    const d = new Date(`${singleDay}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString();
+  }, [singleDay, toDate]);
 
   // Canvassing markers
   const { markers, add, update, remove } = useMarkers();
@@ -267,6 +338,13 @@ export default function MapPage() {
     setDropMode(false); // exit drop mode after dropping one
   };
 
+  const scopeLabel =
+    viewportZoom > 7
+      ? `${availableDates.length} in this area`
+      : viewportZoom > 5
+      ? `${availableDates.length} this region`
+      : `${availableDates.length} · 30 d`;
+
   return (
     <div className="relative h-full w-full">
       <HailMap
@@ -278,18 +356,18 @@ export default function MapPage() {
       <TerritoriesLayer map={map} territories={territories} />
       <StormsLayer
         map={map}
-        storms={storms}
+        storms={visibleStorms}
         visible={viewMode === "cells" || viewMode === "smooth"}
         bandsHidden={viewMode === "smooth"}
         focusStormId={focusStormId}
-        startTimeMin={specificDate ? null : dateCutoff}
+        startTimeMin={null}
         minSizeIn={sizeFilterToMin(size)}
         startTimeMax={scrubberMs}
         onStormClick={(stormId) => {
           // While dropping a pin, a click should place the marker — not
           // hijack into the storm detail sheet.
           if (dropMode) return;
-          const hit = storms.find((s) => s.id === stormId);
+          const hit = visibleStorms.find((s) => s.id === stormId);
           if (hit) {
             setSelectedStorm(hit);
             setShowStormDetail(true);
@@ -303,7 +381,7 @@ export default function MapPage() {
       />
       <StormsHeatmapLayer
         map={map}
-        storms={storms}
+        storms={visibleStorms}
         visible={viewMode === "heatmap"}
       />
       <NexradStationsLayer map={map} visible={showNexradStations} />
@@ -316,53 +394,46 @@ export default function MapPage() {
       <AddressSearch onResultsChange={handleAddressSearch} />
 
       {/* ── Desktop control surface ─────────────────────────────────────
-          Nine floating widgets are fine on a 27" monitor and unusable on
-          a phone. On mobile, everything below collapses into the single
-          MobileMapControls bottom sheet; only search + drop-pin + the
-          controls launcher float. */}
+          The storm-date picker is the primary panel (left); size/source/
+          unverified filters fold into it. On mobile everything collapses
+          into the MobileMapControls sheet. */}
       {!isMobile && (
         <>
-          <StormPicker
-            map={map}
+          <StormDatePicker
             storms={storms}
-            scopeLabel={
-              viewportZoom > 7
-                ? "this area · 5 yr"
-                : viewportZoom > 5
-                ? "this region · 1 yr"
-                : "Recent · 30 d"
-            }
-            onStormClick={(s) => {
-              setSelectedStorm(s);
-              setShowStormDetail(true);
+            selectedDates={selectedDates}
+            isRecentMode={dateMode === "recent"}
+            onToggleDate={toggleDate}
+            onMostRecent={() => setDateMode("recent")}
+            onClear={() => {
+              setDateMode("custom");
+              setCustomDates([]);
             }}
-          />
-
-          <MapFilters
-            date={date}
+            scopeLabel={scopeLabel}
             size={size}
             source={source}
-            specificDate={specificDate}
-            onDateChange={setDate}
+            showUnverified={showUnverified}
             onSizeChange={setSize}
             onSourceChange={setSource}
-            onSpecificDateChange={setSpecificDate}
+            onToggleUnverified={() => setShowUnverified((v) => !v)}
           />
+
           <SwathLegend
             showUnverified={showUnverified}
             onToggleUnverified={() => setShowUnverified((v) => !v)}
           />
-          <StormActivityFeed map={map} />
           <SweepTool map={map} />
 
-          <div className="pointer-events-none absolute inset-x-0 bottom-20 z-20 flex justify-center px-4">
-            <TimeScrubber
-              rangeStart={fromDate}
-              rangeEnd={toDate}
-              cursorMs={scrubberMs}
-              onCursorChange={setScrubberMs}
-            />
-          </div>
+          {singleDay && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-20 z-20 flex justify-center px-4">
+              <TimeScrubber
+                rangeStart={scrubberStart}
+                rangeEnd={scrubberEnd}
+                cursorMs={scrubberMs}
+                onCursorChange={setScrubberMs}
+              />
+            </div>
+          )}
           <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex justify-center px-4">
             <div className="pointer-events-auto flex items-center gap-2">
               <BasemapToggle value={basemap} onChange={setBasemap} />
@@ -378,14 +449,18 @@ export default function MapPage() {
           onViewMode={setViewMode}
           basemap={basemap}
           onBasemap={setBasemap}
-          date={date}
-          onDateChange={setDate}
           size={size}
           onSizeChange={setSize}
           source={source}
           onSourceChange={setSource}
-          specificDate={specificDate}
-          onSpecificDateChange={setSpecificDate}
+          selectedDates={selectedDates}
+          isRecentMode={dateMode === "recent"}
+          onToggleDate={toggleDate}
+          onMostRecent={() => setDateMode("recent")}
+          onClear={() => {
+            setDateMode("custom");
+            setCustomDates([]);
+          }}
           showUnverified={showUnverified}
           onToggleUnverified={() => setShowUnverified((v) => !v)}
           storms={storms}

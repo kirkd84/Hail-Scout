@@ -167,6 +167,11 @@ export interface UseStormsArgs {
   /** Include suspect/low-confidence cells the API hides by default. The map
    *  passes this when "Show unverified" is on. */
   includeUnconfirmed?: boolean;
+  /** Restrict to specific UTC storm days (YYYY-MM-DD). When set, only storms
+   *  on those days come back — the multi-select date picker uses this. Omit
+   *  to return every storm in the from/to window (e.g. to build the date
+   *  list itself). */
+  dates?: string[] | null;
 }
 
 /** Storm with optional swath payload (when fetched with includeSwaths). */
@@ -191,6 +196,7 @@ export function useStorms(args: UseStormsArgs) {
     minSize = null,
     order,
     includeUnconfirmed = false,
+    dates = null,
   } = args;
   const fixtureMode = isFixtureMode();
 
@@ -208,6 +214,7 @@ export function useStorms(args: UseStormsArgs) {
   if (minSize != null && minSize > 0) qsParams.min_size = String(minSize);
   if (order) qsParams.order = order;
   if (includeUnconfirmed) qsParams.include_unconfirmed = "true";
+  if (dates && dates.length) qsParams.dates = dates.join(",");
   const qs = new URLSearchParams(qsParams);
   const swrKey = fixtureMode ? null : `/v1/storms?${qs}`;
   const { data, error, isLoading, mutate } = useSWR<ApiStormsListResponse>(

@@ -24,6 +24,11 @@ interface Args {
   enabled?: boolean;
   /** Include suspect/low-confidence cells in the surface (default false). */
   includeUnconfirmed?: boolean;
+  /** Restrict the surface to specific UTC storm days (YYYY-MM-DD). The
+   *  multi-select date picker passes the chosen day(s) so only those storms
+   *  are burned in — one at a time, or several overlaid for repeat hits.
+   *  Empty/omitted → every storm in the from/to window. */
+  dates?: string[] | null;
 }
 
 /**
@@ -40,6 +45,7 @@ export function useViewportRaster({
   source = null,
   enabled = true,
   includeUnconfirmed = false,
+  dates = null,
 }: Args) {
   // Round the bbox so small pixel-level pans don't thrash the cache.
   const key =
@@ -91,6 +97,10 @@ export function useViewportRaster({
           if (minSize != null && minSize > 0) qs.set("min_size", String(minSize));
           if (source) qs.set("source", source);
           if (includeUnconfirmed) qs.set("include_unconfirmed", "true");
+          // Sorted join → the SWR key is stable regardless of check order,
+          // so re-checking the same day set reuses the cached render.
+          if (dates && dates.length)
+            qs.set("dates", [...dates].sort().join(","));
           return `/v1/storms/raster?${qs}`;
         })()
       : null;

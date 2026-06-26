@@ -89,6 +89,13 @@ async def list_storms(
                     "kept in the DB for forensics but hidden from the "
                     "live map and reports.",
     ),
+    dates: str | None = Query(
+        None,
+        description="Comma-separated UTC storm days (YYYY-MM-DD). When set, "
+                    "only storms on those days are returned — powers the map's "
+                    "multi-select date picker (one storm at a time, or several "
+                    "to find repeat hits). Narrows within the from/to range.",
+    ),
     session: AsyncSession = Depends(get_db_session),
 ) -> StormsListResponse:
     """Storms whose bounding box intersects the query envelope."""
@@ -105,6 +112,9 @@ async def list_storms(
 
     includes = {part.strip() for part in (include or "").split(",") if part.strip()}
     source_filter = source.strip() if source and source.strip() else None
+    dates_list = (
+        [d.strip() for d in dates.split(",") if d.strip()] if dates else None
+    )
     storms = await query_storms_in_bbox(
         session, min_lon, min_lat, max_lon, max_lat, from_dt, to_dt, limit,
         include_swaths="swaths" in includes,
@@ -113,6 +123,7 @@ async def list_storms(
         min_hail_size_in=min_size,
         order=order,
         include_unconfirmed=include_unconfirmed,
+        dates=dates_list,
     )
     return StormsListResponse(storms=storms, cursor=None, total=len(storms))
 
@@ -161,6 +172,13 @@ async def get_viewport_raster(
                     "The map sends this when 'Show unverified' is on so the "
                     "footprint matches reality; cells stay flagged on hover.",
     ),
+    dates: str | None = Query(
+        None,
+        description="Comma-separated UTC storm days (YYYY-MM-DD) to burn into "
+                    "the surface. The multi-select date picker sends the "
+                    "chosen day(s) so only those storms render — one at a "
+                    "time, or several overlaid to reveal repeat hits.",
+    ),
     width: int = Query(
         1536, ge=256, le=2048,
         description="Raster width in px. The client passes its screen "
@@ -197,18 +215,22 @@ async def get_viewport_raster(
         width = min(width, 1024)
 
     cache_key = (bbox, from_date, to_date, min_size, source,
-                 include_unconfirmed, width)
+                 include_unconfirmed, dates, width)
     now = _time.monotonic()
     hit = _raster_cache.get(cache_key)
     if hit and hit[0] > now:
         return hit[1]
 
+    dates_list = (
+        [d.strip() for d in dates.split(",") if d.strip()] if dates else None
+    )
     storms = await query_storms_in_bbox(
         session, min_lon, min_lat, max_lon, max_lat, from_dt, to_dt,
         limit=200, include_swaths=True, swath_simplify_tolerance=0.0,
         source=source.strip() if source and source.strip() else None,
         min_hail_size_in=min_size,
         include_unconfirmed=include_unconfirmed,
+        dates=dates_list,
     )
     all_swaths: list[dict] = []
     for st in storms:

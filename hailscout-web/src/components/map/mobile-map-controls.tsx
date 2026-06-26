@@ -13,17 +13,15 @@
  * source) · unverified toggle · hail-size legend · recent storms.
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { Storm } from "@/lib/api-types";
 import { HAIL_LEGEND, hailColor } from "@/lib/hail";
 import { nearestMetro } from "@/lib/metros";
 import { cn } from "@/lib/utils";
 import { BasemapToggle, type BasemapId } from "@/components/map/basemap-toggle";
 import {
-  DATE_OPTIONS,
   SIZE_OPTIONS,
   SOURCE_OPTIONS,
-  type DateFilter,
   type SizeFilter,
   type SourceFilter,
 } from "@/components/map/map-filters";
@@ -41,14 +39,15 @@ interface Props {
   onViewMode: (v: ViewMode) => void;
   basemap: BasemapId;
   onBasemap: (b: BasemapId) => void;
-  date: DateFilter;
-  onDateChange: (d: DateFilter) => void;
   size: SizeFilter;
   onSizeChange: (s: SizeFilter) => void;
   source: SourceFilter;
   onSourceChange: (s: SourceFilter) => void;
-  specificDate: string | null;
-  onSpecificDateChange: (d: string | null) => void;
+  selectedDates: string[];
+  isRecentMode: boolean;
+  onToggleDate: (day: string) => void;
+  onMostRecent: () => void;
+  onClear: () => void;
   showUnverified: boolean;
   onToggleUnverified: () => void;
   storms: Storm[];
@@ -98,11 +97,35 @@ function Chip({
 export function MobileMapControls(props: Props) {
   const [open, setOpen] = useState(false);
   const filtersActive =
-    props.date !== "all" ||
-    props.size !== "any" ||
-    props.source !== "all" ||
-    !!props.specificDate;
+    props.size !== "any" || props.source !== "all" || props.showUnverified;
+
+  // Distinct storm days in view, newest first — the multi-select date list.
+  const days = useMemo(() => {
+    const byDay = new Map<string, Storm[]>();
+    for (const s of props.storms) {
+      const d = new Date(s.start_time).toISOString().slice(0, 10);
+      const arr = byDay.get(d);
+      if (arr) arr.push(s);
+      else byDay.set(d, [s]);
+    }
+    return [...byDay.entries()]
+      .map(([date, group]) => {
+        const biggest = group.reduce((a, b) =>
+          b.max_hail_size_in > a.max_hail_size_in ? b : a,
+        );
+        return {
+          date,
+          maxSize: biggest.max_hail_size_in,
+          count: group.length,
+          where:
+            nearestMetro(biggest.centroid_lat, biggest.centroid_lng)?.label ??
+            "United States",
+        };
+      })
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
+  }, [props.storms]);
   const todayStr = new Date().toISOString().slice(0, 10);
+  const selected = new Set(props.selectedDates);
 
   const recent = [...props.storms]
     .sort(
@@ -182,47 +205,92 @@ export function MobileMapControls(props: Props) {
               />
             </div>
 
-            {/* Date range */}
+            {/* Storm dates — multi-select */}
             <div>
-              <SectionLabel>Date range</SectionLabel>
-              <div className="grid grid-cols-3 gap-1.5">
-                {DATE_OPTIONS.map((o) => (
-                  <Chip
-                    key={o.id}
-                    active={!props.specificDate && props.date === o.id}
-                    onClick={() => {
-                      props.onSpecificDateChange(null);
-                      props.onDateChange(o.id);
-                    }}
-                  >
-                    {o.label}
-                  </Chip>
-                ))}
-              </div>
-              <div className="mt-2 flex items-center gap-2">
-                <input
-                  type="date"
-                  value={props.specificDate ?? ""}
-                  max={todayStr}
-                  onChange={(e) =>
-                    props.onSpecificDateChange(e.target.value || null)
-                  }
-                  className={cn(
-                    "h-11 flex-1 rounded-md border bg-background px-3 text-sm font-mono-num text-foreground/85 outline-none",
-                    props.specificDate ? "border-copper" : "border-border",
+              <div className="mb-2 flex items-center justify-between">
+                <SectionLabel>Storm dates</SectionLabel>
+                <span className="flex items-center gap-3">
+                  {!props.isRecentMode && (
+                    <button
+                      type="button"
+                      onClick={props.onMostRecent}
+                      className="text-[10px] font-mono uppercase tracking-wide-caps text-copper"
+                    >
+                      Most recent
+                    </button>
                   )}
-                  aria-label="Specific storm date"
-                />
-                {props.specificDate && (
-                  <button
-                    type="button"
-                    onClick={() => props.onSpecificDateChange(null)}
-                    className="px-2 text-[11px] font-mono uppercase tracking-wide-caps text-foreground/55"
-                  >
-                    Clear
-                  </button>
-                )}
+                  {props.selectedDates.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={props.onClear}
+                      className="text-[10px] font-mono uppercase tracking-wide-caps text-foreground/55"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </span>
               </div>
+              <p className="mb-2 text-[11px] text-muted-foreground">
+                Tap a day for one storm — or several to see repeat hits.
+              </p>
+              {days.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No storms in view.</p>
+              ) : (
+                <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+                  {days.map((row) => {
+                    const c = hailColor(row.maxSize);
+                    const checked = selected.has(row.date);
+                    return (
+                      <li key={row.date}>
+                        <button
+                          type="button"
+                          onClick={() => props.onToggleDate(row.date)}
+                          className={cn(
+                            "flex w-full items-center gap-3 px-3 py-2.5 text-left",
+                            checked ? "bg-primary/5" : "bg-card",
+                          )}
+                          aria-pressed={checked}
+                        >
+                          <span
+                            className={cn(
+                              "flex h-5 w-5 shrink-0 items-center justify-center rounded border text-[11px]",
+                              checked
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border",
+                            )}
+                            aria-hidden
+                          >
+                            {checked ? "✓" : ""}
+                          </span>
+                          <span
+                            className="inline-flex w-14 shrink-0 items-center justify-center rounded-md py-1 font-mono-num text-xs font-medium"
+                            style={{
+                              background: c.solid,
+                              color: row.maxSize >= 1.5 ? "#FAF7F1" : c.text,
+                            }}
+                          >
+                            {row.maxSize.toFixed(2)}″
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm text-foreground/90">
+                              {row.date === todayStr
+                                ? "Today"
+                                : new Date(row.date + "T00:00:00Z").toLocaleDateString(
+                                    undefined,
+                                    { month: "short", day: "2-digit", year: "numeric", timeZone: "UTC" },
+                                  )}
+                            </span>
+                            <span className="block font-mono-num text-[11px] text-foreground/55">
+                              {row.where}
+                              {row.count > 1 ? ` · ${row.count} cells` : ""}
+                            </span>
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
 
             {/* Min size */}
