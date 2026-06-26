@@ -140,3 +140,6 @@ samconfig.toml
 # ──────────────────────────────────────────────────────────────────────
 logs/
 *.log
+
+# Local swath-render tuning harness (venv + scratch PNGs)
+_swath_tuning/

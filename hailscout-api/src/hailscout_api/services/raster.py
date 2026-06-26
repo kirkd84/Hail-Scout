@@ -9,20 +9,22 @@ colorized raster, server-side:
 
   1. Burn each size band (smallest first, so larger sits on top) into a
      single-channel value image at the band's size in inches.
-  2. Morphological close to fill pinholes inside severe cores.
-  3. PEAK-PRESERVING multi-scale smoothing: the value surface is the
-     per-pixel MAX of three Gaussian blurs (tight / medium / wide).
-     A single blur averages small severe cores down toward zero — a
-     10px 1.5" core blurred at r=13 reads ~0.5" and vanishes below the
-     0.75" color floor (the "washed-out pale dots" failure). Max-of-
-     scales keeps cores at full intensity (tight blur), smooths band
-     steps (medium), and adds the wide feathered skirt that visually
-     bridges neighboring cells into a continuous storm track (wide) —
-     the HailStrike/IHM ribbon look.
-  4. Map values through a hail color ramp → RGBA. Alpha FEATHERS in
-     from ~0.30" up to the smallest band instead of cutting hard at
-     0.75", so swath edges fade out organically instead of ending in a
-     cookie-cutter rim.
+  2. BRIDGE + close: a LARGE morphological close (dilate→erode) links
+     neighboring cell blobs into one continuous swath ribbon — the
+     "show the full path" fix that turns a string of pale beads into a
+     connected storm track — then a small close fills pinholes inside
+     severe cores. Erode-back keeps cores at their true size.
+  3. PEAK-PRESERVING smoothing: the value surface is the per-pixel MAX
+     of a dilated medium blur (keeps small severe cores from averaging
+     below the 0.75" color floor — the old "washed-out dots" failure)
+     and a DOWN-WEIGHTED wide blur (just an organic feathered rim). The
+     wide blur at full strength bled every swath into a broad pale halo
+     — the "amorphous cloud" look, worst once many storms overlapped —
+     so the bridge/close above now does the gap-linking instead.
+  4. Map values through a hail color ramp → RGBA. Alpha feathers in just
+     BELOW the smallest band (0.60") instead of all the way down at
+     0.30", and at a higher base alpha, so a swath reads as a confident
+     IHM-style ribbon with organic edges rather than a faint wash.
   5. Encode PNG. The caller pairs it with geographic bounds so the web
      renders it as a MapLibre image/raster source with linear
      resampling (smooth on zoom).
@@ -54,16 +56,30 @@ _MAX_DIM = 2048
 _MIN_DIM = 64
 
 # Smoothing parameters as fractions of the raster's smaller dimension.
-#   dilate — grayscale dilation applied BEFORE the medium blur. Pre-
-#            growing each cell compensates for the blur averaging small
-#            cores down toward zero, so peak intensity survives — and
-#            the blur then rounds the grown squares into organic blobs.
-#   medium — melts the 0.25" band stair-steps AND the raw ~1km MRMS
-#            pixel squares into a smooth gradient
-#   wide   — soft outer skirt; visually links nearby cells into a track
-_DILATE_FRAC = 0.008
+#   bridge — LARGE morphological close (dilate→erode) applied FIRST, to
+#            link neighboring cell blobs into one continuous swath ribbon
+#            WITHOUT fading them (a blur would). This is the "show the
+#            full path" fix — it connects the string of pale beads the
+#            old render left into a single storm track.
+#   dilate — grayscale dilation before the medium blur. Pre-grows each
+#            cell so the blur can't average small cores down toward zero,
+#            so peak intensity survives — and the blur then rounds the
+#            grown squares into organic blobs.
+#   medium — melts the band stair-steps AND the raw ~1km MRMS pixel
+#            squares into a smooth gradient.
+#   wide   — soft outer skirt for organic edges, DOWN-WEIGHTED (see
+#            _WIDE_WEIGHT) so it only feathers the rim instead of washing
+#            the whole swath into a broad pale halo.
+_BRIDGE_FRAC = 0.020
+_DILATE_FRAC = 0.011
 _BLUR_MED_FRAC = 0.012
 _BLUR_WIDE_FRAC = 0.032
+
+# The wide skirt is composited into the max-of-scales at this weight. At
+# full strength (1.0) it bled every swath into a faint cloud that tinted
+# huge areas of the basemap; ~0.30 keeps an organic feathered edge while
+# the bridge/close keeps the swath body solid and confident.
+_WIDE_WEIGHT = 0.30
 
 # Pad the bbox so the blurred edge has room to fade to transparent
 # instead of getting clipped at the image border.
@@ -76,11 +92,15 @@ _SCALE_MAX_IN = 4.0
 
 # Alpha feather: fully transparent below _FEATHER_START_IN, ramping up
 # to _ALPHA_AT_BASE at the smallest ramp stop (0.75"), then rising to
-# _ALPHA_MAX at the top of the ramp. This is what turns the hard 0.75"
-# contour rim into an organic fade.
-_FEATHER_START_IN = 0.30
-_ALPHA_AT_BASE = 145
-_ALPHA_MAX = 235
+# _ALPHA_MAX at the top of the ramp. The feather now starts at 0.60"
+# (just below the 0.75" base), not 0.30": the old wide feather painted a
+# broad low-alpha halo far beyond the real swath, which read as a pale
+# cloud (and stacked into a wash once storms overlapped). A higher base
+# alpha makes a single swath read confidently instead of washing out,
+# while still fading the rim organically rather than a cookie-cutter cut.
+_FEATHER_START_IN = 0.60
+_ALPHA_AT_BASE = 190
+_ALPHA_MAX = 255
 
 
 # Continuous hail color ramp (inches → RGB). Anchored to the same
@@ -263,12 +283,26 @@ def render_storm_raster(
             if len(pts) >= 3:
                 draw.polygon(pts, fill=fill_val)
 
-    # 2. Morphological CLOSE (dilate then erode) to fill the small
-    #    transparent pinholes the raw swath polygons leave inside a
-    #    severe core (cone-of-silence, beam blockage, inter-cell gaps).
-    #    Kept modest — the wide blur scale below handles larger gap-
-    #    bridging, so the close only needs to plug true pinholes.
-    close_r = max(2, min(8, int(min(width, height) * 0.008)))
+    m = float(min(width, height))
+
+    # 2a. BRIDGE pass — a LARGE morphological close (dilate then erode)
+    #    that LINKS neighboring cell blobs into one continuous swath
+    #    ribbon. Unlike a blur it joins the cells WITHOUT fading them;
+    #    the erode-back step keeps cores at their true size. This is what
+    #    turns the old string-of-pale-beads into a connected storm track
+    #    (the "show the full path" fix). It can't span a genuine multi-km
+    #    data gap between separate cells — which is correct: we don't want
+    #    to invent hail where the radar saw none.
+    bridge_r = max(1, int(round(m * _BRIDGE_FRAC)))
+    for _ in range(bridge_r):
+        value_img = value_img.filter(ImageFilter.MaxFilter(3))
+    for _ in range(bridge_r):
+        value_img = value_img.filter(ImageFilter.MinFilter(3))
+
+    # 2b. Small CLOSE to fill the transparent pinholes the raw swath
+    #    polygons leave inside a severe core (cone-of-silence, beam
+    #    blockage, inter-cell gaps).
+    close_r = max(2, min(8, int(m * 0.008)))
     for _ in range(close_r):
         value_img = value_img.filter(ImageFilter.MaxFilter(3))
     for _ in range(close_r):
@@ -280,10 +314,10 @@ def render_storm_raster(
     #            color floor (the old washed-out-dots failure), and the
     #            blur rounds the grown ~1km pixel squares into organic
     #            blobs while melting band steps into gradients.
-    #    SKIRT = wide blur of the raw image — a faint feathered apron
-    #            that visually links neighboring cells into a continuous
-    #            storm track, the HailStrike/IHM ribbon look.
-    m = float(min(width, height))
+    #    SKIRT = wide blur of the raw image, DOWN-WEIGHTED to _WIDE_WEIGHT
+    #            — just an organic feathered rim. At full strength it bled
+    #            every swath into a broad pale halo (the "cloud" look);
+    #            the bridge pass above now does the gap-linking instead.
     d = max(2, int(round(m * _DILATE_FRAC)))
     r_med = max(4.0, m * _BLUR_MED_FRAC)
     r_wide = max(10.0, m * _BLUR_WIDE_FRAC)
@@ -292,6 +326,8 @@ def render_storm_raster(
         core = core.filter(ImageFilter.MaxFilter(3))
     core = core.filter(ImageFilter.GaussianBlur(radius=r_med))
     skirt = value_img.filter(ImageFilter.GaussianBlur(radius=r_wide))
+    if _WIDE_WEIGHT < 1.0:
+        skirt = skirt.point(lambda v: int(v * _WIDE_WEIGHT))
     value_img = ImageChops.lighter(core, skirt)
 
     # 4. Colorize → RGBA, vectorized via a precomputed 256-entry LUT.
