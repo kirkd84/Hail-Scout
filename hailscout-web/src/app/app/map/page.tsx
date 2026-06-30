@@ -20,10 +20,11 @@ import {
   type SizeFilter,
   type SourceFilter,
 } from "@/components/map/map-filters";
-import { SwathLegend } from "@/components/map/swath-legend";
 import { MobileMapControls } from "@/components/map/mobile-map-controls";
 import { MarkersLayer } from "@/components/map/markers-layer";
 import { DropModeToggle } from "@/components/map/drop-mode-toggle";
+import { MapToolsMenu } from "@/components/map/map-tools-menu";
+import { LegendButton } from "@/components/map/legend-button";
 import { AddressSearch } from "@/components/app/address-search";
 import { MarkerEditor } from "@/components/app/marker-editor";
 import {
@@ -269,6 +270,8 @@ export default function MapPage() {
   // Canvassing markers
   const { markers, add, update, remove } = useMarkers();
   const [dropMode, setDropMode] = useState(false);
+  // Bumped by the Tools menu to start the draw-area sweep tool.
+  const [sweepSignal, setSweepSignal] = useState(0);
   const [editingMarkerId, setEditingMarkerId] = useState<string | null>(null);
   const editingMarker = editingMarkerId
     ? markers.find((m) => m.id === editingMarkerId) ?? null
@@ -418,11 +421,13 @@ export default function MapPage() {
             onToggleUnverified={() => setShowUnverified((v) => !v)}
           />
 
-          <SwathLegend
-            showUnverified={showUnverified}
-            onToggleUnverified={() => setShowUnverified((v) => !v)}
+          <SweepTool map={map} hideTrigger startSignal={sweepSignal} />
+          <MapToolsMenu
+            dropActive={dropMode}
+            onToggleDrop={() => setDropMode((v) => !v)}
+            onDrawArea={() => setSweepSignal((n) => n + 1)}
+            markerCount={markers.length}
           />
-          <SweepTool map={map} />
 
           {singleDay && (
             <div className="pointer-events-none absolute inset-x-0 bottom-20 z-20 flex justify-center px-4">
@@ -438,6 +443,7 @@ export default function MapPage() {
             <div className="pointer-events-auto flex items-center gap-2">
               <BasemapToggle value={basemap} onChange={setBasemap} />
               <ViewModeToggle value={viewMode} onChange={setViewMode} />
+              <LegendButton />
             </div>
           </div>
         </>
@@ -471,11 +477,14 @@ export default function MapPage() {
         />
       )}
 
-      <DropModeToggle
-        active={dropMode}
-        onToggle={() => setDropMode((v) => !v)}
-        count={markers.length}
-      />
+      {/* Mobile keeps a dedicated drop-pin pill; desktop uses the Tools menu. */}
+      {isMobile && (
+        <DropModeToggle
+          active={dropMode}
+          onToggle={() => setDropMode((v) => !v)}
+          count={markers.length}
+        />
+      )}
 
       <Sheet open={showResults} onOpenChange={setShowResults}>
         <SheetContent

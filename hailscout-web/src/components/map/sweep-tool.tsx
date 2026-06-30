@@ -46,6 +46,11 @@ interface InPolygonResponse {
 
 interface Props {
   map: MapLibreMap | null;
+  /** Hide the built-in "Sweep area" pill — the Tools menu triggers it
+   *  externally via `startSignal` instead. */
+  hideTrigger?: boolean;
+  /** Bump this number (e.g. from the Tools menu) to start drawing. */
+  startSignal?: number;
 }
 
 /**
@@ -57,7 +62,7 @@ interface Props {
  * Keyboard: Esc cancels drawing. Enter closes the polygon (or click the start
  * vertex).
  */
-export function SweepTool({ map }: Props) {
+export function SweepTool({ map, hideTrigger = false, startSignal = 0 }: Props) {
   const [mode, setMode] = useState<Mode>("off");
   const [pts, setPts] = useState<[number, number][]>([]);
   const ptsRef = useRef<[number, number][]>([]);
@@ -216,6 +221,16 @@ export function SweepTool({ map }: Props) {
     setLeadsError(null);
   };
 
+  // External trigger (Tools menu) — start drawing when `startSignal` bumps.
+  const startSignalRef = useRef(startSignal);
+  useEffect(() => {
+    if (startSignal !== startSignalRef.current) {
+      startSignalRef.current = startSignal;
+      if (map) start();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startSignal, map]);
+
   /** GeoJSON Polygon (closed ring) from the drawn vertices. */
   const polygonGeoJSON = () => ({
     type: "Polygon" as const,
@@ -309,7 +324,7 @@ export function SweepTool({ map }: Props) {
 
   return (
     <div className="pointer-events-auto absolute top-44 right-4 z-20">
-      {mode === "off" && (
+      {mode === "off" && !hideTrigger && (
         <button
           type="button"
           onClick={start}
