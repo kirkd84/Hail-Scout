@@ -43,6 +43,7 @@ import pyart
 import structlog
 from scipy import ndimage
 from scipy.spatial.distance import cdist
+from shapely import concave_hull
 from shapely.geometry import MultiPoint, MultiPolygon, Point, Polygon
 
 log = structlog.get_logger()
@@ -63,6 +64,42 @@ MIN_CELL_GATES = 8
 # between 5-10 min volume scans, so this comfortably catches normal
 # cell motion while keeping distinct nearby cells separate.
 CELL_TRACK_THRESHOLD_DEG = 0.20
+
+# Concave-hull ratio for the cell footprint. concave_hull carves the cell's
+# actual high-dBZ outline (crescents, hook echoes, notches, multi-lobe cells)
+# instead of the convex hull's inflated balloon — which fills every concavity
+# and fuses separate lobes into one fat blob (the "doesn't look like IHM"
+# shape problem). Lower ratio → tighter / more detail; higher → toward the
+# convex hull. ~0.3 follows real storm outlines without spiking on gate noise.
+CONCAVE_RATIO = 0.3
+
+
+def _cell_footprint(lons: np.ndarray, lats: np.ndarray) -> Optional[Polygon]:
+    """Build a natural footprint polygon from a swarm of gate centers.
+
+    Uses a concave hull (alpha-shape-like) so the footprint hugs the cell's
+    real shape; falls back to the convex hull if concave_hull degenerates
+    (collinear gates, too few points) or raises. Points are built as explicit
+    Point objects so we never hit Shapely's array-coercion ufunc path (which
+    raised on NaN coords — see the finite-filter at the call site).
+    """
+    pts = MultiPoint([
+        Point(float(x), float(y)) for x, y in zip(lons.tolist(), lats.tolist())
+    ])
+    try:
+        hull = concave_hull(pts, ratio=CONCAVE_RATIO)
+        if isinstance(hull, Polygon) and not hull.is_empty and hull.area > 0:
+            # Light simplify caps vertex growth (0.002° ≈ 200 m, well under
+            # the ~1 km gate resolution); the downstream ST_Union simplifies
+            # again at 0.001°.
+            simp = hull.simplify(0.002, preserve_topology=True)
+            if isinstance(simp, Polygon) and not simp.is_empty and simp.area > 0:
+                return simp
+            return hull
+    except Exception:  # noqa: BLE001 — fall back to the robust convex hull
+        pass
+    ch = pts.convex_hull
+    return ch if isinstance(ch, Polygon) and not ch.is_empty and ch.area > 0 else None
 
 
 @dataclass
@@ -336,22 +373,15 @@ def process_volume_scan(
             continue
 
         try:
-            # Build from explicit Point objects (not raw coord tuples) so we
-            # never hit Shapely's array-coercion ufunc path.
-            pts = MultiPoint([
-                Point(float(x), float(y))
-                for x, y in zip(cell_lons[finite].tolist(), cell_lats[finite].tolist())
-            ])
-            # Convex hull is a fast, robust footprint for a swarm of gate
-            # centers. Alpha-shape would carve out the actual storm shape
-            # more tightly but adds an alphashape / cgal dependency.
-            footprint = pts.convex_hull
+            # Concave hull → a natural cell outline instead of a fat convex
+            # balloon. Robust fallback to convex hull inside the helper.
+            footprint = _cell_footprint(cell_lons[finite], cell_lats[finite])
         except Exception as exc:  # noqa: BLE001 — skip this cell, keep the scan
             log.warning("nexrad_cell_geometry_skipped",
                         station=station, cell_id=cell_id, error=str(exc))
             continue
-        if not isinstance(footprint, Polygon) or footprint.is_empty \
-                or footprint.area <= 0:
+        if footprint is None or not isinstance(footprint, Polygon) \
+                or footprint.is_empty or footprint.area <= 0:
             continue
 
         peak_dbz = float(refl_field[cell_mask].max())
