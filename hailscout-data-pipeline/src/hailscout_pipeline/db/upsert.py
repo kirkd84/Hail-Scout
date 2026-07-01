@@ -432,33 +432,43 @@ def upsert_nexrad_cell(session: Session, cell) -> dict:  # noqa: ANN001
                  hail_in=hail_size, station=cell.station,
                  hail_confirmed=cell_confirmed)
 
-    # One HailSwath per cell, with the cell footprint as the polygon.
-    # Track=True so cross-scan upserts UNION the geometry instead of
-    # overwriting — producing the meandering polygon over time.
-    insert_stmt = pg_insert(HailSwath).values(
-        id=_new_id("swath"),
-        storm_id=storm.id,
-        hail_size_category=category,
-        geom_multipolygon=_wkt_with_srid(footprint),
-    )
-    stmt = insert_stmt.on_conflict_do_update(
-        constraint="uq_storm_category",
-        set_={
-            # Same simplify-capped union as the MRMS track path — see
-            # _write_swaths for why the 0.001° simplify matters.
-            "geom_multipolygon": func.ST_Multi(
-                func.ST_SimplifyPreserveTopology(
-                    func.ST_Union(
-                        HailSwath.geom_multipolygon,
-                        insert_stmt.excluded.geom_multipolygon,
-                    ),
-                    0.001,
-                )
-            ),
-            "updated_at": datetime.now(timezone.utc),
-        },
-    )
-    session.execute(stmt)
+    # One HailSwath per nested size band (dBZ rings) so the cell renders a
+    # size gradient — outer 0.75" ring in to the hot core — like the MRMS /
+    # IHM products, instead of the whole footprint flat at the peak size.
+    # Falls back to a single peak-size swath when the extractor emitted no
+    # bands. Track-style UNION on conflict so each band accumulates across
+    # consecutive volume scans (the same simplify-capped union the MRMS track
+    # path uses — see _write_swaths for why the 0.001° simplify matters).
+    bands = getattr(cell, "bands", None) or [(hail_size, footprint)]
+    for band_size, band_geom in bands:
+        band_cat = _hail_size_to_category(band_size)
+        band_multi = (
+            band_geom
+            if getattr(band_geom, "geom_type", "") == "MultiPolygon"
+            else MultiPolygon([band_geom])
+        )
+        insert_stmt = pg_insert(HailSwath).values(
+            id=_new_id("swath"),
+            storm_id=storm.id,
+            hail_size_category=band_cat,
+            geom_multipolygon=_wkt_with_srid(band_multi),
+        )
+        stmt = insert_stmt.on_conflict_do_update(
+            constraint="uq_storm_category",
+            set_={
+                "geom_multipolygon": func.ST_Multi(
+                    func.ST_SimplifyPreserveTopology(
+                        func.ST_Union(
+                            HailSwath.geom_multipolygon,
+                            insert_stmt.excluded.geom_multipolygon,
+                        ),
+                        0.001,
+                    )
+                ),
+                "updated_at": datetime.now(timezone.utc),
+            },
+        )
+        session.execute(stmt)
     session.commit()
     return {
         "storm_id": storm.id,

@@ -102,6 +102,56 @@ def _cell_footprint(lons: np.ndarray, lats: np.ndarray) -> Optional[Polygon]:
     return ch if isinstance(ch, Polygon) and not ch.is_empty and ch.area > 0 else None
 
 
+# dBZ → hail-size band thresholds (ascending). Mirrors the breakpoints in
+# _dbz_to_hail_size_in so each ring maps to a distinct size category. A cell
+# gets one concave-hull footprint per threshold, up to its (QC-capped) peak
+# size — nested rings that read as a hot-core-fading-out gradient like MRMS /
+# IHM, instead of the whole footprint painted flat at the peak size.
+_DBZ_SIZE_BANDS: list[tuple[float, float]] = [
+    (50.0, 0.75), (53.0, 1.0), (55.0, 1.25), (58.0, 1.5),
+    (60.0, 1.75), (65.0, 2.5), (70.0, 3.5),
+]
+
+# Minimum gates for an INNER band. The base ≥50 band is the whole cell (which
+# already passed MIN_CELL_GATES); inner cores get a lower floor so a small but
+# real hot core still draws a ring, while single-gate speckle is dropped.
+BAND_MIN_GATES = 4
+
+
+def _cell_bands(
+    cell_mask: np.ndarray,
+    refl: np.ndarray,
+    lats: np.ndarray,
+    lons: np.ndarray,
+    max_size_in: float,
+) -> list:
+    """Nested size-band footprints for one cell.
+
+    For each dBZ threshold whose mapped size is <= the cell's (QC-capped) peak
+    size, concave-hull the gates at or above that threshold. Returns
+    [(size_in, Polygon), ...] from the outer 0.75" ring (the whole cell) in to
+    the hot core. Respects the polarimetric size cap via `max_size_in`, so a
+    rain-contaminated cell won't sprout a softball core.
+    """
+    out: list = []
+    for dbz, size in _DBZ_SIZE_BANDS:
+        if size > max_size_in + 1e-6:
+            break
+        band_mask = cell_mask & (refl >= dbz)
+        if int(band_mask.sum()) < BAND_MIN_GATES:
+            continue
+        blons = lons[band_mask].astype(float)
+        blats = lats[band_mask].astype(float)
+        finite = np.isfinite(blons) & np.isfinite(blats)
+        if int(finite.sum()) < 3:
+            continue
+        fp = _cell_footprint(blons[finite], blats[finite])
+        if fp is None or fp.is_empty or fp.area <= 0:
+            continue
+        out.append((size, fp))
+    return out
+
+
 @dataclass
 class NexradCell:
     """One storm cell detected in a Level II volume scan.
@@ -121,6 +171,9 @@ class NexradCell:
     track_id: Optional[str] = None
     hail_confirmed: bool = False
     hail_gate_fraction: float = 0.0  # fraction of cell gates with hail signature
+    # Nested size-band footprints [(size_in, Polygon), ...], outer (0.75") →
+    # inner core. Empty → single-size cell (the upsert then writes one swath).
+    bands: list = field(default_factory=list)
 
 
 @dataclass
@@ -412,6 +465,15 @@ def process_volume_scan(
         else:
             hail_size = _dbz_to_hail_size_in(peak_dbz)
 
+        # Nested size-band footprints (hot-core gradient). Threshold on the
+        # filled dBZ grid so masked gates don't slip through as huge values.
+        refl_vals = (
+            refl_field.filled(-9999.0)
+            if hasattr(refl_field, "filled")
+            else np.asarray(refl_field)
+        )
+        bands = _cell_bands(cell_mask, refl_vals, lats, lons, hail_size)
+
         cells.append(NexradCell(
             station=station,
             timestamp=timestamp,
@@ -421,6 +483,7 @@ def process_volume_scan(
             estimated_hail_size_in=hail_size,
             hail_confirmed=hail_confirmed,
             hail_gate_fraction=hail_gate_fraction,
+            bands=bands,
         ))
 
     log.info("nexrad_cells", station=station, ts=timestamp.isoformat(),
