@@ -81,6 +81,20 @@ _BLUR_WIDE_FRAC = 0.032
 # the bridge/close keeps the swath body solid and confident.
 _WIDE_WEIGHT = 0.30
 
+# Ground-distance ceilings (km) for every morphology/blur radius. The
+# *_FRAC sizing above is tuned at city/storm zoom, where the fractions
+# work out to ~1-4 km — but a fixed image fraction becomes HUNDREDS of
+# km at continental zoom, and the bridge/close then welded SEPARATE
+# storms into one absurd mega-ribbon spanning provinces ("a storm that
+# traveled from North Dakota to Quebec"). Capping by ground distance
+# keeps the morphology meaning "link the cells of ONE storm track" at
+# every zoom level; at wide zooms distinct storms stay distinct.
+_BRIDGE_MAX_KM = 6.0
+_CLOSE_MAX_KM = 3.0
+_DILATE_MAX_KM = 5.0
+_BLUR_MED_MAX_KM = 6.0
+_BLUR_WIDE_MAX_KM = 20.0
+
 # Pad the bbox so the blurred edge has room to fade to transparent
 # instead of getting clipped at the image border.
 _PAD_FRAC = 0.06
@@ -284,16 +298,24 @@ def render_storm_raster(
                 draw.polygon(pts, fill=fill_val)
 
     m = float(min(width, height))
+    # Ground scale: km per pixel on the latitude axis (the aspect math
+    # above keeps pixels near-square on the ground, so one scale serves
+    # both axes). Guards every radius below against continental zooms.
+    km_per_px = max(1e-6, (span_lat * 111.0) / float(height))
+
+    def _radius_px(frac: float, min_px: float, max_km: float) -> float:
+        """Radius in px: the image-fraction sizing, floored for visibility,
+        but NEVER exceeding `max_km` of real ground distance."""
+        return min(max(min_px, m * frac), max_km / km_per_px)
 
     # 2a. BRIDGE pass — a LARGE morphological close (dilate then erode)
     #    that LINKS neighboring cell blobs into one continuous swath
     #    ribbon. Unlike a blur it joins the cells WITHOUT fading them;
     #    the erode-back step keeps cores at their true size. This is what
     #    turns the old string-of-pale-beads into a connected storm track
-    #    (the "show the full path" fix). It can't span a genuine multi-km
-    #    data gap between separate cells — which is correct: we don't want
-    #    to invent hail where the radar saw none.
-    bridge_r = max(1, int(round(m * _BRIDGE_FRAC)))
+    #    (the "show the full path" fix). Ground-capped so it only bridges
+    #    within-track gaps (~10 km) — never separate storms at wide zoom.
+    bridge_r = int(round(_radius_px(_BRIDGE_FRAC, 0.0, _BRIDGE_MAX_KM)))
     for _ in range(bridge_r):
         value_img = value_img.filter(ImageFilter.MaxFilter(3))
     for _ in range(bridge_r):
@@ -301,8 +323,10 @@ def render_storm_raster(
 
     # 2b. Small CLOSE to fill the transparent pinholes the raw swath
     #    polygons leave inside a severe core (cone-of-silence, beam
-    #    blockage, inter-cell gaps).
-    close_r = max(2, min(8, int(m * 0.008)))
+    #    blockage, inter-cell gaps). Ground-capped: at continental zoom
+    #    pinholes are sub-pixel anyway, and an uncapped close was itself
+    #    fusing storms ~100 km apart.
+    close_r = min(8, int(round(_radius_px(0.008, 0.0, _CLOSE_MAX_KM))))
     for _ in range(close_r):
         value_img = value_img.filter(ImageFilter.MaxFilter(3))
     for _ in range(close_r):
@@ -318,9 +342,11 @@ def render_storm_raster(
     #            — just an organic feathered rim. At full strength it bled
     #            every swath into a broad pale halo (the "cloud" look);
     #            the bridge pass above now does the gap-linking instead.
-    d = max(2, int(round(m * _DILATE_FRAC)))
-    r_med = max(4.0, m * _BLUR_MED_FRAC)
-    r_wide = max(10.0, m * _BLUR_WIDE_FRAC)
+    #    All ground-capped (dilate keeps a 1px floor so storms stay
+    #    visible dots at continental zoom).
+    d = max(1, int(round(_radius_px(_DILATE_FRAC, 1.0, _DILATE_MAX_KM))))
+    r_med = max(1.0, _radius_px(_BLUR_MED_FRAC, 4.0, _BLUR_MED_MAX_KM))
+    r_wide = max(1.5, _radius_px(_BLUR_WIDE_FRAC, 10.0, _BLUR_WIDE_MAX_KM))
     core = value_img
     for _ in range(d):
         core = core.filter(ImageFilter.MaxFilter(3))
