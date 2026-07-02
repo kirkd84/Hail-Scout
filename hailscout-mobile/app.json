@@ -21,6 +21,9 @@
         "NSLocationAlwaysAndWhenInUseUsageDescription": "HailScout needs access to your location to show the map and identify nearby hail damage.",
         "UIMainStoryboardFile": "",
         "UILaunchStoryboardName": "SplashScreen"
+      },
+      "entitlements": {
+        "com.apple.developer.usernotifications.time-sensitive": true
       }
     },
     "android": {

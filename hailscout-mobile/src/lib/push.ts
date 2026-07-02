@@ -43,7 +43,18 @@ export async function registerForPushNotifications(
       await Notifications.setNotificationChannelAsync("default", {
         name: "Hail alerts",
         importance: Notifications.AndroidImportance.HIGH,
-        lightColor: "#D87C4A",
+        lightColor: "#06B6D4",
+      });
+      // Storm alarms (Phase 34 — car-ready): MAX importance = heads-up
+      // banner + sound even while navigating, which also plays over car
+      // Bluetooth / Android Auto audio. The server targets this channel
+      // via channelId on zone/watchlist alerts.
+      await Notifications.setNotificationChannelAsync("storm-alarms", {
+        name: "Storm alarms",
+        importance: Notifications.AndroidImportance.MAX,
+        sound: "default",
+        vibrationPattern: [0, 300, 150, 300],
+        lightColor: "#06B6D4",
       });
     }
 

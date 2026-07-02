@@ -43,7 +43,23 @@ async def send_expo_push(
         return set()
 
     messages = [
-        {"to": t, "title": title, "body": body, "sound": "default", "data": data or {}}
+        {
+            "to": t,
+            "title": title,
+            "body": body,
+            "sound": "default",
+            "data": data or {},
+            # Car-ready delivery (Phase 34): high FCM priority wakes Android
+            # from doze and heads-up over car Bluetooth; the storm-alarms
+            # channel is created by the app (falls back gracefully on builds
+            # that predate it). timeSensitive lets Siri announce the alert
+            # over CarPlay/AirPods when the user enables Announce
+            # Notifications (needs the entitlement baked into the iOS build;
+            # APNs quietly downgrades if absent).
+            "priority": "high",
+            "channelId": "storm-alarms",
+            "interruptionLevel": "timeSensitive",
+        }
         for t in valid
     ]
     dead: set[str] = set()
