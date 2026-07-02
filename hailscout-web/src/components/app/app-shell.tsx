@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
 import { Sidebar } from "@/components/app/sidebar";
 import { Topbar } from "@/components/app/topbar";
 import { CommandPalette } from "@/components/app/command-palette";
@@ -15,6 +17,17 @@ import { ShortcutsModal } from "@/components/app/shortcuts-modal";
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const { isLoaded, isSignedIn } = useAuth();
+  const router = useRouter();
+
+  // Expired/absent session → go sign in. Without this the app half-renders
+  // (public map data loads, everything authed silently empties, and writes
+  // fail with a bare "API 401") — which reads as the app being broken.
+  useEffect(() => {
+    if (isLoaded && isSignedIn === false) {
+      router.replace("/sign-in?expired=1");
+    }
+  }, [isLoaded, isSignedIn, router]);
 
   return (
     <ToastHost>

@@ -81,12 +81,14 @@ function noiseBurst(buf, t0, amp, decay, lpAlpha = 1) {
   }
 }
 
-// ── thud — soft low body, barely any snap ────────────────────────────
+// ── thud — v2: real IMPACT (v1 was too soft). Hard attack transient +
+//    deeper, punchier body. Still clearly the bottom of the ladder.
 {
-  const b = zeros(0.45);
-  ping(b, 0, 82, 0.9, 14, -0.25); // low body, pitch sags
-  ping(b, 0, 55, 0.5, 10, -0.15);
-  noiseBurst(b, 0, 0.18, 90, 0.08); // dull tap
+  const b = zeros(0.4);
+  noiseBurst(b, 0, 0.6, 220, 0.35); // sharp slap attack (very short)
+  ping(b, 0, 150, 0.7, 45, -0.5);   // knock transient
+  ping(b, 0.004, 72, 1.1, 16, -0.3); // deep body, pitch sags
+  ping(b, 0.004, 48, 0.7, 11, -0.2); // sub weight
   writeWav("thud", Array.from(b));
 }
 
@@ -110,66 +112,92 @@ function noiseBurst(buf, t0, amp, decay, lpAlpha = 1) {
   writeWav("crack", Array.from(b));
 }
 
-// ── glass — crack + bright inharmonic ring ───────────────────────────
+// ── glass — v2: total rebuild ("the worst of the bunch"). The slow
+//    inharmonic ring read as a cheap chime. New take = a mini-shatter:
+//    one hard crack + a brief sprinkle of glass shards, short and dry —
+//    same family as the 3"+ shatter he liked, scaled down.
 {
-  const b = zeros(0.9);
-  noiseBurst(b, 0, 0.8, 140, 0.9);
-  // Inharmonic partials = the "glassy" signature
-  ping(b, 0, 2437, 0.4, 9);
-  ping(b, 0, 3671, 0.33, 11);
-  ping(b, 0, 5213, 0.26, 13);
-  ping(b, 0, 6841, 0.18, 15);
-  ping(b, 0.005, 1531, 0.22, 8);
+  const b = zeros(0.65);
+  noiseBurst(b, 0, 0.95, 150, 0.85); // the crack
+  ping(b, 0, 310, 0.45, 45, -0.4);   // crack body
+  // 9 quick shards, tightly front-loaded, FAST decays (no lingering tones)
+  const shardT = [0.01, 0.03, 0.05, 0.08, 0.11, 0.15, 0.19, 0.24, 0.3];
+  for (let k = 0; k < shardT.length; k++) {
+    const f = 2200 + Math.random() * 4800;
+    ping(b, shardT[k], f, 0.16 + Math.random() * 0.12, 40 + Math.random() * 25);
+  }
+  noiseBurst(b, 0.02, 0.18, 14, 0.5); // short debris wash
   writeWav("glass", Array.from(b));
 }
 
-// ── shatter — a shower of glass pings over a noise wash ──────────────
+// ── shatter — v2: keep the hit he liked, kill the "weird tones after".
+//    The tail artifact was slow-decay pure sines ringing out past the
+//    debris. Fixes: much faster shard decays, shards confined to the
+//    first 0.45s, shorter buffer, and a global fade-out so NOTHING
+//    rings past the wash.
 {
-  const b = zeros(1.4);
-  noiseBurst(b, 0, 0.9, 26, 0.85); // initial burst
-  noiseBurst(b, 0.05, 0.35, 8, 0.5); // falling debris wash
-  // 28 randomized shards, front-loaded
-  for (let k = 0; k < 28; k++) {
-    const t0 = Math.pow(Math.random(), 1.8) * 0.7;
-    const f = 1800 + Math.random() * 6500;
-    ping(b, t0, f, 0.1 + Math.random() * 0.22, 18 + Math.random() * 25);
+  const b = zeros(1.05);
+  noiseBurst(b, 0, 0.9, 26, 0.85);  // initial burst
+  noiseBurst(b, 0.05, 0.35, 9, 0.5); // falling debris wash
+  for (let k = 0; k < 26; k++) {
+    const t0 = Math.pow(Math.random(), 2.0) * 0.45; // front-loaded, ends sooner
+    const f = 1800 + Math.random() * 6200;
+    ping(b, t0, f, 0.1 + Math.random() * 0.2, 38 + Math.random() * 30); // fast decay
+  }
+  // Global fade from 0.55s → end: guarantees a clean, tone-free tail.
+  const fadeStart = Math.round(0.55 * SR);
+  for (let i = fadeStart; i < b.length; i++) {
+    const t = (i - fadeStart) / (b.length - fadeStart);
+    b[i] *= Math.pow(1 - t, 1.6);
   }
   writeWav("shatter", Array.from(b));
 }
 
-// ── wind — swelling filtered howl ────────────────────────────────────
+// ── wind — v2: same howl, tightened from 1.5s to ~1.0s ("a little long").
 {
-  const b = zeros(1.5);
+  const b = zeros(1.0);
   let lp = 0,
     lp2 = 0;
   for (let i = 0; i < b.length; i++) {
     const t = i / SR;
-    // swell in, sag out
-    const env = Math.min(1, t / 0.5) * Math.exp(-Math.max(0, t - 0.8) * 2.2);
+    // swell in faster, sag out sooner
+    const env = Math.min(1, t / 0.32) * Math.exp(-Math.max(0, t - 0.55) * 3.2);
     const w = Math.random() * 2 - 1;
     // two cascaded one-poles → dark rumble; alpha wobbles = gust texture
-    const a = 0.045 + 0.03 * Math.sin(2 * Math.PI * 1.7 * t);
+    const a = 0.045 + 0.03 * Math.sin(2 * Math.PI * 2.1 * t);
     lp += a * (w - lp);
     lp2 += 0.08 * (lp - lp2);
     b[i] = lp2 * env * 7.5;
   }
   // faint whistle on top
-  ping(b, 0.3, 880, 0.06, 3, 0.4);
+  ping(b, 0.2, 880, 0.06, 5, 0.4);
   writeWav("wind", Array.from(b));
 }
 
-// ── chaching — register bell double-hit (revenue mode) ───────────────
+// ── chaching — v2: OLD SCHOOL mechanical register ("cha-CHING!"), not a
+//    modern synth bell. Three-part anatomy of the real thing:
+//      "cha"  — the lever/key clack (dry mechanical click)
+//      "CHING"— ONE bright brass bell strike with inharmonic bell
+//               partials ringing out
+//      drawer — the wooden drawer slamming open right after (low thump
+//               + slide rattle)
 {
-  const b = zeros(0.7);
-  for (const [t0, a] of [
-    [0, 0.5],
-    [0.09, 0.65],
-  ]) {
-    ping(b, t0, 1318.5, a, 10); // E6
-    ping(b, t0, 1760, a * 0.8, 10); // A6
-    ping(b, t0, 2637, a * 0.4, 14);
-    noiseBurst(b, t0, 0.12, 200, 0.9);
-  }
+  const b = zeros(0.85);
+  // "cha" — mechanical clack at t=0
+  noiseBurst(b, 0, 0.55, 260, 0.7);
+  ping(b, 0, 420, 0.3, 90, -0.3);
+  // "CHING" — single bell strike at t=0.07. True bell partial ratios
+  // (1, 2.76, 5.40, 8.93) off a ~1.9kHz strike tone.
+  const F = 1870;
+  ping(b, 0.07, F, 0.85, 6.5);
+  ping(b, 0.07, F * 2.76, 0.4, 9);
+  ping(b, 0.07, F * 5.4, 0.22, 13);
+  ping(b, 0.07, F * 8.93, 0.1, 18);
+  noiseBurst(b, 0.07, 0.2, 300, 0.95); // strike hammer noise
+  // drawer slam at t=0.22 — low wooden thump + short slide rattle
+  ping(b, 0.22, 105, 0.75, 22, -0.3);
+  ping(b, 0.22, 62, 0.5, 15, -0.2);
+  noiseBurst(b, 0.2, 0.3, 40, 0.25); // drawer slide
   writeWav("chaching", Array.from(b));
 }
 

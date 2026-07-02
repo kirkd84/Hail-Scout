@@ -84,9 +84,20 @@ export function StormsRasterLayer({
       const next = prev === 0 ? 1 : 0;
       const ns = SLOTS[next];
 
-      // Clean the target slot in case a stale copy lingers there.
-      if (map.getLayer(ns.layer)) map.removeLayer(ns.layer);
-      if (map.getSource(ns.src)) map.removeSource(ns.src);
+      // Self-heal: if a retire ever failed (missed idle, rapid date-switch
+      // ping-pong), a stale raster lingers beneath as a stretched low-res
+      // "fog" ghost. Sweep every slot that isn't the CURRENT active one
+      // before adding the new image, so ghosts can never outlive one
+      // raster change.
+      SLOTS.forEach((s, idx) => {
+        if (idx === prev) return;
+        try {
+          if (map.getLayer(s.layer)) map.removeLayer(s.layer);
+          if (map.getSource(s.src)) map.removeSource(s.src);
+        } catch {
+          /* mid-style-swap — ignore */
+        }
+      });
 
       map.addSource(ns.src, {
         type: "image",
@@ -120,17 +131,34 @@ export function StormsRasterLayer({
       );
       activeRef.current = next;
 
-      // Retire the PREVIOUS slot once the new raster has rendered.
+      // Retire the PREVIOUS slot once the new raster has rendered. Triple
+      // trigger, first one wins: (a) the new source finishes loading,
+      // (b) the map goes idle, (c) a 1.2s timeout backstop. Relying on
+      // `idle` alone left the old surface stuck beneath the new one when
+      // idle didn't fire cleanly — the "foggy ghost" on date switches.
       if (prev >= 0) {
         const ps = SLOTS[prev];
-        const retire = () => {
-          // Guard: only remove if it's still the stale slot (rapid pans can
-          // ping-pong back before idle fires).
-          if (activeRef.current === prev) return;
-          if (map.getLayer(ps.layer)) map.removeLayer(ps.layer);
-          if (map.getSource(ps.src)) map.removeSource(ps.src);
+        let retired = false;
+        const onSourceData = (e: { sourceId?: string; isSourceLoaded?: boolean }) => {
+          if (e.sourceId === ns.src && e.isSourceLoaded) retire();
         };
+        const retire = () => {
+          if (retired) return;
+          retired = true;
+          map.off("sourcedata", onSourceData);
+          // Guard: only remove if it's still the stale slot (rapid pans can
+          // ping-pong back before a trigger fires).
+          if (activeRef.current === prev) return;
+          try {
+            if (map.getLayer(ps.layer)) map.removeLayer(ps.layer);
+            if (map.getSource(ps.src)) map.removeSource(ps.src);
+          } catch {
+            /* style swapped mid-retire */
+          }
+        };
+        map.on("sourcedata", onSourceData);
         map.once("idle", retire);
+        window.setTimeout(retire, 1200);
       }
     };
 
