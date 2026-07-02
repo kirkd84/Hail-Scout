@@ -1,9 +1,11 @@
 """First-party auth endpoints: OAuth exchange, refresh, logout.
 
-Flow: the web tier runs the Google/Microsoft code-exchange (Arctic) and POSTs us
-the provider ``id_token``. We verify it, resolve the user **by verified email**
-(no auto-provisioning of unknown emails — same posture as the old Clerk
+Flow: the web tier runs the Google/Microsoft/Apple code-exchange (Arctic) and
+POSTs us the provider ``id_token``. We verify it, resolve the user **by verified
+email** (no auto-provisioning of unknown emails — same posture as the old Clerk
 webhook), link the OAuth subject, and mint our own access + refresh tokens.
+Apple omits email after the first consent, so a returning Apple user is resolved
+by the provider subject linked on that first sign-in instead.
 """
 
 from __future__ import annotations
@@ -158,12 +160,32 @@ async def exchange(
             status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)
         ) from exc
 
-    user = (
-        await session.execute(select(User).where(User.email == identity.email))
-    ).scalar_one_or_none()
+    # Resolve the account. Normally by verified email (link-by-email posture,
+    # LOGIN-STANDARD §2). Apple omits email on every login after the first
+    # consent, so when it's absent we fall back to the stable provider subject
+    # linked on that first sign-in (user.auth_subject == "apple:<sub>"). A
+    # first-ever Apple login always carries the email, so an invited user still
+    # gets matched and linked on their first pass.
+    if identity.email:
+        user = (
+            await session.execute(select(User).where(User.email == identity.email))
+        ).scalar_one_or_none()
+    else:
+        user = (
+            await session.execute(
+                select(User).where(User.auth_subject == identity.subject)
+            )
+        ).scalar_one_or_none()
     if user is None:
-        # Match the old webhook: we do not auto-provision strangers.
-        logger.info("auth.exchange.unknown_email", email=identity.email)
+        # Match the old webhook / invite_only posture: we do not auto-provision
+        # strangers. An Apple returning login with no email and no linked
+        # subject also lands here (nobody to resolve → reject gracefully).
+        logger.info(
+            "auth.exchange.unknown_identity",
+            provider=provider,
+            email=identity.email,
+            has_subject=bool(identity.email is None),
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No HailScout account exists for this email. Ask your administrator to add you.",

@@ -13,7 +13,15 @@ const ERROR_COPY: Record<string, string> = {
     "Our servers are unreachable right now. Please try again in a moment.",
 };
 
-export function OAuthButtons() {
+export function OAuthButtons({
+  appleEnabled = false,
+}: {
+  /**
+   * Server-computed (isAppleConfigured): Sign in with Apple stays completely
+   * dark until all four APPLE_* envs are staged.
+   */
+  appleEnabled?: boolean;
+}) {
   const params = useSearchParams();
   const err = params.get("error");
 
@@ -51,8 +59,28 @@ export function OAuthButtons() {
         Continue with Microsoft
       </a>
 
+      {appleEnabled && (
+        <a
+          href="/api/auth/apple"
+          className="flex w-full items-center justify-center gap-3 rounded-md border border-border bg-card px-4 py-3 text-sm font-medium text-card-foreground transition-colors hover:bg-secondary"
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            aria-hidden
+          >
+            <path d="M16.365 12.79c-.024-2.462 2.012-3.645 2.103-3.703-1.145-1.674-2.926-1.903-3.559-1.929-1.514-.153-2.955.892-3.722.892-.766 0-1.952-.87-3.209-.846-1.65.024-3.172.959-4.021 2.436-1.714 2.972-.438 7.376 1.232 9.789.816 1.181 1.789 2.508 3.066 2.46 1.23-.049 1.695-.796 3.183-.796 1.487 0 1.905.796 3.208.771 1.325-.024 2.163-1.203 2.973-2.389.937-1.371 1.322-2.699 1.345-2.767-.029-.013-2.58-.99-2.599-3.918zM13.917 5.56c.678-.822 1.136-1.963 1.011-3.101-.977.04-2.161.651-2.862 1.472-.63.728-1.18 1.891-1.032 3.006 1.09.085 2.204-.554 2.883-1.377z" />
+          </svg>
+          Continue with Apple
+        </a>
+      )}
+
       <p className="pt-1 text-center text-xs text-muted-foreground">
-        Use the Google or Microsoft account tied to your work email.
+        {appleEnabled
+          ? "Use the Google, Microsoft, or Apple account tied to your work email."
+          : "Use the Google or Microsoft account tied to your work email."}
       </p>
     </div>
   );

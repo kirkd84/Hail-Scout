@@ -1,11 +1,16 @@
-"""Verify Google / Microsoft OIDC ``id_token``s.
+"""Verify Google / Microsoft / Apple OIDC ``id_token``s.
 
 The browser runs the OAuth code-exchange in the web tier (Arctic) and sends us
 the provider-signed ``id_token``. We re-verify it here — signature against the
 provider JWKS, plus issuer / audience / expiry — so a compromised web tier
-still can't forge an identity (it would have to forge a Google/Microsoft
+still can't forge an identity (it would have to forge a Google/Microsoft/Apple
 signature). This is the only thing we trust from the web during sign-in;
 everything after is our own session token.
+
+Google/Microsoft sign with RS256; **Apple signs with ES256** (P-256), so its
+verifier uses the EC key algorithm. Apple also omits ``email`` on every login
+after the first consent, so :class:`OAuthIdentity` allows a null email and the
+exchange route resolves the returning Apple user by their stable subject.
 """
 
 from __future__ import annotations
@@ -19,7 +24,7 @@ from typing import Any
 import httpx
 import jwt
 from jwt import PyJWTError
-from jwt.algorithms import RSAAlgorithm
+from jwt.algorithms import ECAlgorithm, RSAAlgorithm
 
 from hailscout_api.core import AuthenticationError, get_logger
 
@@ -33,8 +38,12 @@ _MS_JWKS = "https://login.microsoftonline.com/common/discovery/v2.0/keys"
 # Tokens from the multi-tenant ("common") endpoint carry a tenant-specific
 # issuer, so we match the shape rather than a single string.
 _MS_ISSUER_RE = re.compile(r"^https://login\.microsoftonline\.com/[0-9a-fA-F-]+/v2\.0$")
+# Apple's issuer is a single fixed string; its public signing keys (EC / ES256)
+# live at the JWKS below.
+_APPLE_JWKS = "https://appleid.apple.com/auth/keys"
+_APPLE_ISSUER = "https://appleid.apple.com"
 
-_SUPPORTED = ("google", "microsoft")
+_SUPPORTED = ("google", "microsoft", "apple")
 
 
 @dataclass(frozen=True)
@@ -42,8 +51,11 @@ class OAuthIdentity:
     """A verified identity extracted from a provider id_token."""
 
     subject: str  # provider 'sub' (namespaced as "<provider>:<sub>")
-    email: str  # lower-cased, verified
-    provider: str  # 'google' | 'microsoft'
+    # Lower-cased, verified. ``None`` only for Apple returning logins (Apple
+    # omits email after the first consent); the caller then resolves the user
+    # by ``subject`` instead of by email.
+    email: str | None
+    provider: str  # 'google' | 'microsoft' | 'apple'
 
 
 class _JwksCache:
@@ -91,7 +103,10 @@ def _public_key_for(token: str, jwks: dict[str, Any]) -> Any:
         raise AuthenticationError("id_token missing 'kid'")
     for key in jwks.get("keys", []):
         if key.get("kid") == kid:
-            return RSAAlgorithm.from_jwk(json.dumps(key))
+            # Pick the algorithm by key type: Google/Microsoft publish RSA keys
+            # (RS256); Apple publishes EC keys (ES256). `kty` tells them apart.
+            alg = ECAlgorithm if key.get("kty") == "EC" else RSAAlgorithm
+            return alg.from_jwk(json.dumps(key))
     raise AuthenticationError("Signing key not found in provider JWKS")
 
 
@@ -168,6 +183,51 @@ async def _verify_microsoft(token: str) -> OAuthIdentity:
     return OAuthIdentity(subject=f"microsoft:{sub}", email=email, provider="microsoft")
 
 
+async def _verify_apple(token: str) -> OAuthIdentity:
+    from hailscout_api.config import get_settings
+
+    settings = get_settings()
+    client_id = settings.apple_oauth_client_id
+    if not client_id:
+        # Dark until the Services ID is configured — mirrors the web BFF, whose
+        # Apple button stays hidden until its APPLE_* envs exist.
+        raise AuthenticationError("Apple OAuth is not configured")
+
+    # The web flow's id_token carries the Services ID as `aud`; a future native
+    # iOS flow carries the app bundle id (in apple_oauth_audiences). Accept both.
+    audiences = [client_id, *[a for a in settings.apple_oauth_audiences if a]]
+
+    jwks = await _get_jwks_cache().get(_APPLE_JWKS)
+    key = _public_key_for(token, jwks)
+    try:
+        # Apple signs with ES256 (not RS256). issuer/audience/expiry are all
+        # enforced here; a wrong `aud` (e.g. a token minted for another
+        # relying party) fails verification.
+        claims = jwt.decode(
+            token,
+            key,
+            algorithms=["ES256"],
+            audience=audiences,
+            issuer=_APPLE_ISSUER,
+        )
+    except PyJWTError as exc:
+        raise AuthenticationError("Apple id_token verification failed") from exc
+
+    sub = claims.get("sub")
+    if not sub:
+        raise AuthenticationError("Apple id_token missing 'sub'")
+
+    # Apple returns `email` + `email_verified` only on the FIRST consent; later
+    # logins omit them. So email is optional here: when Apple sends it (and
+    # asserts it verified — true for a real address, "true" for a private-relay
+    # one) we surface it so the exchange links/finds the user by verified email
+    # exactly like Google/Microsoft; when absent we return None and the caller
+    # resolves the returning user by the stable Apple `sub` via auth_subject.
+    raw_email = (claims.get("email") or "").lower()
+    email = raw_email if (raw_email and _truthy(claims.get("email_verified"))) else None
+    return OAuthIdentity(subject=f"apple:{sub}", email=email, provider="apple")
+
+
 async def verify_oidc_id_token(provider: str, token: str) -> OAuthIdentity:
     """Verify a provider id_token and return the verified identity.
 
@@ -178,4 +238,6 @@ async def verify_oidc_id_token(provider: str, token: str) -> OAuthIdentity:
         return await _verify_google(token)
     if provider == "microsoft":
         return await _verify_microsoft(token)
+    if provider == "apple":
+        return await _verify_apple(token)
     raise AuthenticationError(f"Unsupported OAuth provider: {provider!r}")
