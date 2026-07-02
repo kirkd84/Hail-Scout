@@ -73,7 +73,7 @@ function TerritoryCard({
   canManage: boolean | undefined;
   onDelete: (id: string) => void;
 }) {
-  const color = territory.color ?? "#0F4C5C";
+  const color = territory.color ?? "#0891B2";
   return (
     <div className="rounded-xl border border-border bg-card p-5">
       <div className="flex items-start justify-between gap-3">

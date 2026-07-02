@@ -33,7 +33,7 @@ export async function GET(
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#0F4C5C",
+          background: "#0F172A",
         }}
       >
         <div
@@ -41,7 +41,7 @@ export async function GET(
             width: ring1,
             height: ring1,
             borderRadius: 9999,
-            border: `${bw}px solid #F5F1EA`,
+            border: `${bw}px solid #F8FAFC`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -52,13 +52,13 @@ export async function GET(
               width: ring2,
               height: ring2,
               borderRadius: 9999,
-              border: `${Math.max(1, bw - 1)}px solid #F5F1EA`,
+              border: `${Math.max(1, bw - 1)}px solid #F8FAFC`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <div style={{ width: dot, height: dot, borderRadius: 9999, background: "#D87C4A" }} />
+            <div style={{ width: dot, height: dot, borderRadius: 9999, background: "#06B6D4" }} />
           </div>
         </div>
       </div>

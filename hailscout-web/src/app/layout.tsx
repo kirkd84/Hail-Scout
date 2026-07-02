@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { AuthProvider } from "@/hooks/useAuth";
-import { Inter, Fraunces, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { APP_NAME, APP_DESCRIPTION } from "@/lib/constants";
 import { ThemeProvider } from "@/components/theme/theme-provider";
@@ -12,11 +12,12 @@ const sans = Inter({
   variable: "--font-sans",
   display: "swap",
 });
-const display = Fraunces({
+// PenSnap family: Inter carries display type too (the old theme used the
+// Fraunces serif). Same face, second CSS var, so .font-display keeps working.
+const display = Inter({
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
-  axes: ["opsz"],
 });
 const mono = JetBrains_Mono({
   subsets: ["latin"],
@@ -43,7 +44,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0F4C5C",
+  themeColor: "#0F172A",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",

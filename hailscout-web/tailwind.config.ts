@@ -90,7 +90,7 @@ const config: Config = {
       },
       fontFamily: {
         sans:    ["var(--font-sans)", "Inter", "system-ui", "sans-serif"],
-        display: ["var(--font-display)", "Fraunces", "Cambria", "serif"],
+        display: ["var(--font-display)", "Inter", "system-ui", "sans-serif"],
         mono:    ["var(--font-mono)", "JetBrains Mono", "ui-monospace", "monospace"],
       },
       letterSpacing: {

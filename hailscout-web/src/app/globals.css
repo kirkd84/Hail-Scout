@@ -5,95 +5,100 @@
 @tailwind utilities;
 
 /* ──────────────────────────────────────────────────────────
-   HailScout — Topographic theme
-   Brand: cream + deep teal + copper. Field-guide / atlas vibe.
+   HailScout — PenSnap brand family (slate + cyan)
+   Matches PenSnap's locked palette (May 2026, G15 direction):
+     Slate #1F2937 / #0F172A — structure: text, headers, sidebar
+     Cyan  #06B6D4 family    — energy: CTAs, links, accents
+   Legacy class names (teal-*, copper-*, cream-*) are KEPT and
+   re-pointed at the new ramps — the PenSnap playbook ("saves a
+   100-file rename"): copper → cyan, teal → slate, cream → white.
    All values are HSL triplets (no `hsl(...)` wrapper) so shadcn's
    `hsl(var(--primary))` Tailwind utilities resolve correctly.
    ────────────────────────────────────────────────────────── */
 
 @layer base {
   :root {
-    /* Surfaces (cream paper) */
-    --background: 36 38% 94%;        /* #F5F1EA */
-    --foreground: 33 14% 15%;        /* #2B2620 charcoal text */
-    --card:       36 47% 97%;        /* #FAF7F1 lifted surface */
-    --card-foreground: 33 14% 15%;
-    --popover:    36 47% 97%;
-    --popover-foreground: 33 14% 15%;
+    /* Surfaces — clean slate whites */
+    --background: 210 40% 98%;       /* slate-50 #F8FAFC */
+    --foreground: 215 28% 17%;       /* slate-800 #1F2937 — PenSnap navy */
+    --card:       0 0% 100%;         /* white lifted surface */
+    --card-foreground: 215 28% 17%;
+    --popover:    0 0% 100%;
+    --popover-foreground: 215 28% 17%;
 
-    /* Primary — deep teal (the brand mark color) */
-    --primary:    194 71% 21%;       /* #0F4C5C */
-    --primary-foreground: 36 38% 94%;
+    /* Primary — PenSnap cyan (CTA color). cyan-600 in light mode so
+       white button text keeps AA contrast; reads as the same brand
+       chroma as PenSnap's #06B6D4. */
+    --primary:    192 91% 36%;       /* cyan-600 #0891B2 */
+    --primary-foreground: 0 0% 100%;
 
-    /* Secondary — warm beige */
-    --secondary:  36 31% 87%;        /* #E8E1D4 */
-    --secondary-foreground: 33 14% 15%;
+    /* Secondary — cool slate wash */
+    --secondary:  210 40% 96%;       /* slate-100 #F1F5F9 */
+    --secondary-foreground: 215 28% 17%;
 
     /* Muted */
-    --muted:      36 31% 87%;
-    --muted-foreground: 32 13% 37%;  /* #6B6052 */
+    --muted:      210 40% 96%;
+    --muted-foreground: 215 16% 47%; /* slate-500 #64748B */
 
-    /* Accent — copper (the highlight color) */
-    --accent:     21 65% 57%;        /* #D87C4A */
-    --accent-foreground: 36 38% 94%;
+    /* Accent — PenSnap cyan proper */
+    --accent:     187 94% 43%;       /* cyan-500 #06B6D4 */
+    --accent-foreground: 222 47% 11%;
 
     /* Borders + rings */
-    --border:     36 22% 83%;        /* #E0D9CC */
-    --input:      36 22% 83%;
-    --ring:       21 65% 57%;        /* copper focus ring */
+    --border:     214 32% 91%;       /* slate-200 #E2E8F0 */
+    --input:      214 32% 91%;
+    --ring:       187 94% 43%;       /* cyan focus ring */
 
-    /* Destructive — terracotta, not pure red, to stay on-palette */
-    --destructive: 9 74% 47%;
-    --destructive-foreground: 36 38% 94%;
+    --destructive: 0 72% 51%;        /* red-600 */
+    --destructive-foreground: 0 0% 100%;
 
-    /* Radii — atlas page rounded only slightly */
-    --radius: 0.625rem;
+    /* Radii — soft modern SaaS */
+    --radius: 0.75rem;
 
-    /* Brand-specific direct tokens (not shadcn semantics) */
-    --teal-50:  192 38% 95%;
-    --teal-200: 192 38% 78%;
-    --teal-500: 194 56% 35%;
-    --teal-700: 194 71% 21%;
-    --teal-900: 195 60% 12%;
-    --copper-50:  24 70% 95%;
-    --copper-300: 22 70% 72%;
-    --copper-500: 21 65% 57%;
-    --copper-700: 21 60% 42%;
-    --forest-500: 100 29% 32%;
-    --cream-50:   36 47% 97%;
-    --cream-100:  36 38% 94%;
-    --cream-200:  36 31% 87%;
+    /* Brand ramps (legacy names, PenSnap values) */
+    --teal-50:  210 40% 98%;         /* slate-50 */
+    --teal-200: 213 27% 84%;         /* slate-300 */
+    --teal-500: 215 19% 35%;         /* slate-600 */
+    --teal-700: 215 28% 17%;         /* slate-800 — PenSnap navy */
+    --teal-900: 222 47% 11%;         /* slate-900 — PenSnap navy-deep */
+    --copper-50:  183 100% 96%;      /* cyan-50  #ECFEFF */
+    --copper-300: 187 92% 69%;       /* cyan-300 #67E8F9 — PenSnap light */
+    --copper-500: 187 94% 43%;       /* cyan-500 #06B6D4 — PenSnap accent */
+    --copper-700: 193 82% 31%;       /* cyan-700 #0E7490 — PenSnap deep */
+    --forest-500: 160 84% 30%;       /* emerald-600 — success */
+    --cream-50:   0 0% 100%;         /* white */
+    --cream-100:  210 40% 98%;       /* slate-50 */
+    --cream-200:  210 40% 96%;       /* slate-100 */
   }
 
   .dark {
-    /* Atlas night — warm charcoal, not pure black */
-    --background: 40 12% 9%;         /* #1A1814 */
-    --foreground: 36 38% 94%;        /* cream text */
-    --card:       30 11% 12%;        /* #231F1A */
-    --card-foreground: 36 38% 94%;
-    --popover:    30 11% 12%;
-    --popover-foreground: 36 38% 94%;
+    /* PenSnap night — slate-900/950 surfaces, cyan glow */
+    --background: 222 47% 7%;        /* between slate-900/950 #0B1120 */
+    --foreground: 210 40% 96%;       /* slate-100 */
+    --card:       222 47% 11%;       /* slate-900 #0F172A — PenSnap navy-deep */
+    --card-foreground: 210 40% 96%;
+    --popover:    222 47% 11%;
+    --popover-foreground: 210 40% 96%;
 
-    /* Lighter teal in dark mode for contrast */
-    --primary:    192 38% 55%;       /* #5BA8BC */
-    --primary-foreground: 40 12% 9%;
+    /* Brighter cyan in dark mode; dark text on it for contrast */
+    --primary:    187 86% 53%;       /* cyan-400 #22D3EE */
+    --primary-foreground: 222 47% 7%;
 
-    --secondary:  25 13% 16%;
-    --secondary-foreground: 36 38% 94%;
+    --secondary:  217 33% 15%;       /* slate-800-ish */
+    --secondary-foreground: 210 40% 96%;
 
-    --muted:      25 13% 16%;
-    --muted-foreground: 35 10% 61%;  /* #A89F92 */
+    --muted:      217 33% 15%;
+    --muted-foreground: 215 20% 65%; /* slate-400 #94A3B8 */
 
-    /* Copper stays — it's the brand */
-    --accent:     21 65% 57%;
-    --accent-foreground: 40 12% 9%;
+    --accent:     187 94% 43%;       /* cyan-500 — the brand */
+    --accent-foreground: 222 47% 7%;
 
-    --border:     25 13% 20%;        /* #3A332D */
-    --input:      25 13% 20%;
-    --ring:       21 65% 57%;
+    --border:     217 33% 18%;       /* slate-800 #1E293B */
+    --input:      217 33% 18%;
+    --ring:       187 94% 43%;
 
-    --destructive: 9 60% 55%;
-    --destructive-foreground: 36 38% 94%;
+    --destructive: 0 63% 55%;
+    --destructive-foreground: 210 40% 96%;
   }
 }
 
@@ -121,9 +126,11 @@
    ────────────────────────────────────────────────────────── */
 @layer utilities {
   .font-display {
-    font-family: var(--font-display, "Fraunces", "Cambria", "Times New Roman", serif);
-    font-feature-settings: "ss01", "ss02";
-    letter-spacing: -0.02em;
+    /* PenSnap family: Inter for display too — tight, confident, modern.
+       (Was Fraunces serif in the old atlas theme.) */
+    font-family: var(--font-display, "Inter", system-ui, sans-serif);
+    font-feature-settings: "ss01", "cv11";
+    letter-spacing: -0.025em;
   }
   .font-mono-num {
     font-family: var(--font-mono, "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace);

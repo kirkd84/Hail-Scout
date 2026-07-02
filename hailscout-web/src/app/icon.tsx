@@ -13,7 +13,7 @@ export default function Icon() {
     (
       <div
         style={{
-          background: "#F5F1EA",
+          background: "#F8FAFC",
           width: "100%",
           height: "100%",
           display: "flex",
@@ -28,11 +28,11 @@ export default function Icon() {
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
         >
-          <circle cx="14" cy="14" r="11" stroke="#0F4C5C" strokeWidth="1.6" />
-          <circle cx="14" cy="14" r="7" stroke="#0F4C5C" strokeWidth="1.4" />
-          <circle cx="14" cy="14" r="3.5" stroke="#D87C4A" strokeWidth="1.4" />
-          <path d="M5 14 Q14 7 23 14" stroke="#D87C4A" strokeWidth="1.4" strokeLinecap="round" />
-          <circle cx="14" cy="14" r="1.4" fill="#D87C4A" />
+          <circle cx="14" cy="14" r="11" stroke="#1F2937" strokeWidth="1.6" />
+          <circle cx="14" cy="14" r="7" stroke="#1F2937" strokeWidth="1.4" />
+          <circle cx="14" cy="14" r="3.5" stroke="#06B6D4" strokeWidth="1.4" />
+          <path d="M5 14 Q14 7 23 14" stroke="#06B6D4" strokeWidth="1.4" strokeLinecap="round" />
+          <circle cx="14" cy="14" r="1.4" fill="#06B6D4" />
         </svg>
       </div>
     ),
