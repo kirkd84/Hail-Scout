@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Optional
 
 from geoalchemy2 import Geometry
-from sqlalchemy import ForeignKey, String, Text, Float, DateTime, Integer
+from sqlalchemy import Boolean, ForeignKey, String, Text, Float, DateTime, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 
 from hailscout_api.db.base import Base, created_at_column, updated_at_column
@@ -99,8 +99,51 @@ class Marker(Base):
         return f"<Marker(id={self.id}, status={self.status})>"
 
 
+class AlertZone(Base):
+    """A user-defined alarm zone — "ping me when a storm hits THIS area."
+
+    Three kinds:
+      radius     — center point + radius_mi (also used by metro presets)
+      states     — list of 2-letter codes matched via the us_states table
+      nationwide — everything
+    Thresholds are per-zone: min_hail_in and/or min_wind_mph (either may
+    be null = that hazard doesn't alert). Wind fires once the wind
+    ingestion lands (Phase 2) — the column exists from day one so zones
+    don't need a migration then.
+    """
+
+    __tablename__ = "alert_zones"
+
+    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    org_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)  # radius|states|nationwide
+    center_lat: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    center_lng: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    radius_mi: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    # JSON list of 2-letter codes, e.g. ["CO","KS","FL"] (kind="states").
+    states: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    min_hail_in: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    min_wind_mph: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="true"
+    )
+    created_at: Mapped[datetime] = created_at_column()
+    updated_at: Mapped[datetime] = updated_at_column()
+
+    def __repr__(self) -> str:
+        return f"<AlertZone(id={self.id}, kind={self.kind}, name={self.name})>"
+
+
 class StormAlert(Base):
-    """Alert generated when a storm touches a monitored address."""
+    """Alert generated when a storm touches a monitored address OR an
+    alert zone. Zone alerts have monitored_address_id NULL and carry the
+    zone id/name (name snapshotted so the alert survives zone deletes)."""
 
     __tablename__ = "storm_alerts"
 
@@ -108,8 +151,17 @@ class StormAlert(Base):
     org_id: Mapped[str] = mapped_column(
         ForeignKey("organizations.id"), nullable=False, index=True
     )
-    monitored_address_id: Mapped[int] = mapped_column(
-        ForeignKey("monitored_addresses.id"), nullable=False, index=True
+    monitored_address_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("monitored_addresses.id"), nullable=True, index=True
+    )
+    # Zone provenance (Phase 33 — alarm zones). kind: address | zone_hail
+    # | zone_wind; drives the client's popup copy + severity sound.
+    alert_zone_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("alert_zones.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    zone_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    kind: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default="address"
     )
     # Storm identity. We don't FK to storms.id since fixture storms aren't
     # in the DB yet — store the id as a free string so the alert generator

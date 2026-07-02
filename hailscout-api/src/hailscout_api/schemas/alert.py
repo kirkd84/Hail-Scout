@@ -11,7 +11,8 @@ from pydantic import BaseModel
 class StormAlertResponse(BaseModel):
     id: int
     org_id: str
-    monitored_address_id: int
+    # Nullable since Phase 33: zone alerts have no monitored address.
+    monitored_address_id: Optional[int] = None
     storm_id: str
     storm_city: Optional[str] = None
     peak_size_in: float
@@ -19,6 +20,11 @@ class StormAlertResponse(BaseModel):
     read_at: Optional[datetime] = None
     dismissed_at: Optional[datetime] = None
     created_at: datetime
+    # Alarm-zone provenance (Phase 33). kind: address | zone_hail |
+    # zone_wind — drives the client's popup copy + severity sound.
+    kind: str = "address"
+    alert_zone_id: Optional[str] = None
+    zone_name: Optional[str] = None
     # Joined-in convenience fields (set by the route handler)
     address: Optional[str] = None
     address_label: Optional[str] = None

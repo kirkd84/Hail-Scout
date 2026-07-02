@@ -18,14 +18,16 @@ Why a service module (vs. an inline helper):
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Iterable
 
-from sqlalchemy import and_, delete, select
+from sqlalchemy import and_, bindparam, delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hailscout_api.db.models.canvass import (
+    AlertZone,
     MobilePushToken,
     MonitoredAddress,
     PushSubscription,
@@ -56,6 +58,98 @@ log = logging.getLogger(__name__)
 # but the *generator* only emits new rows for fresh events.
 _NEW_ALERT_LOOKBACK_DAYS = 14
 
+# Zone alarms are LIVE pop-ups, not history: only storms from the last
+# 24h fire, never storms older than the zone itself (creating a
+# "Colorado ≥1.5\"" zone must not blast last week's outbreak).
+_ZONE_LOOKBACK_HOURS = 24
+# Outbreak-day guard — one nationwide 0.75" zone shouldn't mint hundreds
+# of rows per worker pass. Dedupe means the tail arrives on later passes.
+_ZONE_MAX_MATCHES_PER_RUN = 25
+
+# Kind-specific SQL predicate on the storm centroid. Radius uses
+# geography casts for true miles; states matches against the seeded
+# us_states polygons.
+_ZONE_PRED = {
+    "radius": (
+        "ST_DWithin(s.centroid_geom::geography, "
+        "ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography, :meters)"
+    ),
+    "states": (
+        "EXISTS (SELECT 1 FROM us_states st "
+        "WHERE st.code IN :codes AND ST_Contains(st.geom, s.centroid_geom))"
+    ),
+    "nationwide": "TRUE",
+}
+
+
+async def _match_zone_storms(
+    session: AsyncSession, org, zones: list[AlertZone]
+) -> list[dict]:
+    """Fresh storms matching each enabled zone's geometry + hail threshold.
+
+    Wind matching lands with the wind-ingestion phase — zones already
+    carry min_wind_mph so no schema change will be needed then.
+    """
+    matches: list[dict] = []
+    now = datetime.now(timezone.utc)
+    for zone in zones:
+        if zone.min_hail_in is None:
+            continue  # wind-only zone; nothing to match yet
+        pred = _ZONE_PRED.get(zone.kind)
+        if pred is None:
+            continue
+        cutoff = max(
+            now - timedelta(hours=_ZONE_LOOKBACK_HOURS),
+            zone.created_at if zone.created_at.tzinfo else
+            zone.created_at.replace(tzinfo=timezone.utc),
+        )
+        sql = text(
+            f"""
+            SELECT s.id, s.max_hail_size_in, s.start_time
+              FROM storms s
+             WHERE s.start_time >= :cutoff
+               AND s.suspect = false
+               AND s.source <> 'SPC-LSR'
+               AND s.max_hail_size_in >= :min_hail
+               AND {pred}
+             ORDER BY s.start_time DESC
+             LIMIT :cap
+            """
+        )
+        params: dict = {
+            "cutoff": cutoff,
+            "min_hail": zone.min_hail_in,
+            "cap": _ZONE_MAX_MATCHES_PER_RUN,
+        }
+        if zone.kind == "radius":
+            if zone.center_lat is None or zone.center_lng is None or not zone.radius_mi:
+                continue
+            params.update(
+                lng=zone.center_lng,
+                lat=zone.center_lat,
+                meters=zone.radius_mi * 1609.34,
+            )
+        elif zone.kind == "states":
+            codes = json.loads(zone.states) if zone.states else []
+            if not codes:
+                continue
+            sql = sql.bindparams(bindparam("codes", expanding=True))
+            params["codes"] = codes
+        try:
+            rows = (await session.execute(sql, params)).all()
+        except Exception:  # pragma: no cover — bad geometry shouldn't kill the run
+            log.exception("alert.zone_match_failed zone=%s", zone.id)
+            continue
+        for r in rows:
+            matches.append({
+                "alert_zone_id": zone.id,
+                "zone_name": zone.name,
+                "storm_id": r.id,
+                "peak_size_in": float(r.max_hail_size_in),
+                "storm_started_at": r.start_time,
+            })
+    return matches
+
 
 async def generate_alerts_for_org(
     session: AsyncSession,
@@ -74,7 +168,17 @@ async def generate_alerts_for_org(
     ).scalars().all()
     address_by_id = {a.id: a for a in addresses}
 
-    if not addresses:
+    # Alarm zones (Phase 33) — matched alongside addresses so both alert
+    # kinds ride the same fan-out pass.
+    zones = (
+        await session.execute(
+            select(AlertZone).where(
+                and_(AlertZone.org_id == org.id, AlertZone.enabled.is_(True))
+            ),
+        )
+    ).scalars().all()
+
+    if not addresses and not zones:
         return _empty_summary()
 
     cutoff_from = datetime.now(timezone.utc).replace(
@@ -123,6 +227,9 @@ async def generate_alerts_for_org(
                 "storm_started_at": storm["start_time"],
             })
 
+    # Zone matches (alarm zones) — separate matcher, same fan-out pass.
+    zone_matches = await _match_zone_storms(session, org, list(zones))
+
     # Persist net-new (dedupe by (org, address, storm) uniq index).
     # We track three buckets:
     #   * truly_new        — rows added this pass; counts toward "created"
@@ -160,6 +267,35 @@ async def generate_alerts_for_org(
         session.add(alert)
         truly_new.append(alert)
 
+    # Zone alerts dedupe on (org, zone, storm) — one pop per storm per zone.
+    for m in zone_matches:
+        existing = (
+            await session.execute(
+                select(StormAlert).where(
+                    and_(
+                        StormAlert.org_id == org.id,
+                        StormAlert.alert_zone_id == m["alert_zone_id"],
+                        StormAlert.storm_id == m["storm_id"],
+                    ),
+                ),
+            )
+        ).scalars().first()
+        if existing is not None:
+            continue
+        alert = StormAlert(
+            org_id=org.id,
+            monitored_address_id=None,
+            alert_zone_id=m["alert_zone_id"],
+            zone_name=m["zone_name"],
+            kind="zone_hail",
+            storm_id=m["storm_id"],
+            storm_city=None,
+            peak_size_in=m["peak_size_in"],
+            storm_started_at=m["storm_started_at"],
+        )
+        session.add(alert)
+        truly_new.append(alert)
+
     if truly_new:
         await session.commit()
 
@@ -168,8 +304,12 @@ async def generate_alerts_for_org(
     delivery_targets: list[StormAlert] = truly_new + retry_candidates
 
     # ── Fan out to Slack ──
+    # v1 zone-alarm scope is in-app (SSE) + push; Slack/email/SMS remain
+    # address-alert channels so an outbreak day doesn't flood them.
     if org.slack_enabled and org.slack_webhook_url:
         for alert in delivery_targets:
+            if alert.kind != "address":
+                continue
             if alert.slack_sent_at is not None:
                 summary["skipped_already_delivered"] += 1
                 continue
@@ -195,6 +335,8 @@ async def generate_alerts_for_org(
     recipients = parse_recipient_list(org.alert_email_recipients)
     if org.alert_emails_enabled and recipients:
         for alert in delivery_targets:
+            if alert.kind != "address":
+                continue
             if alert.email_sent_at is not None:
                 continue
             addr = address_by_id.get(alert.monitored_address_id)
@@ -227,6 +369,8 @@ async def generate_alerts_for_org(
     sms_numbers = parse_phone_list(org.sms_recipients)
     if org.sms_enabled and sms_numbers:
         for alert in delivery_targets:
+            if alert.kind != "address":
+                continue
             if alert.sms_sent_at is not None:
                 continue
             addr = address_by_id.get(alert.monitored_address_id)
@@ -257,12 +401,17 @@ async def generate_alerts_for_org(
                 if alert.push_sent_at is not None:
                     continue
                 addr = address_by_id.get(alert.monitored_address_id)
-                where = (
-                    (addr.label or addr.address) if addr else None
-                ) or alert.storm_city or "a monitored address"
+                if alert.kind == "zone_hail":
+                    where = alert.zone_name or "an alarm zone"
+                    body_text = "Storm in one of your alarm zones. Tap to see the swath."
+                else:
+                    where = (
+                        (addr.label or addr.address) if addr else None
+                    ) or alert.storm_city or "a monitored address"
+                    body_text = "New hail on a monitored address. Tap to verify and pull a report."
                 payload = {
                     "title": f'{alert.peak_size_in:.2f}" hail — {where}',
-                    "body": "New hail on a monitored address. Tap to verify and pull a report.",
+                    "body": body_text,
                     "url": "/app/alerts",
                     "tag": f"storm-{alert.storm_id}",
                 }
@@ -304,13 +453,18 @@ async def generate_alerts_for_org(
             if alert.mobile_push_sent_at is not None:
                 continue
             addr = address_by_id.get(alert.monitored_address_id)
-            where = (
-                (addr.label or addr.address) if addr else None
-            ) or alert.storm_city or "a monitored address"
+            if alert.kind == "zone_hail":
+                where = alert.zone_name or "an alarm zone"
+                mobile_body = "Storm in one of your alarm zones. Tap to see the swath."
+            else:
+                where = (
+                    (addr.label or addr.address) if addr else None
+                ) or alert.storm_city or "a monitored address"
+                mobile_body = "New hail on a monitored address. Tap to verify and pull a report."
             dead = await send_expo_push(
                 tokens=all_tokens,
                 title=f'{alert.peak_size_in:.2f}" hail — {where}',
-                body="New hail on a monitored address. Tap to verify and pull a report.",
+                body=mobile_body,
                 data={
                     "type": "storm_alert",
                     "storm_id": alert.storm_id,

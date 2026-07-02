@@ -14,6 +14,7 @@ from hailscout_api.core import setup_logging
 from hailscout_api.db import init_db
 from hailscout_api.routes import (
     account,
+    alert_zones,
     audit,
     auth,
     contacts_crm,
@@ -123,6 +124,7 @@ def create_app() -> FastAPI:
     v1.include_router(reports.router, tags=["reports"])
     v1.include_router(markers.router, tags=["markers"])
     v1.include_router(monitored.router, tags=["monitoring"])
+    v1.include_router(alert_zones.router, tags=["alert-zones"])
     v1.include_router(parcels.router, tags=["parcels"])
     v1.include_router(contacts.router, tags=["contacts"])
     v1.include_router(ai.router, tags=["ai"])

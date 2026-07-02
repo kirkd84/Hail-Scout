@@ -306,7 +306,11 @@ async def list_alerts(
     out: list[StormAlertResponse] = []
     unread = 0
     for r in rows:
-        addr = address_by_id.get(r.monitored_address_id)
+        addr = (
+            address_by_id.get(r.monitored_address_id)
+            if r.monitored_address_id is not None
+            else None
+        )
         out.append(
             StormAlertResponse(
                 id=r.id,
@@ -319,6 +323,9 @@ async def list_alerts(
                 read_at=r.read_at,
                 dismissed_at=r.dismissed_at,
                 created_at=r.created_at,
+                kind=r.kind or "address",
+                alert_zone_id=r.alert_zone_id,
+                zone_name=r.zone_name,
                 address=addr.address if addr else None,
                 address_label=addr.label if addr else None,
             )
@@ -392,7 +399,11 @@ async def stream_alerts(
 
                 for r in fresh:
                     last_seen_id = max(last_seen_id, r.id)
-                    addr = next((a for a in addresses if a.id == r.monitored_address_id), None)
+                    addr = (
+                        next((a for a in addresses if a.id == r.monitored_address_id), None)
+                        if r.monitored_address_id is not None
+                        else None
+                    )
                     payload = {
                         "id": r.id,
                         "monitored_address_id": r.monitored_address_id,
@@ -400,6 +411,11 @@ async def stream_alerts(
                         "storm_city": r.storm_city,
                         "peak_size_in": r.peak_size_in,
                         "storm_started_at": r.storm_started_at.isoformat() if r.storm_started_at else None,
+                        # Alarm-zone provenance (Phase 33) — the client uses
+                        # kind + zone_name for popup copy + severity sound.
+                        "kind": r.kind or "address",
+                        "alert_zone_id": r.alert_zone_id,
+                        "zone_name": r.zone_name,
                         "address": addr.address if addr else None,
                         "address_label": addr.label if addr else None,
                         "created_at": r.created_at.isoformat() if r.created_at else None,
