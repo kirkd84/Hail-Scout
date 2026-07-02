@@ -54,7 +54,7 @@ function VerifiedView() {
           This page needs a location. Look up any address to generate a verified
           report you can share.
         </p>
-        <Link href="/claim" className="mt-6 inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground hover:bg-teal-900">
+        <Link href="/claim" className="mt-6 inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground hover:bg-copper-700">
           Look up an address <span aria-hidden>→</span>
         </Link>
       </section>

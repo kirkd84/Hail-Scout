@@ -28,7 +28,7 @@ const mono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: { default: APP_NAME, template: `%s · ${APP_NAME}` },
   description: APP_DESCRIPTION,
-  keywords: ["hail", "storm", "roofing", "contractors", "MRMS", "weather radar", "atlas"],
+  keywords: ["hail", "storm", "roofing", "contractors", "MRMS", "weather radar", "hail map"],
   authors: [{ name: "HailScout" }],
   creator: "HailScout",
   openGraph: {

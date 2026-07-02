@@ -21,7 +21,7 @@ export default function TerritoriesPage() {
             eyebrow="Territories"
             title="No zones drawn yet"
             description="Open the map, click 'Sweep area', draw a polygon around a neighborhood, and 'Save as territory'. Assign zones to crew members so each rep knows where to canvass."
-            primary={{ label: "Open the atlas", href: "/app/map" }}
+            primary={{ label: "Open the map", href: "/app/map" }}
           />
         </div>
       </div>
@@ -45,7 +45,7 @@ export default function TerritoriesPage() {
           </div>
           <Link
             href="/app/map"
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-teal-900"
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-copper-700"
           >
             Draw a zone <span aria-hidden>→</span>
           </Link>
@@ -110,7 +110,7 @@ function TerritoryCard({
           <span className="text-muted-foreground italic">Unassigned</span>
         )}
         <Link href="/app/map" className="text-copper hover:text-copper-700 inline-flex items-center gap-1">
-          Open in atlas <IconChevronRight className="h-3 w-3" />
+          View on map <IconChevronRight className="h-3 w-3" />
         </Link>
       </div>
     </div>

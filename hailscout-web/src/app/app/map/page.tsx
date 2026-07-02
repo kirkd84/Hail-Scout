@@ -493,7 +493,7 @@ export default function MapPage() {
         >
           <SheetHeader className="px-6 pt-6 pb-3">
             <p className="text-[10px] font-mono uppercase tracking-wide-caps text-copper">
-              Atlas search
+              Address lookup
             </p>
             <SheetTitle className="font-display text-2xl font-medium tracking-tight-display">
               {searchResults?.address ?? "Search results"}

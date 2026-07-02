@@ -27,7 +27,7 @@ export default function RootError({
         <button
           type="button"
           onClick={reset}
-          className="mt-6 inline-flex items-center justify-center rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-teal-900"
+          className="mt-6 inline-flex items-center justify-center rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-copper-700"
         >
           Try again
         </button>

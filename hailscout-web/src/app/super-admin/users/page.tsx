@@ -84,7 +84,7 @@ export default function SuperAdminUsersPage() {
           <button
             type="submit"
             disabled={busy || !email}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas transition-colors hover:bg-teal-900 disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas transition-colors hover:bg-copper-700 disabled:opacity-60"
           >
             {busy ? "Applying…" : "Apply change"}
           </button>

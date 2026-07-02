@@ -25,7 +25,7 @@ export default function AddressesPage() {
             eyebrow="Monitored addresses"
             title="No saved addresses yet."
             description="Search any address on the map and click ‘Monitor address’ to save it. Come back here every morning to see what hit your customers overnight."
-            primary={{ label: "Search the atlas", href: "/app/map" }}
+            primary={{ label: "Search the map", href: "/app/map" }}
           />
           <div className="text-center">
             <button
@@ -65,7 +65,7 @@ export default function AddressesPage() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="font-mono-num text-[11px] uppercase tracking-wide-caps text-copper">
-              Atlas watchlist
+              Watchlist
             </p>
             <h1 className="mt-1 font-display text-4xl font-medium tracking-tight-display text-foreground">
               Monitored addresses
@@ -85,7 +85,7 @@ export default function AddressesPage() {
             </button>
             <Link
               href="/app/map"
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-teal-900"
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-copper-700"
             >
               Add from map <span aria-hidden>→</span>
             </Link>

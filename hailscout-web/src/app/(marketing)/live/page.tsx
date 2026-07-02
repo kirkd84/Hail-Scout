@@ -121,7 +121,7 @@ function Hero({
           )}
         </p>
         <div className="mt-7 flex flex-wrap justify-center gap-3">
-          <Link href="/sign-up" className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground shadow-atlas transition-colors hover:bg-teal-900">
+          <Link href="/sign-up" className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground shadow-atlas transition-colors hover:bg-copper-700">
             Start your free trial <span aria-hidden>→</span>
           </Link>
           <Link href="/" className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-5 py-3 text-sm font-medium text-foreground hover:bg-muted">

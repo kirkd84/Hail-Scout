@@ -127,7 +127,7 @@ export function MarkerNotesThread({ markerId }: Props) {
             type="button"
             onClick={() => void submit()}
             disabled={busy || !draft.trim()}
-            className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-teal-900 disabled:opacity-60"
+            className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-copper-700 disabled:opacity-60"
           >
             {busy ? "Posting…" : "Post note"}
           </button>

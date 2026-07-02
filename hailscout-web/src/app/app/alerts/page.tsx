@@ -49,7 +49,7 @@ export default function AlertsPage() {
             title="No active alerts"
             description="Add addresses to your watchlist on the map. We'll surface an alert here every time a hailstorm above your threshold touches one of them."
             primary={{ label: "Manage addresses", href: "/app/addresses" }}
-            secondary={{ label: "Search the atlas", href: "/app/map" }}
+            secondary={{ label: "Search the map", href: "/app/map" }}
           />
         </div>
       </div>

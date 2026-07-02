@@ -251,7 +251,7 @@ export function MarkerEditor({
                   });
                   onClose();
                 }}
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-teal-900"
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-copper-700"
               >
                 Save
               </button>

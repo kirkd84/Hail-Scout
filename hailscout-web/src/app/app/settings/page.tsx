@@ -276,7 +276,7 @@ function WorkspaceTab() {
       >
         <Link
           href="/app/team"
-          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-teal-900"
+          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-copper-700"
         >
           Open team page <span aria-hidden>→</span>
         </Link>
@@ -402,7 +402,7 @@ function HelpTab() {
       >
         <a
           href="mailto:hello@hailscout.com"
-          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-teal-900"
+          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-copper-700"
         >
           hello@hailscout.com <span aria-hidden>↗</span>
         </a>

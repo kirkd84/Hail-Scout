@@ -211,7 +211,7 @@ export default function PhotoAiPage() {
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
-              className="mt-6 inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-teal-900"
+              className="mt-6 inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-copper-700"
             >
               Choose photo
             </button>
@@ -369,7 +369,7 @@ function ResultPanel({ result }: { result: Result }) {
 
       <button
         type="button"
-        className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-teal-900 disabled:opacity-50"
+        className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-copper-700 disabled:opacity-50"
         disabled
         title="Report generation from photo coming soon"
       >
@@ -392,7 +392,7 @@ function ErrorPanel({ msg, onRetry }: { msg: string; onRetry: () => void }) {
       <button
         type="button"
         onClick={onRetry}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-teal-900"
+        className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-copper-700"
       >
         Try another photo
       </button>

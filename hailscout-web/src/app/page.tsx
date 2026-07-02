@@ -51,7 +51,7 @@ function Hero() {
           <LiveCountBadge className="mb-5" />
           <h1 className="font-display text-balance text-5xl font-medium leading-[1.02] tracking-tight-display text-foreground md:text-6xl lg:text-7xl">
             Every hailstorm,
-            <span className="block text-primary">on one atlas.</span>
+            <span className="block text-primary">on one map.</span>
           </h1>
           <p className="mt-6 max-w-xl text-pretty text-lg leading-relaxed text-muted-foreground md:text-xl">
             HailScout is the field guide your crew opens every morning. Track
@@ -61,7 +61,7 @@ function Hero() {
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
               href="/sign-up"
-              className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground shadow-atlas transition-all hover:bg-teal-900"
+              className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground shadow-atlas transition-all hover:bg-copper-700"
             >
               Start your free trial <span aria-hidden>→</span>
             </Link>
@@ -122,7 +122,7 @@ function HowItWorks() {
       n: "01",
       title: "We watch the sky.",
       body:
-        "Our pipeline ingests NOAA MRMS data every two minutes. The moment hail-bearing radar signatures cross a populated area, the swath appears on your atlas.",
+        "Our pipeline ingests NOAA MRMS data every two minutes. The moment hail-bearing radar signatures cross a populated area, the swath appears on your map.",
     },
     {
       n: "02",
@@ -172,7 +172,7 @@ function ProductSections() {
           flip={false}
           eyebrow="Real-time + 15-year archive"
           title="The whole sky, on one page."
-          body="Every storm we've ever indexed lives on the atlas. Filter by date, by hail size, by address. The interface gets out of the way — the map is the product."
+          body="Every storm we've ever indexed lives on the map. Filter by date, by hail size, by address. The interface gets out of the way — the map is the product."
           stat={{ value: "1,200+", label: "storms indexed last quarter" }}
         />
         <ProductRow

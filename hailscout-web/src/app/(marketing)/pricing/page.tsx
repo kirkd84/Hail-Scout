@@ -199,7 +199,7 @@ function PricingGrid() {
                 href={t.cta.href}
                 className={`mt-6 inline-flex w-full items-center justify-center gap-2 rounded-md px-4 py-3 text-sm font-medium shadow-atlas transition-colors ${
                   t.highlight
-                    ? "bg-primary text-primary-foreground hover:bg-teal-900"
+                    ? "bg-primary text-primary-foreground hover:bg-copper-700"
                     : "border border-border bg-card text-foreground hover:bg-muted"
                 }`}
               >

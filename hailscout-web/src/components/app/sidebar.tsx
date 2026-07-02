@@ -23,20 +23,48 @@ interface NavItem {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
 }
 
-const APP_NAV: NavItem[] = [
-  { label: "Overview",    href: "/app",           icon: IconCompass },
-  { label: "Map",         href: "/app/map",       icon: IconMap },
-  { label: "Addresses",   href: "/app/addresses", icon: IconAddresses },
-  { label: "Alerts",      href: "/app/alerts",    icon: IconBolt },
-  { label: "Markers",     href: "/app/markers",   icon: IconFlag },
-  { label: "Territories", href: "/app/territories", icon: IconCompass },
-  { label: "Crew",        href: "/app/crew",     icon: IconUsers },
-  { label: "Contacts",    href: "/app/customers", icon: IconUsers },
-  { label: "Follow-ups",  href: "/app/calendar",  icon: IconCalendar },
-  { label: "Activity",    href: "/app/activity",  icon: IconBolt },
-  { label: "Reports",     href: "/app/reports",   icon: IconReport },
-  { label: "Photo AI",    href: "/app/photo-ai",  icon: IconBolt },
-  { label: "Team",        href: "/app/team",     icon: IconUsers },
+interface NavSection {
+  label: string | null;
+  items: NavItem[];
+}
+
+/**
+ * Nav is grouped into labeled sections, with plain-language names —
+ * "Crew vs Team" and "Addresses vs Markers" confused people:
+ *   Watchlist   (was Addresses) — customer properties monitored for hail
+ *   Door Knocks (was Markers)   — canvassing pins + door outcomes
+ *   Leaderboard (was Crew)      — per-rep performance stats
+ *   Team                        — invite members, manage roles
+ */
+const APP_NAV: NavSection[] = [
+  {
+    label: "Storms",
+    items: [
+      { label: "Overview",  href: "/app",           icon: IconCompass },
+      { label: "Storm Map", href: "/app/map",       icon: IconMap },
+      { label: "Alerts",    href: "/app/alerts",    icon: IconBolt },
+      { label: "Watchlist", href: "/app/addresses", icon: IconAddresses },
+    ],
+  },
+  {
+    label: "Canvassing",
+    items: [
+      { label: "Door Knocks", href: "/app/markers",     icon: IconFlag },
+      { label: "Territories", href: "/app/territories", icon: IconCompass },
+      { label: "Contacts",    href: "/app/customers",   icon: IconUsers },
+      { label: "Follow-ups",  href: "/app/calendar",    icon: IconCalendar },
+      { label: "Leaderboard", href: "/app/crew",        icon: IconUsers },
+    ],
+  },
+  {
+    label: "Workspace",
+    items: [
+      { label: "Reports",  href: "/app/reports",  icon: IconReport },
+      { label: "Photo AI", href: "/app/photo-ai", icon: IconBolt },
+      { label: "Activity", href: "/app/activity", icon: IconBolt },
+      { label: "Team",     href: "/app/team",     icon: IconUsers },
+    ],
+  },
 ];
 
 export function Sidebar() {
@@ -62,39 +90,50 @@ export function Sidebar() {
         </div>
         <div className="rule-atlas mx-5" />
 
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {APP_NAV.map((item) => {
-            const isActive =
-              item.href === "/app"
-                ? pathname === "/app"
-                : pathname === item.href || pathname.startsWith(item.href + "/");
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "group flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all",
-                  isActive
-                    ? "bg-primary text-primary-foreground shadow-atlas"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground",
-                )}
-              >
-                <Icon
-                  className={cn(
-                    "h-4 w-4 shrink-0 transition-colors",
-                    isActive ? "text-primary-foreground" : "text-foreground/60 group-hover:text-foreground",
-                  )}
-                />
-                <span className="font-medium">{item.label}</span>
-                {isActive && (
-                  // Contrast with the (now cyan) active pill — copper-on-primary
-                  // became cyan-on-cyan after the PenSnap rebrand.
-                  <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary-foreground/80" aria-hidden />
-                )}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 px-3 py-3 overflow-y-auto">
+          {APP_NAV.map((section, si) => (
+            <div key={section.label ?? si} className={si > 0 ? "mt-4" : ""}>
+              {section.label && (
+                <p className="px-3 pb-1 text-[10px] font-mono uppercase tracking-wide-caps text-muted-foreground/70">
+                  {section.label}
+                </p>
+              )}
+              <div className="space-y-0.5">
+                {section.items.map((item) => {
+                  const isActive =
+                    item.href === "/app"
+                      ? pathname === "/app"
+                      : pathname === item.href || pathname.startsWith(item.href + "/");
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        "group flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all",
+                        isActive
+                          ? "bg-primary text-primary-foreground shadow-atlas"
+                          : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                      )}
+                    >
+                      <Icon
+                        className={cn(
+                          "h-4 w-4 shrink-0 transition-colors",
+                          isActive ? "text-primary-foreground" : "text-foreground/60 group-hover:text-foreground",
+                        )}
+                      />
+                      <span className="font-medium">{item.label}</span>
+                      {isActive && (
+                        // Contrast with the (now cyan) active pill — copper-on-primary
+                        // became cyan-on-cyan after the PenSnap rebrand.
+                        <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary-foreground/80" aria-hidden />
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
 
         {isSuperAdmin && (

@@ -127,7 +127,7 @@ export default function DeleteAccountPage() {
             type="button"
             onClick={submit}
             disabled={!email.trim() || !confirm || status === "sending"}
-            className="inline-flex w-full items-center justify-center rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-teal-900 disabled:opacity-50"
+            className="inline-flex w-full items-center justify-center rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-copper-700 disabled:opacity-50"
           >
             {status === "sending" ? "Submitting…" : "Request account deletion"}
           </button>

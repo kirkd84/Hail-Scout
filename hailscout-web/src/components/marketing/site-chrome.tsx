@@ -34,7 +34,7 @@ export function SiteHeader() {
           </Link>
           <Link
             href="/sign-up"
-            className="inline-flex items-center gap-1 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-teal-900"
+            className="inline-flex items-center gap-1 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-copper-700"
           >
             Start free trial <span aria-hidden>→</span>
           </Link>

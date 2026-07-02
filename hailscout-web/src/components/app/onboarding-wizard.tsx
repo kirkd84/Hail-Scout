@@ -278,7 +278,7 @@ function Welcome({ onNext, firstName }: { onNext: () => void; firstName?: string
       <button
         type="button"
         onClick={onNext}
-        className="mt-7 inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-teal-900"
+        className="mt-7 inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-copper-700"
       >
         Let&apos;s go <IconChevronRight className="h-3.5 w-3.5" />
       </button>
@@ -344,7 +344,7 @@ function SaveAddress({
           type="button"
           onClick={onNext}
           disabled={busy}
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-teal-900 disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-copper-700 disabled:opacity-60"
         >
           {busy ? "Geocoding…" : "Save & continue"} <IconChevronRight className="h-3.5 w-3.5" />
         </button>
@@ -411,7 +411,7 @@ function ShowStorms({
         <button
           type="button"
           onClick={onNext}
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-teal-900"
+          className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-copper-700"
         >
           Show me the report → <IconChevronRight className="h-3.5 w-3.5" />
         </button>
@@ -451,7 +451,7 @@ function ShowReport({ onNext }: { onNext: () => void }) {
         <button
           type="button"
           onClick={onNext}
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-teal-900"
+          className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-copper-700"
         >
           Last step → <IconChevronRight className="h-3.5 w-3.5" />
         </button>

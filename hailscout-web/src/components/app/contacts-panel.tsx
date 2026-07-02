@@ -93,7 +93,7 @@ export function ContactsPanel({ addressId, contextLabel, embedded = false }: Pro
           <button
             type="button"
             onClick={() => setDrafting(true)}
-            className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-teal-900"
+            className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-copper-700"
           >
             <IconPlus className="h-3.5 w-3.5" />
             Add the first contact
@@ -307,7 +307,7 @@ function ContactRow({
             type="button"
             disabled={saving || !name.trim()}
             onClick={handleSave}
-            className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-teal-900 disabled:opacity-50"
+            className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-copper-700 disabled:opacity-50"
           >
             {saving ? "Saving…" : "Save"}
           </button>
@@ -433,7 +433,7 @@ function DraftRow({
           type="button"
           disabled={saving || !name.trim()}
           onClick={handleCreate}
-          className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-teal-900 disabled:opacity-50"
+          className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-copper-700 disabled:opacity-50"
         >
           {saving ? "Adding…" : "Add contact"}
         </button>

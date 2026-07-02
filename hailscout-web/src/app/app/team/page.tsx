@@ -11,10 +11,11 @@ import { cn } from "@/lib/utils";
 const ROLE_OPTIONS = ["owner", "admin", "member"] as const;
 type Role = typeof ROLE_OPTIONS[number];
 
+// PenSnap family: cyan for owner, slate for admin/member.
 const ROLE_TONE: Record<string, { color: string; bg: string; ring: string }> = {
-  owner:  { color: "#0F4C5C", bg: "rgba(15, 76, 92, 0.10)",  ring: "rgba(15, 76, 92, 0.35)" },
-  admin:  { color: "#7A4A0E", bg: "rgba(216, 124, 74, 0.12)", ring: "rgba(216, 124, 74, 0.45)" },
-  member: { color: "#444441", bg: "rgba(107, 96, 82, 0.10)",  ring: "rgba(107, 96, 82, 0.30)" },
+  owner:  { color: "#0E7490", bg: "rgba(6, 182, 212, 0.10)",  ring: "rgba(6, 182, 212, 0.35)" },
+  admin:  { color: "#334155", bg: "rgba(51, 65, 85, 0.10)",   ring: "rgba(51, 65, 85, 0.35)" },
+  member: { color: "#64748B", bg: "rgba(100, 116, 139, 0.10)", ring: "rgba(100, 116, 139, 0.30)" },
 };
 
 export default function TeamPage() {
@@ -85,7 +86,7 @@ export default function TeamPage() {
             <button
               type="button"
               onClick={() => setInviteOpen((v) => !v)}
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-teal-900"
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-copper-700"
             >
               + Add teammate
             </button>

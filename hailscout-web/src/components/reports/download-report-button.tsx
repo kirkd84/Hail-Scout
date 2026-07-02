@@ -131,7 +131,7 @@ export function DownloadReportButton({ storm, address, map, className, compact =
       onClick={handleClick}
       disabled={busy !== null}
       className={cn(
-        "inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-atlas transition-colors hover:bg-teal-900 disabled:opacity-60",
+        "inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-atlas transition-colors hover:bg-copper-700 disabled:opacity-60",
         className,
       )}
     >

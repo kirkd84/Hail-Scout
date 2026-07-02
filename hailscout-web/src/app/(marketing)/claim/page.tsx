@@ -106,7 +106,7 @@ export default function ClaimLookupPage() {
               <button
                 type="submit"
                 disabled={isLoading || !query.trim()}
-                className="inline-flex items-center gap-1 rounded-full bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:bg-teal-900 disabled:opacity-60"
+                className="inline-flex items-center gap-1 rounded-full bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:bg-copper-700 disabled:opacity-60"
               >
                 {isLoading ? "Looking…" : "Look up"}
               </button>
@@ -215,7 +215,7 @@ export default function ClaimLookupPage() {
                 </button>
                 <Link
                   href="/sign-up"
-                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-teal-900"
+                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-copper-700"
                 >
                   I&apos;m a contractor — start free trial <span aria-hidden>→</span>
                 </Link>

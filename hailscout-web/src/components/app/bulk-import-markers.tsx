@@ -237,7 +237,7 @@ export function BulkImportMarkers({
                 type="button"
                 onClick={() => void startImport()}
                 disabled={busy || text.trim().length === 0}
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-teal-900 disabled:opacity-60"
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-copper-700 disabled:opacity-60"
               >
                 {busy ? `Importing… (${counts.saved + counts.failed}/${rows.length})` : "Import"}
               </button>

@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "HailScout — every hailstorm, on one atlas.";
+export const alt = "HailScout — every hailstorm, on one map.";
 export const dynamic = "force-static";
 
 export default function OpenGraphImage() {
@@ -66,7 +66,7 @@ export default function OpenGraphImage() {
             }}
           >
             <span>Every hailstorm,</span>
-            <span style={{ color: "#0E7490" }}>on one atlas.</span>
+            <span style={{ color: "#0E7490" }}>on one map.</span>
           </div>
           <div style={{ fontSize: 26, color: "#64748B", marginTop: 32, maxWidth: 800, lineHeight: 1.4 }}>
             The field guide your crew opens every morning.

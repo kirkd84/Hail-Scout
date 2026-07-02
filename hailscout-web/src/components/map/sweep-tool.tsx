@@ -97,7 +97,7 @@ export function SweepTool({ map, hideTrigger = false, startSignal = 0 }: Props) 
         type: "fill",
         source: SOURCE_ID,
         filter: ["==", ["geometry-type"], "Polygon"],
-        paint: { "fill-color": "#D87C4A", "fill-opacity": 0.10 },
+        paint: { "fill-color": "#06B6D4", "fill-opacity": 0.10 },
       });
       map.addLayer({
         id: LINE_LAYER,
@@ -107,7 +107,7 @@ export function SweepTool({ map, hideTrigger = false, startSignal = 0 }: Props) 
           ["==", ["geometry-type"], "LineString"],
           ["==", ["geometry-type"], "Polygon"],
         ],
-        paint: { "line-color": "#D87C4A", "line-width": 2, "line-dasharray": [3, 2] },
+        paint: { "line-color": "#06B6D4", "line-width": 2, "line-dasharray": [3, 2] },
       });
       map.addLayer({
         id: VTX_LAYER,
@@ -115,7 +115,7 @@ export function SweepTool({ map, hideTrigger = false, startSignal = 0 }: Props) 
         source: SOURCE_ID,
         filter: ["==", ["geometry-type"], "Point"],
         paint: {
-          "circle-color": "#D87C4A",
+          "circle-color": "#06B6D4",
           "circle-stroke-color": "#FFFFFF",
           "circle-stroke-width": 2,
           "circle-radius": 5,
@@ -381,7 +381,7 @@ export function SweepTool({ map, hideTrigger = false, startSignal = 0 }: Props) 
               <button
                 type="button"
                 onClick={() => void findProperties()}
-                className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-teal-900"
+                className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-copper-700"
               >
                 Find properties
               </button>
@@ -465,7 +465,7 @@ export function SweepTool({ map, hideTrigger = false, startSignal = 0 }: Props) 
                       type="button"
                       disabled={filtered.length === 0}
                       onClick={exportCsv}
-                      className="flex-1 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground shadow-atlas hover:bg-teal-900 disabled:opacity-50"
+                      className="flex-1 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground shadow-atlas hover:bg-copper-700 disabled:opacity-50"
                     >
                       Export CSV
                     </button>

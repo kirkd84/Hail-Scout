@@ -40,7 +40,7 @@ export default function ReportsPage() {
             </ol>
             <Link
               href="/app/map"
-              className="mt-5 inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-teal-900"
+              className="mt-5 inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-copper-700"
             >
               Open the atlas <span aria-hidden>→</span>
             </Link>
@@ -75,7 +75,7 @@ export default function ReportsPage() {
           </div>
           <Link
             href="/app/map"
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-teal-900"
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-copper-700"
           >
             New report <span aria-hidden>→</span>
           </Link>
