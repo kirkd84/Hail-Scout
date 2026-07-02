@@ -52,7 +52,7 @@ export function HailOutlook() {
               What's coming next.
             </h2>
             <p className="mt-3 max-w-xl text-foreground/70 text-lg">
-              Plan the week from the atlas. Convective outlook, MRMS, and
+              Plan the week from the map. Convective outlook, MRMS, and
               regional risk mixed into one view your foreman can read at the
               breakfast table.
             </p>

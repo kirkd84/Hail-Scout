@@ -42,7 +42,7 @@ export default function ReportsPage() {
               href="/app/map"
               className="mt-5 inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-copper-700"
             >
-              Open the atlas <span aria-hidden>→</span>
+              Open the map <span aria-hidden>→</span>
             </Link>
           </div>
 

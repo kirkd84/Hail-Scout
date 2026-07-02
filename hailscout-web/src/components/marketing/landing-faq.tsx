@@ -35,7 +35,7 @@ const FAQS: QA[] = [
   },
   {
     q: "Is there a free trial?",
-    a: "14 days, full access, no credit card required. You'll get the same atlas your paying customers see — with a banner at the top reminding you to upgrade when you're ready. Cancel anytime in one click.",
+    a: "14 days, full access, no credit card required. You'll get the same map your paying customers see — with a banner at the top reminding you to upgrade when you're ready. Cancel anytime in one click.",
   },
   {
     q: "Who's behind HailScout?",

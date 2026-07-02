@@ -13,7 +13,7 @@ interface BasemapToggleProps {
 const OPTIONS: { id: BasemapId; label: string; icon: React.ReactNode }[] = [
   {
     id: "atlas",
-    label: "Atlas",
+    label: "Classic",
     icon: (
       <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.4">
         <ellipse cx="8" cy="8" rx="6.5" ry="4" />

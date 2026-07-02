@@ -29,7 +29,7 @@ const STEPS: Step[] = [
   {
     icon: <IconLayers className="h-5 w-5" />,
     title: "Switch the basemap",
-    body: "The bottom toggle swaps Atlas, Streets, Satellite, and Hybrid. Use Streets for navigation, Satellite for visual roof inspection, Hybrid for both at once.",
+    body: "The bottom toggle swaps Classic, Streets, Satellite, and Hybrid. Use Streets for navigation, Satellite for visual roof inspection, Hybrid for both at once.",
   },
   {
     icon: <IconPin className="h-5 w-5" />,
@@ -119,7 +119,7 @@ export function WelcomeTour() {
             <Wordmark size="sm" pulse href={null} />
           </div>
           <p className="font-mono-num text-[10px] uppercase tracking-wide-caps text-copper">
-            Welcome to the atlas
+            Welcome to HailScout
           </p>
         </div>
 

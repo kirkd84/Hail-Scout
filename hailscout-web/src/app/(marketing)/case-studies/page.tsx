@@ -24,7 +24,7 @@ export default function CaseStudiesIndex() {
           Customer stories
         </p>
         <h1 className="mt-3 font-display text-5xl md:text-6xl font-medium tracking-tight-display text-teal-900">
-          The atlas, in the field.
+          HailScout, in the field.
         </h1>
         <p className="mt-4 max-w-xl text-lg text-foreground/70">
           What real crews built when they swapped polygon-grade hail data for

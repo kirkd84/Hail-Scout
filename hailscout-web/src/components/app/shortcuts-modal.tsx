@@ -78,7 +78,7 @@ export function ShortcutsModal() {
         <div className="px-5 py-4 space-y-5 max-h-[70vh] overflow-y-auto">
           <Group title="Global">{GLOBAL.map((s) => <Row key={s.label} {...s} />)}</Group>
           <Group title="Command palette">{PALETTE.map((s) => <Row key={s.label} {...s} />)}</Group>
-          <Group title="Atlas (map page)">{MAP.map((s) => <Row key={s.label} {...s} />)}</Group>
+          <Group title="Storm Map">{MAP.map((s) => <Row key={s.label} {...s} />)}</Group>
         </div>
         <div className="flex items-center justify-between border-t border-border px-5 py-3">
           <span className="text-[10px] font-mono uppercase tracking-wide-caps text-foreground/45">

@@ -89,7 +89,7 @@ export default function StormCatalogPage() {
             Storm catalog · public
           </p>
           <h1 className="mt-2 font-display text-balance text-5xl font-medium leading-[1.05] tracking-tight-display text-foreground md:text-6xl">
-            Every storm on the atlas.
+            Every storm on the map.
           </h1>
           <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
             Indexed from NOAA MRMS &amp; NEXRAD. Filter by size, source, and

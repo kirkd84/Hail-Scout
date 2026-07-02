@@ -62,7 +62,7 @@ export const CASE_STUDIES: CaseStudy[] = [
         eyebrow: "After",
         heading: "Three storms, $840K in Q2.",
         paragraphs: [
-          "Ridgeline closed a third of every estimate they wrote in May. Their inspection-to-contract conversion went from a national-average 18% to a Tornado-Alley-respectable 42%. They added a fifth truck in July, paid cash for it, and named her Atlas.",
+          "Ridgeline closed a third of every estimate they wrote in May. Their inspection-to-contract conversion went from a national-average 18% to a Tornado-Alley-respectable 42%. They added a fifth truck in July, paid cash for it, and named her Hailey.",
           "More importantly, the team stopped resenting the route. The map was the route. HailScout told them where to go. The crew talked to homeowners who actually had damage, who actually wanted help, who actually wrote checks. Door-knocking stopped being a numbers game and started being a service.",
           "The conference-week email from Mark to his 14 friends in the trade said it best: Stop trying to remember which neighborhood got hit last March. HailScout remembers.",
         ],

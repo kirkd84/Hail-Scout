@@ -47,7 +47,7 @@ const PROMISES: { k: string; v: string }[] = [
   },
   {
     k: "14-day free trial",
-    v: "Full access, no credit card. Explore the entire atlas before you pay a cent.",
+    v: "Full access, no credit card. Explore the entire map before you pay a cent.",
   },
   {
     k: "Cancel anytime",
@@ -238,7 +238,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "Can I try for free?",
-    a: "Yes. 14 days full access to Starter, no credit card required. The atlas is yours to explore from day one.",
+    a: "Yes. 14 days full access to Starter, no credit card required. The map is yours to explore from day one.",
   },
   {
     q: "How many team members can I invite?",

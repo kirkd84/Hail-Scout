@@ -63,7 +63,7 @@ export function FollowUpsWidget() {
         <div className="text-center py-6">
           <IconCalendar className="h-8 w-8 mx-auto text-foreground/25" />
           <p className="mt-2 text-sm text-foreground/55">
-            Nothing due. The atlas is calm.
+            Nothing due. All caught up.
           </p>
         </div>
       ) : (

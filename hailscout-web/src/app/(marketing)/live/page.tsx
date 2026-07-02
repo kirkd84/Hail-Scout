@@ -109,7 +109,7 @@ function Hero({
         </p>
         <h1 className="mx-auto mt-3 max-w-3xl font-display text-balance text-5xl font-medium leading-[1.05] tracking-tight-display text-foreground md:text-6xl">
           Every hailstorm, every day.
-          <span className="block text-primary">Live from the atlas.</span>
+          <span className="block text-primary">Live from the map.</span>
         </h1>
         <p className="mx-auto mt-5 max-w-xl text-lg text-muted-foreground">
           See what&apos;s happening in the U.S. hail belt right now — straight from the same NOAA MRMS feed our paying contractors trust.

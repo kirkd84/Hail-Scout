@@ -418,7 +418,7 @@ function FinalCta() {
           Are you a roofing contractor?
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-primary-foreground/80">
-          HailScout pulls every storm in the U.S. hail belt onto one atlas. Save customer addresses, get alerted instantly, generate branded Hail Impact Reports.
+          HailScout pulls every storm in the U.S. hail belt onto one map. Save customer addresses, get alerted instantly, generate branded Hail Impact Reports.
         </p>
         <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
           <Link href="/sign-up" className="inline-flex items-center gap-2 rounded-md bg-copper px-5 py-3 text-sm font-medium text-primary-foreground shadow-atlas-lg hover:bg-copper-700">

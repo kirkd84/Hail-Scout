@@ -117,7 +117,7 @@ export default function DashboardPage() {
         <ContourBg className="opacity-60" density="sparse" fadeBottom />
         <div className="relative container max-w-6xl py-10">
           <p className="font-mono-num text-[11px] uppercase tracking-wide-caps text-copper">
-            Atlas overview
+            Storm overview
           </p>
           <h1 className="mt-1 font-display text-4xl font-medium tracking-tight-display text-foreground md:text-5xl">
             {greeting}
@@ -134,7 +134,7 @@ export default function DashboardPage() {
                 are tracking right now. {unreadCount > 0 && `${unreadCount} new alert${unreadCount === 1 ? "" : "s"} on your monitored addresses.`}
               </>
             ) : (
-              "All quiet on the atlas. Browse recent storms below or hit the map."
+              "All quiet right now. Browse recent storms below or hit the map."
             )}
           </p>
           <div className="mt-6 flex flex-wrap gap-2">
@@ -142,7 +142,7 @@ export default function DashboardPage() {
               href="/app/map"
               className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-copper-700"
             >
-              Open the atlas <span aria-hidden>→</span>
+              Open the map <span aria-hidden>→</span>
             </Link>
             <Link
               href="/app/alerts"
@@ -188,7 +188,7 @@ export default function DashboardPage() {
         {/* Two-column main grid */}
         <section className="grid gap-6 md:grid-cols-2">
           {/* Live storms */}
-          <Card title="Today on the atlas" eyebrow={live.length > 0 ? "Live · MRMS" : "Recent"}>
+          <Card title="Today's storms" eyebrow={live.length > 0 ? "Live · MRMS" : "Recent"}>
             {live.length > 0 ? (
               <ul className="divide-y divide-border/60">
                 {live.map((s) => {

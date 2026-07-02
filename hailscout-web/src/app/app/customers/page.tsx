@@ -63,7 +63,7 @@ export default function CustomersPage() {
             title="No contacts yet."
             description="Save addresses to your watchlist, then add the homeowner's contact info as you knock doors. Every contact stays attached to its address so you never lose context on the next storm."
             primary={{ label: "Open monitored addresses", href: "/app/addresses" }}
-            secondary={{ label: "Search the atlas", href: "/app/map" }}
+            secondary={{ label: "Search the map", href: "/app/map" }}
           />
         </div>
       </div>

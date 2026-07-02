@@ -203,7 +203,7 @@ function FinalCta() {
     <section className="border-t border-border bg-primary text-primary-foreground">
       <div className="container py-16 text-center md:py-20">
         <h2 className="font-display text-balance text-3xl font-medium tracking-tight-display md:text-4xl">
-          Try the atlas. Decide for yourself.
+          Try the map. Decide for yourself.
         </h2>
         <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
           <Link href="/sign-up" className="inline-flex items-center gap-2 rounded-md bg-copper px-5 py-3 text-sm font-medium text-primary-foreground shadow-atlas-lg transition-colors hover:bg-copper-700">

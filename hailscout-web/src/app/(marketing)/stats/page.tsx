@@ -91,7 +91,7 @@ export default function StatsPage() {
           <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
             HailScout indexes every MRMS-detected hail cell across the
             continental U.S., plus high-resolution NEXRAD storm-cell
-            tracking. Here&apos;s what the atlas looks like right now.
+            tracking. Here&apos;s what the map looks like right now.
           </p>
         </div>
       </section>

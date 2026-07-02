@@ -20,7 +20,7 @@ const QUOTES: Quote[] = [
   },
   {
     body:
-      "We doubled our knock-rate in two months. The atlas + alert combo means our reps are at the right doors at the right time. Insurance adjusters started taking our reports without question.",
+      "We doubled our knock-rate in two months. The map + alert combo means our reps are at the right doors at the right time. Insurance adjusters started taking our reports without question.",
     name: "Tasha Reyes",
     role: "VP Sales — Cardinal Exteriors · DFW, TX",
     initials: "TR",

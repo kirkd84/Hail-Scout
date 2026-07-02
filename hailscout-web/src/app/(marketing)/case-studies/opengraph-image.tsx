@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "HailScout customer stories — the atlas, in the field.";
+export const alt = "HailScout customer stories — HailScout, in the field.";
 export const dynamic = "force-static";
 
 export default function OG() {
@@ -63,7 +63,7 @@ export default function OG() {
               flexDirection: "column",
             }}
           >
-            <span>The atlas,</span>
+            <span>HailScout,</span>
             <span style={{ color: "#2B2620" }}>in the field.</span>
           </div>
           <div style={{ fontSize: 26, color: "#6B6052", marginTop: 32, maxWidth: 880, lineHeight: 1.4 }}>

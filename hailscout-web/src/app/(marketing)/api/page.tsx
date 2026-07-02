@@ -27,7 +27,7 @@ export default function ApiDocsPage() {
             Developer · public API
           </p>
           <h1 className="mt-2 font-display text-balance text-5xl font-medium leading-[1.05] tracking-tight-display text-foreground md:text-6xl">
-            Build on the atlas.
+            Build on HailScout.
           </h1>
           <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
             REST endpoints over every hail cell HailScout has ingested,
