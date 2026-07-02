@@ -16,7 +16,13 @@ export interface StormAlert {
   created_at: string;
   address: string | null;
   address_label: string | null;
-  monitored_address_id: number;
+  // Nullable since Phase 33 — zone alerts have no monitored address.
+  monitored_address_id: number | null;
+  // Alarm-zone provenance (Phase 33). kind drives popup copy + the
+  // severity sound: address | zone_hail | zone_wind.
+  kind?: string;
+  alert_zone_id?: string | null;
+  zone_name?: string | null;
 }
 
 interface AlertsResponse {
