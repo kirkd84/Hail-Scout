@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { ContourBg } from "@/components/brand/contour-bg";
 import { Wordmark } from "@/components/brand/wordmark";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
+import { isAppleConfigured } from "@/lib/auth/providers";
 
 export default function SignUpPage() {
   return (
@@ -16,7 +17,7 @@ export default function SignUpPage() {
           Sign in with the work account your administrator added.
         </p>
         <Suspense fallback={null}>
-          <OAuthButtons />
+          <OAuthButtons appleEnabled={isAppleConfigured()} />
         </Suspense>
       </div>
     </div>

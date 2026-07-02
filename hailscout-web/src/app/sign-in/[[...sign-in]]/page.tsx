@@ -3,6 +3,7 @@ import { ContourBg } from "@/components/brand/contour-bg";
 import { Wordmark } from "@/components/brand/wordmark";
 import { EmailSignInForm } from "@/components/auth/email-sign-in-form";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
+import { isAppleConfigured } from "@/lib/auth/providers";
 
 export default function SignInPage() {
   return (
@@ -22,7 +23,7 @@ export default function SignInPage() {
           <span className="h-px flex-1 bg-border" />
         </div>
         <Suspense fallback={null}>
-          <OAuthButtons />
+          <OAuthButtons appleEnabled={isAppleConfigured()} />
         </Suspense>
         <p className="mt-8 text-xs text-muted-foreground">
           Storm intelligence · 2026

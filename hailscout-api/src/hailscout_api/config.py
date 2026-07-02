@@ -88,6 +88,16 @@ class Settings(BaseSettings):
     # Microsoft tenant: "common" (work + personal), "organizations",
     # "consumers", or a specific tenant GUID. Controls the accepted issuer.
     microsoft_oauth_tenant: str = "common"
+    # Sign in with Apple. The web tier's Apple id_token carries the **Services
+    # ID** as `aud` (the web-tier env is APPLE_CLIENT_ID; on the API it's this
+    # APPLE_OAUTH_CLIENT_ID, named for parity with google_/microsoft_oauth_*).
+    # Empty → Apple stays dark here and verify_oidc_id_token refuses it, matching
+    # the web BFF whose button only lights up once its four APPLE_* envs exist.
+    apple_oauth_client_id: str = ""
+    # Extra accepted Apple audiences — the native iOS app's id_token carries the
+    # app BUNDLE ID as `aud`, which differs from the web Services ID. List the
+    # bundle id(s) here so a future native Sign in with Apple passes validation.
+    apple_oauth_audiences: list[str] = []
     # JWKS cache TTL (seconds) for provider signing keys. They rotate rarely,
     # so one fetch is reused across requests for this long.
     oidc_jwks_cache_ttl_seconds: int = 3600

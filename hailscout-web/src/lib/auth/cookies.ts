@@ -80,6 +80,24 @@ export async function setOAuthTempCookies(
   c.set(VERIFIER_COOKIE, verifier, opts);
 }
 
+/**
+ * Apple variant: the form_post callback arrives as a CROSS-SITE POST from
+ * appleid.apple.com, and browsers withhold SameSite=Lax cookies on cross-site
+ * POSTs — so Apple's state cookie must be SameSite=None; Secure (always
+ * Secure: None requires it, and Chrome accepts Secure on http://localhost).
+ * No PKCE verifier — Apple's web flow doesn't use one.
+ */
+export async function setAppleOAuthTempCookies(state: string): Promise<void> {
+  const c = await cookies();
+  c.set(STATE_COOKIE, state, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+    path: "/",
+    maxAge: 600,
+  });
+}
+
 export async function clearOAuthTempCookies(): Promise<void> {
   const c = await cookies();
   c.delete(STATE_COOKIE);
