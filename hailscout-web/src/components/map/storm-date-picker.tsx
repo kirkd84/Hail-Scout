@@ -184,7 +184,7 @@ export function StormDatePicker({
                       type="checkbox"
                       checked={checked}
                       onChange={() => onToggleDate(row.date)}
-                      className="h-4 w-4 shrink-0 accent-[var(--color-primary,#1d9e75)]"
+                      className="h-4 w-4 shrink-0 accent-[hsl(var(--primary))]"
                       aria-label={`Show storms on ${fmtDate(row.date)}`}
                     />
                     <span

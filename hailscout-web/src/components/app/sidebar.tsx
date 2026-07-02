@@ -88,7 +88,9 @@ export function Sidebar() {
                 />
                 <span className="font-medium">{item.label}</span>
                 {isActive && (
-                  <span className="ml-auto h-1.5 w-1.5 rounded-full bg-copper" aria-hidden />
+                  // Contrast with the (now cyan) active pill — copper-on-primary
+                  // became cyan-on-cyan after the PenSnap rebrand.
+                  <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary-foreground/80" aria-hidden />
                 )}
               </Link>
             );
