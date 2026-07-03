@@ -17,6 +17,7 @@ from sqlalchemy import and_, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hailscout_api.auth.middleware import extract_auth_context
+from hailscout_api.auth.principal import touch_last_login
 from hailscout_api.core import AuthenticationError, get_logger
 from hailscout_api.db.models.canvass import MobilePushToken
 from hailscout_api.db.models.org import Organization, Seat, User
@@ -48,6 +49,12 @@ async def get_current_user(
     if not user:
         logger.warning("me.user_not_found", user_id=auth_context.user_id)
         raise AuthenticationError("User not found")
+
+    # Ongoing-activity last-login stamp (throttled + best-effort; never blocks
+    # or fails this request). /me is the endpoint clients that authenticate via
+    # extract_auth_context — notably the mobile app on relaunch — hit, so this
+    # covers users who never pass through the PAT/JWT resolver in principal.py.
+    await touch_last_login(session, user)
 
     org = (
         await session.execute(select(Organization).where(Organization.id == user.org_id))

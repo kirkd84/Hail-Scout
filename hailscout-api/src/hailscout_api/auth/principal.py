@@ -7,7 +7,7 @@ helpers that should accept API tokens for read queries.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import Request
 from sqlalchemy import select, update
@@ -16,8 +16,61 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from hailscout_api.auth.api_token import hash_token, looks_like_pat
 from hailscout_api.auth.middleware import bearer_token
 from hailscout_api.auth.session import verify_access_token
-from hailscout_api.core import AuthenticationError, AuthorizationError
+from hailscout_api.core import AuthenticationError, AuthorizationError, get_logger
 from hailscout_api.db.models.org import ApiToken, User
+
+logger = get_logger(__name__)
+
+# How stale ``last_login_at`` may get before ongoing activity re-stamps it.
+# The stamp exists so the HR provisioning status endpoint can tell an
+# invited-but-never-signed-in account from an active one — day-granularity
+# is plenty, so we only write ~twice a day per active user to keep this off
+# the hot path.
+_LAST_LOGIN_TOUCH_AFTER = timedelta(hours=12)
+
+
+async def touch_last_login(session: AsyncSession, user: User) -> None:
+    """Best-effort, throttled stamp of ``users.last_login_at`` from ongoing
+    authenticated activity.
+
+    Fresh sign-in (``/auth/exchange`` and ``/auth/login``) sets this field, but
+    an established user on a long-lived session would otherwise never refresh
+    it and keep showing as "Invited" in the HR Portal. Any normal authenticated
+    request re-stamps it here instead.
+
+    Contract — this MUST NOT change the behavior of the calling request:
+
+    * Called only AFTER the user is authenticated and loaded.
+    * THROTTLED: writes only when the field is null or older than
+      :data:`_LAST_LOGIN_TOUCH_AFTER`, so the vast majority of requests do no
+      write at all.
+    * BEST-EFFORT: every failure is swallowed (with its own rollback) — a bad
+      write can never surface as an error on, or roll back, the caller's
+      request. A targeted UPDATE (not a flush of ``user``) keeps it from
+      touching any other pending state on the session.
+    """
+    try:
+        now = datetime.now(timezone.utc)
+        last = user.last_login_at
+        if last is not None:
+            # Stored tz-aware; treat a legacy naive value as UTC just in case.
+            if last.tzinfo is None:
+                last = last.replace(tzinfo=timezone.utc)
+            if now - last < _LAST_LOGIN_TOUCH_AFTER:
+                return  # fresh enough — nothing to do (the common path)
+        await session.execute(
+            update(User).where(User.id == user.id).values(last_login_at=now)
+        )
+        await session.commit()
+        # Keep the in-memory instance consistent so a second call in the same
+        # request doesn't re-write.
+        user.last_login_at = now
+    except Exception:  # noqa: BLE001 — never let the stamp break the request
+        try:
+            await session.rollback()
+        except Exception:  # noqa: BLE001
+            pass
+        logger.debug("auth.touch_last_login.skipped", exc_info=True)
 
 
 async def resolve_user(request: Request, session: AsyncSession) -> User:
@@ -74,4 +127,7 @@ async def resolve_user_from_token(
     ).scalars().first()
     if user is None:
         raise AuthenticationError("User not found")
+    # Ongoing-activity last-login stamp (throttled + best-effort; never blocks
+    # or fails this request). Lets long-lived sessions stop reading as "Invited".
+    await touch_last_login(session, user)
     return user
