@@ -47,7 +47,7 @@ export function StormDetailModal({ storm, visible, onClose }: Props) {
   const t = theme(useColorScheme());
   if (!storm) return null;
   const size = storm.peak_size_in;
-  const badgeFg = size >= 1.5 ? "#FAF7F1" : "#2B2620";
+  const badgeFg = size >= 1.5 ? "#FFFFFF" : "#0F172A";
   const confirmed = storm.lsr_confirmed === true;
   const dateStr = new Date(storm.start_time).toLocaleDateString(undefined, {
     weekday: "short",

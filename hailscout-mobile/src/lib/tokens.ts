@@ -1,38 +1,41 @@
 /**
- * HailScout mobile design tokens — Topographic palette ported from the web app.
+ * HailScout mobile design tokens — PenSnap-family palette (slate + cyan),
+ * matching the web rebrand (2026-07): cool slate neutrals, a bright cyan
+ * brand pop, dark cyan for readable text/links. The warm hail/severity ramp
+ * is intentionally NOT here — it stays in lib/hail.ts as data viz.
  * Use via `theme(scheme)` to get either the light or dark palette.
  */
 
 import type { ColorSchemeName } from "react-native";
 
 const LIGHT = {
-  bg:           "#F5F1EA",
-  bgLift:       "#FAF7F1",
-  bgMuted:      "#E8E1D4",
-  fg:           "#2B2620",
-  fgMuted:      "#6B6052",
-  border:       "#E0D9CC",
-  primary:      "#0F4C5C",
-  primaryFg:    "#F5F1EA",
-  accent:       "#D87C4A",
-  accentDeep:   "#A85C2D",
-  forest:       "#4A6B3A",
-  destructive:  "#C0392B",
+  bg:           "#F8FAFC", // slate-50
+  bgLift:       "#FFFFFF",
+  bgMuted:      "#F1F5F9", // slate-100
+  fg:           "#0F172A", // slate-900
+  fgMuted:      "#64748B", // slate-500
+  border:       "#E2E8F0", // slate-200
+  primary:      "#06B6D4", // cyan-500 — brand pop (fills/active); dark text on it
+  primaryFg:    "#0F172A",
+  accent:       "#0E7490", // cyan-700 — readable cyan for text/links on light
+  accentDeep:   "#155E75", // cyan-800
+  forest:       "#059669", // emerald-600 — success/positive
+  destructive:  "#DC2626", // red-600
 } as const;
 
 const DARK = {
-  bg:           "#1A1814",
-  bgLift:       "#231F1A",
-  bgMuted:      "#2D2722",
-  fg:           "#F5F1EA",
-  fgMuted:      "#A89F92",
-  border:       "#3A332D",
-  primary:      "#5BA8BC",
-  primaryFg:    "#1A1814",
-  accent:       "#D87C4A",
-  accentDeep:   "#E89C7A",
-  forest:       "#7CA068",
-  destructive:  "#E07A6E",
+  bg:           "#0F172A", // slate-900
+  bgLift:       "#1E293B", // slate-800
+  bgMuted:      "#334155", // slate-700
+  fg:           "#F1F5F9", // slate-100
+  fgMuted:      "#94A3B8", // slate-400
+  border:       "#475569", // slate-600
+  primary:      "#22D3EE", // cyan-400 — brighter cyan reads on dark
+  primaryFg:    "#06283D",
+  accent:       "#67E8F9", // cyan-300 — light cyan for text/links on dark
+  accentDeep:   "#A5F3FC", // cyan-200
+  forest:       "#34D399", // emerald-400
+  destructive:  "#F87171", // red-400
 } as const;
 
 // Values widened to `string` so the dark + light palettes (which have

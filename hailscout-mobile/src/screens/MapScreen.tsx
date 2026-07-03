@@ -253,7 +253,7 @@ export function MapScreen() {
                   3.0, 7,
                 ] as any,
                 circleColor: HAIL_COLOR_STEPS,
-                circleStrokeColor: "#FAF7F1",
+                circleStrokeColor: "#FFFFFF",
                 circleStrokeWidth: 1.4,
                 circleOpacity: 1,
               }}
@@ -373,7 +373,7 @@ function peakColorHex(inches: number): string {
   return "#5DCAA5";
 }
 function badgeTextColor(inches: number): string {
-  return inches >= 1.5 ? "#FAF7F1" : "#2B2620";
+  return inches >= 1.5 ? "#FFFFFF" : "#0F172A";
 }
 function peakObjectLabel(inches: number): string {
   if (inches >= 3.0)  return "SOFTBALL";
