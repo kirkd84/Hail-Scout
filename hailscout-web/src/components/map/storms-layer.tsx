@@ -469,7 +469,9 @@ export function StormsLayer({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if (map.getLayer(id)) map.setFilter(id, centroidFilter as any);
     }
-  }, [map, minSizeIn, focusStormId]);
+    // styleEpoch: freshly re-added layers (basemap/theme swap) start with
+    // NO filters — re-apply after every style rebuild.
+  }, [map, minSizeIn, focusStormId, styleEpoch]);
 
   // ── Visibility toggle ────────────────────────────────────────────
   useEffect(() => {
@@ -490,7 +492,11 @@ export function StormsLayer({
     for (const id of pointLayers) {
       if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", v);
     }
-  }, [map, visible, bandsHidden]);
+    // styleEpoch: layers re-added after a basemap/theme swap default to
+    // VISIBLE, and without this dep the effect never re-ran — so one
+    // basemap toggle in Smooth mode brought the outlined band polygons
+    // back on top of the smooth surface ("old style swath" bug).
+  }, [map, visible, bandsHidden, styleEpoch]);
 
   // ── Pointer cursor + hover popup + click → open detail ──────────
   // Hovering shows a small popup card with date + size + metro.
