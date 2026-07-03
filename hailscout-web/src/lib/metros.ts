@@ -43,11 +43,22 @@ export const METROS: readonly Metro[] = [
   { name: "Omaha",          state: "NE", lat: 41.26, lng:  -95.93 },
   { name: "Lincoln",        state: "NE", lat: 40.81, lng:  -96.70 },
   { name: "Grand Island",   state: "NE", lat: 40.92, lng:  -98.34 },
-  // Colorado / Wyoming / New Mexico
+  // Colorado / Wyoming / New Mexico — the northern Front Range is dense
+  // hail country (and Roof Technologies' home turf); without these towns
+  // a NoCO storm snapped 40+ mi away to Denver or Cheyenne.
   { name: "Denver",         state: "CO", lat: 39.74, lng: -104.99 },
+  { name: "Aurora",         state: "CO", lat: 39.73, lng: -104.83 },
+  { name: "Boulder",        state: "CO", lat: 40.01, lng: -105.27 },
+  { name: "Longmont",       state: "CO", lat: 40.17, lng: -105.10 },
+  { name: "Loveland",       state: "CO", lat: 40.40, lng: -105.08 },
+  { name: "Greeley",        state: "CO", lat: 40.42, lng: -104.71 },
+  { name: "Fort Collins",   state: "CO", lat: 40.59, lng: -105.08 },
   { name: "Colorado Springs", state: "CO", lat: 38.83, lng: -104.82 },
   { name: "Pueblo",         state: "CO", lat: 38.25, lng: -104.61 },
+  { name: "Grand Junction", state: "CO", lat: 39.06, lng: -108.55 },
   { name: "Cheyenne",       state: "WY", lat: 41.14, lng: -104.82 },
+  { name: "Laramie",        state: "WY", lat: 41.31, lng: -105.59 },
+  { name: "Casper",         state: "WY", lat: 42.87, lng: -106.31 },
   { name: "Albuquerque",    state: "NM", lat: 35.08, lng: -106.65 },
   // Iowa / Minnesota / Dakotas
   { name: "Des Moines",     state: "IA", lat: 41.59, lng:  -93.62 },

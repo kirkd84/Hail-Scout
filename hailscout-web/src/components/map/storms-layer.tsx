@@ -553,7 +553,12 @@ export function StormsLayer({
       const displaySize =
         groundSize != null && groundSize > localSize ? groundSize : localSize;
       const c = hailColor(displaySize);
-      const where = nearestMetro(s.centroid_lat, s.centroid_lng);
+      // Label by the point UNDER THE CURSOR, not the storm's centroid. A
+      // long track's centroid can sit 50+ mi from where you're hovering
+      // (a CO→WY storm centered near the state line labelled a Johnstown
+      // cell "Cheyenne, WY"). e.lngLat is exactly the cell you're on — and
+      // for an SPC ground-report point it's right on the report anyway.
+      const where = nearestMetro(e.lngLat.lat, e.lngLat.lng);
       const heavy = displaySize >= 1.5;
       const badgeFg = heavy ? "#FAF7F1" : c.text;
       const dateStr = new Date(s.start_time).toLocaleDateString(undefined, {
