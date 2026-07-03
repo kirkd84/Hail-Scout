@@ -6,9 +6,11 @@ import { theme } from "@/lib/tokens";
 import { SignInScreen } from "@/auth/SignInScreen";
 import { SignUpScreen } from "@/auth/SignUpScreen";
 import { MainTabs } from "./MainTabs";
-import type { AuthStackParamList } from "./types";
+import { DriveScreen } from "@/screens/DriveScreen";
+import type { AuthStackParamList, AppStackParamList } from "./types";
 
 const AuthStack = createStackNavigator<AuthStackParamList>();
+const AppStack = createStackNavigator<AppStackParamList>();
 
 function AuthFlow() {
   return (
@@ -16,6 +18,19 @@ function AuthFlow() {
       <AuthStack.Screen name="SignIn" component={SignInScreen} />
       <AuthStack.Screen name="SignUp" component={SignUpScreen} />
     </AuthStack.Navigator>
+  );
+}
+
+function AppFlow() {
+  return (
+    <AppStack.Navigator screenOptions={{ headerShown: false }}>
+      <AppStack.Screen name="Main" component={MainTabs} />
+      <AppStack.Screen
+        name="Drive"
+        component={DriveScreen}
+        options={{ presentation: "modal", gestureEnabled: false }}
+      />
+    </AppStack.Navigator>
   );
 }
 
@@ -31,5 +46,5 @@ export function RootNavigator() {
     );
   }
 
-  return isSignedIn ? <MainTabs /> : <AuthFlow />;
+  return isSignedIn ? <AppFlow /> : <AuthFlow />;
 }

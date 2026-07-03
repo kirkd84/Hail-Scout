@@ -15,6 +15,9 @@ import { LocationButton } from "@/components/LocationButton";
 import { ColorLegend } from "@/components/ColorLegend";
 import type { MobileStorm } from "@/lib/storm-fixtures";
 import { apiRequest } from "@/lib/api";
+import { useNavigation } from "@react-navigation/native";
+import type { StackNavigationProp } from "@react-navigation/stack";
+import type { AppStackParamList } from "@/navigation/types";
 
 const DEFAULT_CENTER: [number, number] = [-98.58, 39.8];
 const DEFAULT_ZOOM = 4;
@@ -94,6 +97,7 @@ export function MapScreen() {
 
   const { userLocation, permissionStatus, requestLocationPermission } = useUserLocation();
   const cameraRef = useRef<React.ElementRef<typeof MapLibreGL.Camera>>(null);
+  const navigation = useNavigation<StackNavigationProp<AppStackParamList>>();
 
   // 30 days CONUS — same window the home screen uses. includeSwaths pulls
   // the band polygons so we render real filled swaths, not just centroids.
@@ -265,6 +269,19 @@ export function MapScreen() {
           <LocationButton onPress={onMyLocation} />
         </View>
 
+        {/* Drive mode — live glanceable swath map + voice while you head in. */}
+        <View style={styles.driveWrap} pointerEvents="box-none">
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Drive")}
+            activeOpacity={0.85}
+            style={[styles.driveBtn, { backgroundColor: t.primary }]}
+            accessibilityLabel="Start drive mode"
+          >
+            <Text style={styles.driveIcon}>🚗</Text>
+            <Text style={[styles.driveLabel, { color: t.primaryFg }]}>Drive Mode</Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={[styles.legendWrap, { backgroundColor: t.bgLift, borderColor: t.border }]}>
           <ColorLegend />
         </View>
@@ -398,6 +415,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 10,
   },
+  driveWrap: {
+    position: "absolute",
+    bottom: SPACING.xl,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+  },
+  driveBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+    borderRadius: RADIUS.full,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  driveIcon: { fontSize: 18 },
+  driveLabel: { fontSize: 15, fontWeight: "700", letterSpacing: 0.2 },
   legendWrap: {
     position: "absolute",
     left: SPACING.lg,
