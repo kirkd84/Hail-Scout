@@ -42,6 +42,11 @@ class TeamRoleUpdate(BaseModel):
     role: str  # owner / admin / member
 
 
+class TeamNameUpdate(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+
+
 class TeamInvite(BaseModel):
     email: EmailStr
     role: str = "member"
@@ -147,6 +152,53 @@ async def update_team_role(
         subject_type="user",
         subject_id=target.id,
         metadata={"from": prev_role, "to": target.role},
+    )
+    return target
+
+
+@router.patch("/team/{user_id}/name", response_model=TeamMember)
+async def update_team_name(
+    request: Request,
+    user_id: str,
+    body: TeamNameUpdate,
+    session: AsyncSession = Depends(get_db_session),
+) -> User:
+    """Set a teammate's display name.
+
+    Admins/owners may edit anyone in their org; any user may edit their own
+    name. Empty strings clear the field (back to the email-local-part
+    fallback in the UI).
+    """
+    me = await _resolve_user(request, session)
+
+    target = (
+        await session.execute(
+            select(User).where(and_(User.id == user_id, User.org_id == me.org_id)),
+        )
+    ).scalars().first()
+    if target is None:
+        raise HTTPException(status_code=404, detail="Member not found")
+
+    is_admin = me.role in {"owner", "admin"} or me.is_super_admin
+    if not is_admin and me.id != target.id:
+        raise AuthorizationError("You can only edit your own name")
+
+    prev = {"first": target.first_name, "last": target.last_name}
+    target.first_name = (body.first_name or "").strip() or None
+    target.last_name = (body.last_name or "").strip() or None
+    await session.commit()
+    await session.refresh(target)
+    await write_event(
+        session,
+        action="team.name_changed",
+        org_id=me.org_id,
+        user_id=me.id,
+        subject_type="user",
+        subject_id=target.id,
+        metadata={
+            "from": prev,
+            "to": {"first": target.first_name, "last": target.last_name},
+        },
     )
     return target
 

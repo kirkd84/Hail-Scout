@@ -33,7 +33,8 @@ const ROLE_TONE: Record<string, { color: string; bg: string; ring: string }> = {
 
 export default function TeamPage() {
   const { me } = useMe();
-  const { members, updateRole, remove, resetMfa, invite, isLoading, error } = useTeam();
+  const { members, updateRole, remove, resetMfa, invite, updateName, isLoading, error } =
+    useTeam();
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -42,6 +43,26 @@ export default function TeamPage() {
   const [inviteBusy, setInviteBusy] = useState(false);
   const [mfaBusyId, setMfaBusyId] = useState<string | null>(null);
   const [mfaFlash, setMfaFlash] = useState<string | null>(null);
+  // Inline name editing
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editFirst, setEditFirst] = useState("");
+  const [editLast, setEditLast] = useState("");
+  const [nameBusy, setNameBusy] = useState(false);
+
+  const startEdit = (m: TeamMember) => {
+    setEditingId(m.id);
+    setEditFirst(m.first_name ?? "");
+    setEditLast(m.last_name ?? "");
+  };
+  const saveName = async (m: TeamMember) => {
+    setNameBusy(true);
+    try {
+      await updateName(m.id, editFirst.trim(), editLast.trim());
+      setEditingId(null);
+    } finally {
+      setNameBusy(false);
+    }
+  };
 
   const myId = me?.user?.id;
   const myRole = me?.user?.role;
@@ -228,23 +249,80 @@ export default function TeamPage() {
               <div
                 key={m.id}
                 className={cn(
-                  "grid grid-cols-[3fr_140px_1fr_150px] items-center hover:bg-secondary/30 transition-colors",
+                  "group grid grid-cols-[3fr_140px_1fr_150px] items-center hover:bg-secondary/30 transition-colors",
                   i < members.length - 1 ? "border-b border-border/60" : "",
                 )}
               >
                 <div className="px-5 py-3 flex items-center gap-3 min-w-0">
                   <Avatar email={m.email} name={memberName(m)} />
-                  <div className="min-w-0">
-                    <p className="font-medium text-foreground truncate capitalize">
-                      {memberName(m)}{" "}
-                      {isMe && <span className="text-foreground/40 text-xs">(you)</span>}
-                      {m.is_super_admin && (
-                        <span className="ml-2 text-[9px] uppercase tracking-wide-caps font-mono rounded-md bg-copper/15 text-copper-700 px-1.5 py-0.5 ring-1 ring-copper/30">
-                          super
-                        </span>
-                      )}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">{m.email}</p>
+                  <div className="min-w-0 flex-1">
+                    {editingId === m.id ? (
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          value={editFirst}
+                          onChange={(e) => setEditFirst(e.target.value)}
+                          placeholder="First"
+                          autoFocus
+                          className="w-24 rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-copper focus:outline-none"
+                        />
+                        <input
+                          value={editLast}
+                          onChange={(e) => setEditLast(e.target.value)}
+                          placeholder="Last"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") void saveName(m);
+                            if (e.key === "Escape") setEditingId(null);
+                          }}
+                          className="w-24 rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-copper focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          disabled={nameBusy}
+                          onClick={() => void saveName(m)}
+                          className="text-xs font-medium text-copper hover:text-copper-700 disabled:opacity-50"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingId(null)}
+                          className="text-xs text-foreground/50 hover:text-foreground"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="font-medium text-foreground truncate capitalize flex items-center">
+                          <span className="truncate">{memberName(m)}</span>
+                          {isMe && (
+                            <span className="ml-1 text-foreground/40 text-xs normal-case">
+                              (you)
+                            </span>
+                          )}
+                          {m.is_super_admin && (
+                            <span className="ml-2 text-[9px] uppercase tracking-wide-caps font-mono rounded-md bg-copper/15 text-copper-700 px-1.5 py-0.5 ring-1 ring-copper/30 normal-case">
+                              super
+                            </span>
+                          )}
+                          {(canManage || isMe) && (
+                            <button
+                              type="button"
+                              onClick={() => startEdit(m)}
+                              aria-label="Edit name"
+                              title="Edit name"
+                              className="ml-2 shrink-0 text-foreground/30 opacity-0 transition-opacity hover:text-copper group-hover:opacity-100"
+                            >
+                              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M12 20h9" />
+                                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                              </svg>
+                            </button>
+                          )}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">{m.email}</p>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className="px-5 py-3">

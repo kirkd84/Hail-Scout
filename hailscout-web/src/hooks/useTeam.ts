@@ -48,6 +48,20 @@ export function useTeam() {
     [auth, getToken, swr],
   );
 
+  const updateName = useCallback(
+    async (userId: string, firstName: string, lastName: string) => {
+      if (!auth) return;
+      const t = await getToken();
+      await apiClient.patch(
+        `/v1/team/${userId}/name`,
+        { first_name: firstName, last_name: lastName },
+        t || undefined,
+      );
+      await swr.mutate();
+    },
+    [auth, getToken, swr],
+  );
+
   // Break-glass: clear a locked-out teammate's SMS 2FA so they can
   // re-enroll. Non-destructive (the account stays) — un-enrolls 2FA,
   // revokes their sessions + trusted devices, and is audit-logged
@@ -91,5 +105,6 @@ export function useTeam() {
     remove,
     resetMfa,
     invite,
+    updateName,
   };
 }
