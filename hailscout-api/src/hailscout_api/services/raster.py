@@ -55,25 +55,24 @@ _TARGET_WIDTH = 1024
 _MAX_DIM = 2048
 _MIN_DIM = 64
 
-# Smoothing parameters as fractions of the raster's smaller dimension.
-#   bridge — LARGE morphological close (dilate→erode) applied FIRST, to
-#            link neighboring cell blobs into one continuous swath ribbon
-#            WITHOUT fading them (a blur would). This is the "show the
-#            full path" fix — it connects the string of pale beads the
-#            old render left into a single storm track.
-#   dilate — grayscale dilation before the medium blur. Pre-grows each
-#            cell so the blur can't average small cores down toward zero,
-#            so peak intensity survives — and the blur then rounds the
-#            grown squares into organic blobs.
-#   medium — melts the band stair-steps AND the raw ~1km MRMS pixel
-#            squares into a smooth gradient.
-#   wide   — soft outer skirt for organic edges, DOWN-WEIGHTED (see
-#            _WIDE_WEIGHT) so it only feathers the rim instead of washing
-#            the whole swath into a broad pale halo.
-_BRIDGE_FRAC = 0.020
-_DILATE_FRAC = 0.011
-_BLUR_MED_FRAC = 0.012
-_BLUR_WIDE_FRAC = 0.032
+# Smoothing parameters in GROUND KILOMETERS — zoom-invariant by design.
+# (Earlier versions sized these as fractions of the image, so every zoom
+# level smoothed by a different number of ground-km and the swath SHAPE
+# visibly morphed as you zoomed. Now the shaping math always happens at
+# a fixed ground resolution, so a storm keeps one shape at every zoom.)
+#   bridge — LARGE morphological close (dilate→erode) that links the
+#            cells of one storm track into a continuous ribbon WITHOUT
+#            fading them. Small enough to never weld separate storms.
+#   close  — pinhole fill inside severe cores.
+#   dilate — pre-grows cells so the blur can't average small severe
+#            cores below the color floor.
+#   medium — melts band stair-steps + raw ~1km pixels into a gradient.
+#   wide   — soft outer skirt, DOWN-WEIGHTED (see _WIDE_WEIGHT).
+_BRIDGE_KM = 3.0
+_CLOSE_KM = 1.2
+_DILATE_KM = 1.7
+_BLUR_MED_KM = 1.8
+_BLUR_WIDE_KM = 4.5
 
 # The wide skirt is composited into the max-of-scales at this weight. At
 # full strength (1.0) it bled every swath into a faint cloud that tinted
@@ -81,19 +80,14 @@ _BLUR_WIDE_FRAC = 0.032
 # the bridge/close keeps the swath body solid and confident.
 _WIDE_WEIGHT = 0.30
 
-# Ground-distance ceilings (km) for every morphology/blur radius. The
-# *_FRAC sizing above is tuned at city/storm zoom, where the fractions
-# work out to ~1-4 km — but a fixed image fraction becomes HUNDREDS of
-# km at continental zoom, and the bridge/close then welded SEPARATE
-# storms into one absurd mega-ribbon spanning provinces ("a storm that
-# traveled from North Dakota to Quebec"). Capping by ground distance
-# keeps the morphology meaning "link the cells of ONE storm track" at
-# every zoom level; at wide zooms distinct storms stay distinct.
-_BRIDGE_MAX_KM = 6.0
-_CLOSE_MAX_KM = 3.0
-_DILATE_MAX_KM = 5.0
-_BLUR_MED_MAX_KM = 6.0
-_BLUR_WIDE_MAX_KM = 20.0
+# Fixed ground resolution for the shaping math. When the OUTPUT raster is
+# finer than this (city zoom), polygons are burned + smoothed on a
+# 250 m/px grid and the finished field is upscaled bilinearly — identical
+# shape at every zoom, and morphology cost stays bounded no matter how
+# deep the client zooms. Coarser outputs (state/CONUS zoom) process at
+# their own resolution; the km radii shrink below one pixel there, which
+# degrades gracefully to the honest discrete-dots look.
+_PROC_KM_PER_PX = 0.25
 
 # Pad the bbox so the blurred edge has room to fade to transparent
 # instead of getting clipped at the image border.
@@ -278,15 +272,31 @@ def render_storm_raster(
     height = int(round(width / aspect)) if aspect > 0 else width
     height = max(_MIN_DIM, min(_MAX_DIM, height))
 
+    # Ground scale of the OUTPUT raster (km per pixel, latitude axis; the
+    # aspect math above keeps pixels near-square on the ground).
+    km_per_px_out = max(1e-6, (span_lat * 111.0) / float(height))
+
+    # PROCESSING grid — the zoom-invariance core. All burning + morphology
+    # + blurring happens at a fixed ~250 m/px ground resolution whenever
+    # the output is finer than that, and the finished smooth field is
+    # upscaled to the output size at the end. Same ground grid → same
+    # shape at every zoom (and bounded morphology cost at deep zooms).
+    if km_per_px_out < _PROC_KM_PER_PX:
+        proc_h = max(_MIN_DIM, int(math.ceil((span_lat * 111.0) / _PROC_KM_PER_PX)))
+        proc_w = max(_MIN_DIM, int(round(proc_h * (width / float(height)))))
+    else:
+        proc_w, proc_h = width, height
+    km_per_px = max(1e-6, (span_lat * 111.0) / float(proc_h))
+
     def to_px(lng: float, lat: float) -> tuple[float, float]:
-        x = (lng - min_lng) / span_lng * width
-        y = (max_lat - lat) / span_lat * height  # north at top
+        x = (lng - min_lng) / span_lng * proc_w
+        y = (max_lat - lat) / span_lat * proc_h  # north at top
         return (x, y)
 
     # 1. Burn band values into an 8-bit 'L' image. Size is scaled to
     #    0-255 over [0, _SCALE_MAX_IN] so an 8-bit channel (which PIL
     #    can Gaussian-blur reliably, unlike 32-bit 'I') holds it.
-    value_img = Image.new("L", (width, height), 0)
+    value_img = Image.new("L", (proc_w, proc_h), 0)
     draw = ImageDraw.Draw(value_img)
     peak = 0.0
     for inches, geom in bands:
@@ -297,25 +307,16 @@ def render_storm_raster(
             if len(pts) >= 3:
                 draw.polygon(pts, fill=fill_val)
 
-    m = float(min(width, height))
-    # Ground scale: km per pixel on the latitude axis (the aspect math
-    # above keeps pixels near-square on the ground, so one scale serves
-    # both axes). Guards every radius below against continental zooms.
-    km_per_px = max(1e-6, (span_lat * 111.0) / float(height))
-
-    def _radius_px(frac: float, min_px: float, max_km: float) -> float:
-        """Radius in px: the image-fraction sizing, floored for visibility,
-        but NEVER exceeding `max_km` of real ground distance."""
-        return min(max(min_px, m * frac), max_km / km_per_px)
+    def _km_px(km: float) -> float:
+        """Ground kilometers → processing-grid pixels."""
+        return km / km_per_px
 
     # 2a. BRIDGE pass — a LARGE morphological close (dilate then erode)
     #    that LINKS neighboring cell blobs into one continuous swath
     #    ribbon. Unlike a blur it joins the cells WITHOUT fading them;
-    #    the erode-back step keeps cores at their true size. This is what
-    #    turns the old string-of-pale-beads into a connected storm track
-    #    (the "show the full path" fix). Ground-capped so it only bridges
-    #    within-track gaps (~10 km) — never separate storms at wide zoom.
-    bridge_r = int(round(_radius_px(_BRIDGE_FRAC, 0.0, _BRIDGE_MAX_KM)))
+    #    the erode-back step keeps cores at their true size. ~3 km bridges
+    #    within-track gaps, never separate storms.
+    bridge_r = int(round(_km_px(_BRIDGE_KM)))
     for _ in range(bridge_r):
         value_img = value_img.filter(ImageFilter.MaxFilter(3))
     for _ in range(bridge_r):
@@ -323,10 +324,8 @@ def render_storm_raster(
 
     # 2b. Small CLOSE to fill the transparent pinholes the raw swath
     #    polygons leave inside a severe core (cone-of-silence, beam
-    #    blockage, inter-cell gaps). Ground-capped: at continental zoom
-    #    pinholes are sub-pixel anyway, and an uncapped close was itself
-    #    fusing storms ~100 km apart.
-    close_r = min(8, int(round(_radius_px(0.008, 0.0, _CLOSE_MAX_KM))))
+    #    blockage, inter-cell gaps).
+    close_r = int(round(_km_px(_CLOSE_KM)))
     for _ in range(close_r):
         value_img = value_img.filter(ImageFilter.MaxFilter(3))
     for _ in range(close_r):
@@ -339,14 +338,12 @@ def render_storm_raster(
     #            blur rounds the grown ~1km pixel squares into organic
     #            blobs while melting band steps into gradients.
     #    SKIRT = wide blur of the raw image, DOWN-WEIGHTED to _WIDE_WEIGHT
-    #            — just an organic feathered rim. At full strength it bled
-    #            every swath into a broad pale halo (the "cloud" look);
-    #            the bridge pass above now does the gap-linking instead.
-    #    All ground-capped (dilate keeps a 1px floor so storms stay
-    #    visible dots at continental zoom).
-    d = max(1, int(round(_radius_px(_DILATE_FRAC, 1.0, _DILATE_MAX_KM))))
-    r_med = max(1.0, _radius_px(_BLUR_MED_FRAC, 4.0, _BLUR_MED_MAX_KM))
-    r_wide = max(1.5, _radius_px(_BLUR_WIDE_FRAC, 10.0, _BLUR_WIDE_MAX_KM))
+    #            — just an organic feathered rim.
+    #    Px floors keep storms visible as soft dots at coarse zooms where
+    #    the km radii fall below one pixel.
+    d = max(1, int(round(_km_px(_DILATE_KM))))
+    r_med = max(1.0, _km_px(_BLUR_MED_KM))
+    r_wide = max(1.5, _km_px(_BLUR_WIDE_KM))
     core = value_img
     for _ in range(d):
         core = core.filter(ImageFilter.MaxFilter(3))
@@ -355,6 +352,13 @@ def render_storm_raster(
     if _WIDE_WEIGHT < 1.0:
         skirt = skirt.point(lambda v: int(v * _WIDE_WEIGHT))
     value_img = ImageChops.lighter(core, skirt)
+
+    # 3b. Upscale the finished smooth field to the requested output size.
+    #    Bilinear on an already-smooth gradient adds no artifacts, and it
+    #    guarantees the SHAPE the client sees is the 250 m/px one at
+    #    every zoom level.
+    if (proc_w, proc_h) != (width, height):
+        value_img = value_img.resize((width, height), Image.BILINEAR)
 
     # 4. Colorize → RGBA, vectorized via a precomputed 256-entry LUT.
     #    Far faster than a per-pixel Python loop.
