@@ -18,6 +18,7 @@ export type MainTabsParamList = {
 export type AppStackParamList = {
   Main: NavigatorScreenParams<MainTabsParamList>;
   Drive: undefined;
+  Navigate: { destLng: number; destLat: number; label?: string };
 };
 
 export type RootStackParamList = {

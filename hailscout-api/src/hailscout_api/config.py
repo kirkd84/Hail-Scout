@@ -127,6 +127,12 @@ class Settings(BaseSettings):
     nominatim_user_agent: str = "HailScout/0.1.0 (+https://hailscout.com)"
     mapbox_api_key: str = ""
 
+    # Routing (turn-by-turn navigate-to-lead). Key stays server-side so it never
+    # ships in the mobile app; provider is swappable to a self-hosted OSRM /
+    # Valhalla later with no app release. Empty key -> the /route endpoint 503s.
+    routing_provider: Literal["openrouteservice"] = "openrouteservice"
+    ors_api_key: str = ""
+
     # Monitoring
     sentry_dsn: str | None = None
     sentry_environment: str = "development"

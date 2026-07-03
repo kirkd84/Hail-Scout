@@ -371,6 +371,23 @@ export function MapScreen() {
                 </TouchableOpacity>
               </View>
             )}
+            <TouchableOpacity
+              onPress={() => {
+                const dest = atPoint;
+                setAtPoint(null);
+                if (dest)
+                  navigation.navigate("Navigate", {
+                    destLng: dest.lng,
+                    destLat: dest.lat,
+                    label: "Dropped pin",
+                  });
+              }}
+              activeOpacity={0.85}
+              style={[styles.navHereBtn, { backgroundColor: t.primary }]}
+            >
+              <Text style={styles.navHereIcon}>🧭</Text>
+              <Text style={[styles.navHereTxt, { color: t.primaryFg }]}>Navigate here</Text>
+            </TouchableOpacity>
           </View>
         )}
       </View>
@@ -437,6 +454,17 @@ const styles = StyleSheet.create({
   },
   driveIcon: { fontSize: 18 },
   driveLabel: { fontSize: 15, fontWeight: "700", letterSpacing: 0.2 },
+  navHereBtn: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 11,
+    borderRadius: RADIUS.full,
+  },
+  navHereIcon: { fontSize: 16 },
+  navHereTxt: { fontSize: 15, fontWeight: "700", letterSpacing: 0.2 },
   legendWrap: {
     position: "absolute",
     left: SPACING.lg,

@@ -7,6 +7,7 @@ import { SignInScreen } from "@/auth/SignInScreen";
 import { SignUpScreen } from "@/auth/SignUpScreen";
 import { MainTabs } from "./MainTabs";
 import { DriveScreen } from "@/screens/DriveScreen";
+import { NavigateScreen } from "@/screens/NavigateScreen";
 import type { AuthStackParamList, AppStackParamList } from "./types";
 
 const AuthStack = createStackNavigator<AuthStackParamList>();
@@ -28,6 +29,11 @@ function AppFlow() {
       <AppStack.Screen
         name="Drive"
         component={DriveScreen}
+        options={{ presentation: "modal", gestureEnabled: false }}
+      />
+      <AppStack.Screen
+        name="Navigate"
+        component={NavigateScreen}
         options={{ presentation: "modal", gestureEnabled: false }}
       />
     </AppStack.Navigator>

@@ -34,6 +34,7 @@ from hailscout_api.routes import (
     parcels,
     provision,
     reports,
+    routing,
     storms,
     tiles,
     tokens,
@@ -119,6 +120,7 @@ def create_app() -> FastAPI:
     v1.include_router(me.router, tags=["user"])
     v1.include_router(tokens.router, tags=["tokens"])
     v1.include_router(storms.router, tags=["storms"])
+    v1.include_router(routing.router, tags=["routing"])
     v1.include_router(hail.router, tags=["hail"])
     v1.include_router(tiles.router, tags=["tiles"])
     v1.include_router(reports.router, tags=["reports"])
