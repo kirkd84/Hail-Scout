@@ -29,6 +29,8 @@ router = APIRouter()
 class TeamMember(BaseModel):
     id: str
     email: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     role: str
     is_super_admin: bool
     created_at: datetime

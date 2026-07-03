@@ -79,6 +79,22 @@ def _full_name(first: str | None, last: str | None) -> str | None:
     return name or None
 
 
+def _apply_names(user: User, first: str | None, last: str | None) -> bool:
+    """Set first/last name on ``user`` from an HR payload. Only overwrites
+    when the incoming value is non-empty (a re-push with no name never wipes
+    an existing one). Returns True if anything changed."""
+    changed = False
+    f = (first or "").strip() or None
+    l = (last or "").strip() or None
+    if f is not None and user.first_name != f:
+        user.first_name = f
+        changed = True
+    if l is not None and user.last_name != l:
+        user.last_name = l
+        changed = True
+    return changed
+
+
 def _check_body_org(body_org_id: str | None, target_org_id: str) -> None:
     """Reject a body ``org_id`` that disagrees with the key's bound org."""
     if body_org_id is not None and body_org_id.strip() and body_org_id != target_org_id:
@@ -126,9 +142,21 @@ async def provision_user(
         )
     ).scalar_one_or_none()
     if existing is not None:
-        logger.info(
-            "provision.user.exists", org_id=org_id, user_id=existing.id, email=email
-        )
+        # Re-push is the fix path for names: if HR now sends a name we don't
+        # have (or a corrected one), apply it. Never wipes an existing name.
+        if _apply_names(existing, body.firstName, body.lastName):
+            existing.updated_at = datetime.now(timezone.utc)
+            await session.commit()
+            logger.info(
+                "provision.user.name_updated",
+                org_id=org_id,
+                user_id=existing.id,
+                email=email,
+            )
+        else:
+            logger.info(
+                "provision.user.exists", org_id=org_id, user_id=existing.id, email=email
+            )
         return ProvisionUserResponse(ok=True, userId=existing.id)
 
     # Pre-stage the user with a placeholder auth_subject (linked on first OAuth
@@ -141,6 +169,8 @@ async def provision_user(
         role="member",
         is_super_admin=False,
         auth_subject=f"pending_{secrets.token_urlsafe(8)}",
+        first_name=(body.firstName or "").strip() or None,
+        last_name=(body.lastName or "").strip() or None,
     )
     session.add(user)
     await session.flush()
@@ -156,6 +186,8 @@ async def provision_user(
         metadata={
             "email": email,
             "name": _full_name(body.firstName, body.lastName),
+            "first_name": (body.firstName or "").strip() or None,
+            "last_name": (body.lastName or "").strip() or None,
             "phone": body.phone,
             "source": "hr_provision",
         },

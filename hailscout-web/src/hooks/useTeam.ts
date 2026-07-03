@@ -8,6 +8,8 @@ import { apiClient } from "@/lib/api";
 export interface TeamMember {
   id: string;
   email: string;
+  first_name?: string | null;
+  last_name?: string | null;
   role: string;
   is_super_admin: boolean;
   created_at: string;

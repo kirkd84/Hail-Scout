@@ -11,6 +11,19 @@ import { cn } from "@/lib/utils";
 const ROLE_OPTIONS = ["owner", "admin", "member"] as const;
 type Role = typeof ROLE_OPTIONS[number];
 
+/** Real name if we have one, else the email local-part (legacy fallback). */
+function memberName(m: {
+  first_name?: string | null;
+  last_name?: string | null;
+  email: string;
+}): string {
+  const name = [m.first_name, m.last_name]
+    .map((s) => (s || "").trim())
+    .filter(Boolean)
+    .join(" ");
+  return name || m.email.split("@")[0];
+}
+
 // PenSnap family: cyan for owner, slate for admin/member.
 const ROLE_TONE: Record<string, { color: string; bg: string; ring: string }> = {
   owner:  { color: "#0E7490", bg: "rgba(6, 182, 212, 0.10)",  ring: "rgba(6, 182, 212, 0.35)" },
@@ -220,10 +233,10 @@ export default function TeamPage() {
                 )}
               >
                 <div className="px-5 py-3 flex items-center gap-3 min-w-0">
-                  <Avatar email={m.email} />
+                  <Avatar email={m.email} name={memberName(m)} />
                   <div className="min-w-0">
-                    <p className="font-medium text-foreground truncate">
-                      {m.email.split("@")[0]}{" "}
+                    <p className="font-medium text-foreground truncate capitalize">
+                      {memberName(m)}{" "}
                       {isMe && <span className="text-foreground/40 text-xs">(you)</span>}
                       {m.is_super_admin && (
                         <span className="ml-2 text-[9px] uppercase tracking-wide-caps font-mono rounded-md bg-copper/15 text-copper-700 px-1.5 py-0.5 ring-1 ring-copper/30">
@@ -300,14 +313,15 @@ export default function TeamPage() {
   );
 }
 
-function Avatar({ email }: { email: string }) {
-  // 2-letter initials from local-part
-  const local = email.split("@")[0];
-  const parts = local.split(/[._-]/).filter(Boolean);
+function Avatar({ email, name }: { email: string; name?: string | null }) {
+  // 2-letter initials from the name when we have one, else the email
+  // local-part. Split on space, dot, underscore, or hyphen.
+  const source = (name || "").trim() || email.split("@")[0];
+  const parts = source.split(/[\s._-]+/).filter(Boolean);
   const initials =
     parts.length >= 2
       ? (parts[0][0] + parts[1][0]).toUpperCase()
-      : local.slice(0, 2).toUpperCase();
+      : source.slice(0, 2).toUpperCase();
   // Stable hue from email
   let h = 0;
   for (let i = 0; i < email.length; i++) h = (h * 31 + email.charCodeAt(i)) >>> 0;

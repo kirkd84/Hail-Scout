@@ -77,6 +77,12 @@ class User(Base):
         ForeignKey("organizations.id"), nullable=False, index=True
     )
     role: Mapped[str] = mapped_column(String(50), default="member", nullable=False)
+    # Human name, populated by HR provisioning (firstName/lastName) or an admin
+    # edit. Nullable — social-only / legacy rows fall back to the email
+    # local-part in the UI. Identity is still email + auth_subject; this is
+    # display-only.
+    first_name: Mapped[str | None] = mapped_column(String(120))
+    last_name: Mapped[str | None] = mapped_column(String(120))
     # System-level super-admin flag (cross-tenant). Independent of the org-level
     # role field; a super_admin can manage every org regardless of org role.
     is_super_admin: Mapped[bool] = mapped_column(
