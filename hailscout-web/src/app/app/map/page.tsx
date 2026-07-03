@@ -130,7 +130,7 @@ export default function MapPage() {
 
   // Source filter goes server-side via /v1/storms?source= so we don't
   // pull rows just to drop them client-side.
-  const { storms } = useStorms({
+  const { storms, isLoading: stormsLoading } = useStorms({
     bbox: viewportBbox,
     from: fromDate,
     to: toDate,
@@ -413,6 +413,7 @@ export default function MapPage() {
               setCustomDates([]);
             }}
             scopeLabel={scopeLabel}
+            isLoading={stormsLoading}
             size={size}
             source={source}
             showUnverified={showUnverified}

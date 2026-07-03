@@ -58,6 +58,8 @@ interface Props {
   /** Clear the surface (show nothing until a day is picked). */
   onClear: () => void;
   scopeLabel?: string;
+  /** True while the viewport storm fetch is in flight. */
+  isLoading?: boolean;
   /** Filters (folded into the collapsible section). */
   size: SizeFilter;
   source: SourceFilter;
@@ -75,6 +77,7 @@ export function StormDatePicker({
   onMostRecent,
   onClear,
   scopeLabel,
+  isLoading = false,
   size,
   source,
   showUnverified,
@@ -120,7 +123,10 @@ export function StormDatePicker({
   const selected = new Set(selectedDates);
   const filtersActive = size !== "any" || source !== "all" || showUnverified;
 
-  if (days.length === 0) return null;
+  // NEVER return null — this panel is the map's primary control surface.
+  // (It used to vanish entirely whenever the storms fetch came back empty,
+  // e.g. for ~2 min around an API deploy — "the storm picker is gone".)
+  // With no days we render the shell with a loading / empty message.
 
   const fmtDate = (d: string) => {
     const dt = new Date(d + "T00:00:00Z");
@@ -160,7 +166,15 @@ export function StormDatePicker({
         </span>
       </button>
 
-      {open && (
+      {open && days.length === 0 && (
+        <p className="px-4 py-4 text-[12px] leading-snug text-muted-foreground">
+          {isLoading
+            ? "Loading storms…"
+            : "No storms found in this view. Pan or zoom out — or loosen the filters below."}
+        </p>
+      )}
+
+      {open && days.length > 0 && (
         <>
           <p className="px-4 pb-2 pt-2.5 text-[11px] leading-snug text-muted-foreground">
             Pick a day to view one storm — or check several to see where an
@@ -253,8 +267,13 @@ export function StormDatePicker({
               )}
             </span>
           </div>
+        </>
+      )}
 
-          {/* Collapsible filters */}
+      {open && (
+        <>
+          {/* Collapsible filters — rendered even when no days are listed,
+              so the panel's controls never disappear with an empty fetch. */}
           <div className="border-t border-border/60">
             <button
               type="button"
