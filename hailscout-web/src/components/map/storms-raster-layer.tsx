@@ -162,16 +162,24 @@ export function StormsRasterLayer({
       }
     };
 
-    if (map.isStyleLoaded()) {
-      apply();
-      return;
-    }
-    map.once("style.load", apply);
-    // Remove the queued apply if the raster changes (or we unmount)
-    // before the style finishes loading — a stale apply firing after
-    // cleanup would re-add an orphaned source/layer.
+    // isStyleLoaded() is flaky-false during ANY tile/data churn (e.g. right
+    // after a zoom or fly-to), and the old fallback — map.once("style.load")
+    // — only fires on a real basemap swap, never from churn. One unlucky
+    // tick meant the raster silently never applied, and it couldn't
+    // self-heal: the 2-min refresh returns identical data, so this effect
+    // never re-ran ("swath surface missing until you touch something").
+    // Poll until the style is ready instead; cleanup cancels the poll.
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    const tryApply = () => {
+      if (map.isStyleLoaded()) {
+        apply();
+        return;
+      }
+      retryTimer = setTimeout(tryApply, 200);
+    };
+    tryApply();
     return () => {
-      map.off("style.load", apply);
+      if (retryTimer) clearTimeout(retryTimer);
     };
   }, [map, raster, styleEpoch, opacity, visible]);
 
