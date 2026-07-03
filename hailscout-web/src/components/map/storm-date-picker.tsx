@@ -102,7 +102,11 @@ export function StormDatePicker({
       const biggest = group.reduce((a, b) =>
         b.max_hail_size_in > a.max_hail_size_in ? b : a,
       );
-      const metro = nearestMetro(biggest.centroid_lat, biggest.centroid_lng);
+      // Weighted: label the DAY by the most recognizable metro the storm
+      // reached, not the tiny town nearest a sprawling storm's centroid.
+      const metro = nearestMetro(biggest.centroid_lat, biggest.centroid_lng, {
+        weighted: true,
+      });
       let sol: SoLStatus | null = null;
       for (const s of group) {
         const st = statuteStatus(s.start_time);
