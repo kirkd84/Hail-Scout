@@ -317,11 +317,16 @@ function Avatar({ email, name }: { email: string; name?: string | null }) {
   // 2-letter initials from the name when we have one, else the email
   // local-part. Split on space, dot, underscore, or hyphen.
   const source = (name || "").trim() || email.split("@")[0];
-  const parts = source.split(/[\s._-]+/).filter(Boolean);
+  // Strip punctuation from each token so a name like "David (Bo) Horton"
+  // yields "DH", not "D(".
+  const parts = source
+    .split(/[\s._-]+/)
+    .map((p) => p.replace(/[^\p{L}\p{N}]/gu, ""))
+    .filter(Boolean);
   const initials =
     parts.length >= 2
       ? (parts[0][0] + parts[1][0]).toUpperCase()
-      : source.slice(0, 2).toUpperCase();
+      : (parts[0] ?? source).slice(0, 2).toUpperCase();
   // Stable hue from email
   let h = 0;
   for (let i = 0; i < email.length; i++) h = (h * 31 + email.charCodeAt(i)) >>> 0;
