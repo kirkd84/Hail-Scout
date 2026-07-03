@@ -25,6 +25,7 @@ import { MarkersLayer } from "@/components/map/markers-layer";
 import { DropModeToggle } from "@/components/map/drop-mode-toggle";
 import { MapToolsMenu } from "@/components/map/map-tools-menu";
 import { LegendButton } from "@/components/map/legend-button";
+import { StreetViewPanel } from "@/components/map/street-view-panel";
 import { AddressSearch } from "@/components/app/address-search";
 import { MarkerEditor } from "@/components/app/marker-editor";
 import {
@@ -531,6 +532,16 @@ export default function MapPage() {
                       )
                     : undefined
                 }
+              />
+            </div>
+          )}
+
+          {searchResults && (
+            <div className="px-6 pt-3 pb-1">
+              <StreetViewPanel
+                lat={searchResults.lat}
+                lng={searchResults.lng}
+                address={searchResults.address}
               />
             </div>
           )}
