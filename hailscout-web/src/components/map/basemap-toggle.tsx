@@ -10,21 +10,15 @@ interface BasemapToggleProps {
   className?: string;
 }
 
+// Two basemaps only, both label-bearing (hail hunting needs street names):
+//   • Classic   — the navigation map (atlas / Voyager, dark-mode aware).
+//   • Satellite — aerial imagery WITH street labels (the MapTiler "hybrid"
+//     style). The old label-less "satellite" and the redundant "streets"
+//     (identical to Classic in dark mode) were removed.
 const OPTIONS: { id: BasemapId; label: string; icon: React.ReactNode }[] = [
   {
     id: "atlas",
     label: "Classic",
-    icon: (
-      <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.4">
-        <ellipse cx="8" cy="8" rx="6.5" ry="4" />
-        <ellipse cx="8" cy="8" rx="4" ry="2.5" />
-        <circle cx="8" cy="8" r="1.2" />
-      </svg>
-    ),
-  },
-  {
-    id: "streets",
-    label: "Streets",
     icon: (
       <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
         <path d="M3 2 L3 14" />
@@ -35,24 +29,13 @@ const OPTIONS: { id: BasemapId; label: string; icon: React.ReactNode }[] = [
     ),
   },
   {
-    id: "satellite",
+    id: "hybrid",
     label: "Satellite",
     icon: (
       <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.4">
         <circle cx="8" cy="8" r="6" />
         <path d="M2.5 9 Q8 5.5 13.5 9" />
         <path d="M2.5 7 Q8 10.5 13.5 7" />
-      </svg>
-    ),
-  },
-  {
-    id: "hybrid",
-    label: "Hybrid",
-    icon: (
-      <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.4">
-        <rect x="2" y="2" width="12" height="12" rx="1.5" />
-        <path d="M2 8 H14" />
-        <path d="M8 2 V14" strokeDasharray="1.4 1.4" />
       </svg>
     ),
   },

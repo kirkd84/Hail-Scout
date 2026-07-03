@@ -163,6 +163,35 @@ export function hailColor(sizeIn: number): HailColor {
 /** Legend, ordered smallest → largest (vertical visual ramp). */
 export const HAIL_LEGEND: HailColor[] = BINS.map(({ min: _min, ...c }) => c);
 
+/**
+ * Smooth-view color ramp. This MUST mirror `_RAMP` in the API's
+ * services/raster.py — the smooth surface is a continuous gradient
+ * (pale gold → orange → red → magenta-purple core), NOT the discrete
+ * green→purple bins above, so the legend needs its own stops to read
+ * honestly when Smooth is active. Keep the two in sync if either moves.
+ */
+export interface SmoothRampStop {
+  /** Size threshold in inches. */
+  sizeIn: number;
+  /** Hex color at this size. */
+  hex: string;
+  /** Short size label, e.g. "1.75″". */
+  short: string;
+  /** Reference object. */
+  object: string;
+}
+
+export const SMOOTH_RAMP: SmoothRampStop[] = [
+  { sizeIn: 0.75, hex: "#FFF2AE", short: "0.75″", object: "Penny" },
+  { sizeIn: 1.0,  hex: "#FFD666", short: "1.00″", object: "Quarter" },
+  { sizeIn: 1.25, hex: "#FFAD33", short: "1.25″", object: "Half-dollar" },
+  { sizeIn: 1.5,  hex: "#FF7A29", short: "1.50″", object: "Walnut" },
+  { sizeIn: 1.75, hex: "#F24A29", short: "1.75″", object: "Golf ball" },
+  { sizeIn: 2.0,  hex: "#D62839", short: "2.00″", object: "Hen egg" },
+  { sizeIn: 2.5,  hex: "#AB1F63", short: "2.50″", object: "Tennis ball" },
+  { sizeIn: 3.0,  hex: "#7C2794", short: "3.00″+", object: "Softball" },
+];
+
 /** All bin thresholds, smallest first — used by the map paint expression. */
 export const HAIL_THRESHOLDS = BINS.map((b) => b.min);
 

@@ -29,7 +29,7 @@ export function MapToolsMenu({
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="pointer-events-auto absolute bottom-6 right-4 z-20 flex flex-col items-end gap-2">
+    <div className="pointer-events-auto absolute bottom-6 left-4 z-20 flex flex-col items-start gap-2">
       {open && (
         <div className="w-48 overflow-hidden rounded-lg border border-border bg-card/95 shadow-panel backdrop-blur supports-[backdrop-filter]:bg-card/85">
           <button

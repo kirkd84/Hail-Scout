@@ -52,7 +52,7 @@ export default function MapPage() {
   const [map, setMap] = useState<MapLibreMap | null>(null);
   // Default to Streets (MapTiler Streets v2) — the clean, Google-Maps-like
   // basemap. Switchable any time via the BasemapToggle.
-  const [basemap, setBasemap] = useState<BasemapId>("streets");
+  const [basemap, setBasemap] = useState<BasemapId>("atlas");
   const [size, setSize] = useState<SizeFilter>("any");
   const [source, setSource] = useState<SourceFilter>("all");
   const [scrubberMs, setScrubberMs] = useState<number | null>(null);
@@ -444,7 +444,7 @@ export default function MapPage() {
             <div className="pointer-events-auto flex items-center gap-2">
               <BasemapToggle value={basemap} onChange={setBasemap} />
               <ViewModeToggle value={viewMode} onChange={setViewMode} />
-              <LegendButton />
+              <LegendButton viewMode={viewMode} />
             </div>
           </div>
         </>
@@ -582,10 +582,27 @@ function ViewModeToggle({
   value: "cells" | "smooth" | "heatmap";
   onChange: (next: "cells" | "smooth" | "heatmap") => void;
 }) {
-  const opts: Array<{ id: "cells" | "smooth" | "heatmap"; label: string }> = [
-    { id: "smooth", label: "Smooth" },
-    { id: "cells", label: "Cells" },
-    { id: "heatmap", label: "Heatmap" },
+  const opts: Array<{
+    id: "cells" | "smooth" | "heatmap";
+    label: string;
+    title: string;
+  }> = [
+    {
+      id: "smooth",
+      label: "Smooth",
+      title: "Smooth swath — the continuous hail footprint, like radar.",
+    },
+    {
+      id: "cells",
+      label: "Cells",
+      title: "Cells — each individual storm cell as an outlined shape.",
+    },
+    {
+      id: "heatmap",
+      label: "Heatmap",
+      title:
+        "Heatmap — where storms concentrate over the selected dates, weighted by hail size. Good for spotting repeat-hit areas, not exact swaths.",
+    },
   ];
   return (
     <div className="glass inline-flex items-center rounded-full p-1 shadow-panel text-xs">
@@ -593,6 +610,7 @@ function ViewModeToggle({
         <button
           key={o.id}
           type="button"
+          title={o.title}
           onClick={() => onChange(o.id)}
           className={
             "px-3 py-1 rounded-full transition-colors " +
