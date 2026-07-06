@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "scheme": "hailscout",
     "splash": {
       "image": "./assets/splash.png",
@@ -20,7 +20,8 @@
         "NSLocationWhenInUseUsageDescription": "HailScout needs access to your location to show the map and identify nearby hail damage.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "HailScout needs access to your location to show the map and identify nearby hail damage.",
         "UIMainStoryboardFile": "",
-        "UILaunchStoryboardName": "SplashScreen"
+        "UILaunchStoryboardName": "SplashScreen",
+        "ITSAppUsesNonExemptEncryption": false
       },
       "entitlements": {
         "com.apple.developer.usernotifications.time-sensitive": true

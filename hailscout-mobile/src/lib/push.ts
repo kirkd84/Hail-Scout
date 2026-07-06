@@ -18,7 +18,9 @@ import { apiRequest } from "@/lib/api";
 // Show heads-up notifications even when the app is foregrounded.
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    // SDK 53+ split shouldShowAlert into banner + list.
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
   }),

@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   useColorScheme,
 } from "react-native";
-import MapLibreGL from "@maplibre/maplibre-react-native";
+import * as MapLibreGL from "@maplibre/maplibre-react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { useStorms } from "@/hooks/useStorms";
@@ -69,10 +69,10 @@ export function DriveScreen() {
   // North-up follow: recentre on every GPS update at a driving zoom.
   useEffect(() => {
     if (userLocation && cameraRef.current) {
-      cameraRef.current.setCamera({
-        centerCoordinate: [userLocation.longitude, userLocation.latitude],
-        zoomLevel: DRIVE_ZOOM,
-        animationDuration: 800,
+      cameraRef.current.flyTo({
+        center: [userLocation.longitude, userLocation.latitude],
+        zoom: DRIVE_ZOOM,
+        duration: 800,
       });
     }
   }, [userLocation]);
@@ -124,28 +124,27 @@ export function DriveScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
-      <MapLibreGL.MapView
+      <MapLibreGL.Map
         style={StyleSheet.absoluteFill}
         mapStyle={styleUrl}
-        logoEnabled={false}
-        attributionEnabled={false}
-        compassEnabled={false}
+        attribution={false}
+        compass={false}
       >
         <MapLibreGL.Camera
           ref={cameraRef}
-          defaultSettings={{
-            centerCoordinate: userLocation
+          initialViewState={{
+            center: userLocation
               ? [userLocation.longitude, userLocation.latitude]
               : [-98.58, 39.8],
-            zoomLevel: userLocation ? DRIVE_ZOOM : 4,
+            zoom: userLocation ? DRIVE_ZOOM : 4,
           }}
         />
         {userLocation && (
-          <MapLibreGL.UserLocation visible animated showsUserHeadingIndicator />
+          <MapLibreGL.UserLocation animated />
         )}
 
-        <MapLibreGL.ShapeSource id="drive-swaths" shape={swaths}>
-          <MapLibreGL.FillLayer
+        <MapLibreGL.GeoJSONSource id="drive-swaths" data={swaths}>
+          <MapLibreGL.Layer type="fill"
             id="drive-swaths-fill"
             style={{
               fillColor: SWATH_COLOR_STEPS,
@@ -162,12 +161,12 @@ export function DriveScreen() {
               ] as any,
             }}
           />
-          <MapLibreGL.LineLayer
+          <MapLibreGL.Layer type="line"
             id="drive-swaths-line"
             style={{ lineColor: SWATH_COLOR_STEPS, lineWidth: 1, lineOpacity: 0.6 }}
           />
-        </MapLibreGL.ShapeSource>
-      </MapLibreGL.MapView>
+        </MapLibreGL.GeoJSONSource>
+      </MapLibreGL.Map>
 
       {/* Exit */}
       <TouchableOpacity

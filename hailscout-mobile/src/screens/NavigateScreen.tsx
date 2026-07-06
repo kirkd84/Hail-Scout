@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
   useColorScheme,
 } from "react-native";
-import MapLibreGL from "@maplibre/maplibre-react-native";
+import * as MapLibreGL from "@maplibre/maplibre-react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { useStorms } from "@/hooks/useStorms";
@@ -114,10 +114,10 @@ export function NavigateScreen() {
     const p = guide(userLocation.longitude, userLocation.latitude, nav);
     setProgress(p);
 
-    cameraRef.current?.setCamera({
-      centerCoordinate: [userLocation.longitude, userLocation.latitude],
-      zoomLevel: 16,
-      animationDuration: 800,
+    cameraRef.current?.flyTo({
+      center: [userLocation.longitude, userLocation.latitude],
+      zoom: 16,
+      duration: 800,
     });
 
     if (p.stepIndex !== spokenStep.current) {
@@ -164,28 +164,27 @@ export function NavigateScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
-      <MapLibreGL.MapView
+      <MapLibreGL.Map
         style={StyleSheet.absoluteFill}
         mapStyle={styleUrl}
-        logoEnabled={false}
-        attributionEnabled={false}
-        compassEnabled={false}
+        attribution={false}
+        compass={false}
       >
         <MapLibreGL.Camera
           ref={cameraRef}
-          defaultSettings={{
-            centerCoordinate: userLocation
+          initialViewState={{
+            center: userLocation
               ? [userLocation.longitude, userLocation.latitude]
               : [destLng, destLat],
-            zoomLevel: userLocation ? 16 : 12,
+            zoom: userLocation ? 16 : 12,
           }}
         />
         {userLocation && (
-          <MapLibreGL.UserLocation visible animated showsUserHeadingIndicator />
+          <MapLibreGL.UserLocation animated />
         )}
 
-        <MapLibreGL.ShapeSource id="nav-swaths" shape={swaths}>
-          <MapLibreGL.FillLayer
+        <MapLibreGL.GeoJSONSource id="nav-swaths" data={swaths}>
+          <MapLibreGL.Layer type="fill"
             id="nav-swaths-fill"
             style={{
               fillColor: SWATH_COLOR_STEPS,
@@ -196,22 +195,22 @@ export function NavigateScreen() {
               ] as any,
             }}
           />
-        </MapLibreGL.ShapeSource>
+        </MapLibreGL.GeoJSONSource>
 
-        <MapLibreGL.ShapeSource id="nav-route" shape={routeFC}>
-          <MapLibreGL.LineLayer
+        <MapLibreGL.GeoJSONSource id="nav-route" data={routeFC}>
+          <MapLibreGL.Layer type="line"
             id="nav-route-casing"
             style={{ lineColor: "#0E7490", lineWidth: 11, lineCap: "round", lineJoin: "round" }}
           />
-          <MapLibreGL.LineLayer
+          <MapLibreGL.Layer type="line"
             id="nav-route-line"
             style={{ lineColor: "#22D3EE", lineWidth: 6, lineCap: "round", lineJoin: "round" }}
           />
-        </MapLibreGL.ShapeSource>
+        </MapLibreGL.GeoJSONSource>
 
-        <MapLibreGL.ShapeSource
+        <MapLibreGL.GeoJSONSource
           id="nav-dest"
-          shape={{
+          data={{
             type: "FeatureCollection",
             features: [
               {
@@ -222,7 +221,7 @@ export function NavigateScreen() {
             ],
           }}
         >
-          <MapLibreGL.CircleLayer
+          <MapLibreGL.Layer type="circle"
             id="nav-dest-dot"
             style={{
               circleRadius: 8,
@@ -231,8 +230,8 @@ export function NavigateScreen() {
               circleStrokeWidth: 2,
             }}
           />
-        </MapLibreGL.ShapeSource>
-      </MapLibreGL.MapView>
+        </MapLibreGL.GeoJSONSource>
+      </MapLibreGL.Map>
 
       {/* Maneuver banner */}
       <View style={[styles.banner, { backgroundColor: "#111826" }]} pointerEvents="none">

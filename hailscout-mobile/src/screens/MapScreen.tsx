@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   useColorScheme,
 } from "react-native";
-import MapLibreGL from "@maplibre/maplibre-react-native";
+import * as MapLibreGL from "@maplibre/maplibre-react-native";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { useStorms } from "@/hooks/useStorms";
 import { theme, SPACING, RADIUS } from "@/lib/tokens";
@@ -125,12 +125,14 @@ export function MapScreen() {
       setAtPointLoading(false);
     }
   };
-  // Void handler (MapLibre's onLongPress expects () => void, not a Promise).
-  const onLongPress = (feature: GeoJSON.Feature) => {
-    const geom = feature?.geometry;
-    const coords = geom && geom.type === "Point" ? geom.coordinates : undefined;
-    if (!coords || coords.length < 2) return;
-    void queryAtPoint(coords[0], coords[1]);
+  // Long-press → "what hit here". v11 gives geo coords on nativeEvent.lngLat.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onLongPress = (e: any) => {
+    const ll = e?.nativeEvent?.lngLat;
+    const lng = Array.isArray(ll) ? ll[0] : ll?.longitude;
+    const lat = Array.isArray(ll) ? ll[1] : ll?.latitude;
+    if (typeof lng !== "number" || typeof lat !== "number") return;
+    void queryAtPoint(lng, lat);
   };
 
   useEffect(() => {
@@ -139,10 +141,10 @@ export function MapScreen() {
 
   const onMyLocation = async () => {
     if (userLocation && cameraRef.current) {
-      cameraRef.current.setCamera({
-        centerCoordinate: [userLocation.longitude, userLocation.latitude],
-        zoomLevel: 13,
-        animationDuration: 700,
+      cameraRef.current.flyTo({
+        center: [userLocation.longitude, userLocation.latitude],
+        zoom: 13,
+        duration: 700,
       });
     } else {
       await requestLocationPermission();
@@ -152,10 +154,10 @@ export function MapScreen() {
   /** Pan + zoom to a tapped storm so the user sees the cell footprint. */
   const flyToStorm = (s: MobileStorm) => {
     if (!cameraRef.current) return;
-    cameraRef.current.setCamera({
-      centerCoordinate: [s.centroid_lng, s.centroid_lat],
-      zoomLevel: 8,
-      animationDuration: 900,
+    cameraRef.current.flyTo({
+      center: [s.centroid_lng, s.centroid_lat],
+      zoom: 8,
+      duration: 900,
     });
     setSelected(s);
   };
@@ -163,8 +165,9 @@ export function MapScreen() {
   /** Tap on a feature from the centroid layer. MapLibre RN bundles the
    *  hit feature in event.features[0]. Look it up in our local list to
    *  show the inline card. */
-  const onMapPress = (e: { features?: GeoJSON.Feature[] }) => {
-    const f = e.features?.[0];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onMapPress = (e: any) => {
+    const f = e?.nativeEvent?.features?.[0];
     if (!f) return;
     const id = f.properties?.id as string | undefined;
     if (!id) return;
@@ -181,28 +184,26 @@ export function MapScreen() {
       />
 
       <View style={styles.mapWrap}>
-        <MapLibreGL.MapView
+        <MapLibreGL.Map
           style={StyleSheet.absoluteFill}
           mapStyle={styleUrl}
-          attributionEnabled
-          logoEnabled={false}
+          attribution
           onPress={() => { setSelected(null); setAtPoint(null); }}
           onLongPress={onLongPress}
         >
           <MapLibreGL.Camera
             ref={cameraRef}
-            zoomLevel={DEFAULT_ZOOM}
-            centerCoordinate={DEFAULT_CENTER}
+            initialViewState={{ center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM }}
           />
           {userLocation && (
-            <MapLibreGL.UserLocation visible animated showsUserHeadingIndicator />
+            <MapLibreGL.UserLocation animated />
           )}
 
           {/* Hail SWATH bands — filled polygons, smallest-first stacking,
               colored by band size. Declared before centroids so the dots
               draw on top. Suspect (unverified) cells render dimmed. */}
-          <MapLibreGL.ShapeSource id="hs-swaths" shape={swaths}>
-            <MapLibreGL.FillLayer
+          <MapLibreGL.GeoJSONSource id="hs-swaths" data={swaths}>
+            <MapLibreGL.Layer type="fill"
               id="hs-swaths-fill"
               style={{
                 fillColor: SWATH_COLOR_STEPS,
@@ -214,22 +215,22 @@ export function MapScreen() {
                 ] as any,
               }}
             />
-            <MapLibreGL.LineLayer
+            <MapLibreGL.Layer type="line"
               id="hs-swaths-line"
               style={{ lineColor: SWATH_COLOR_STEPS, lineWidth: 0.6, lineOpacity: 0.45 }}
             />
-          </MapLibreGL.ShapeSource>
+          </MapLibreGL.GeoJSONSource>
 
           {/* Storm centroids: halo + solid dot, sized + colored by
               peak hail. ShapeSource feeds both layers. */}
-          <MapLibreGL.ShapeSource
+          <MapLibreGL.GeoJSONSource
             id="hs-storms"
-            shape={fc}
+            data={fc}
             onPress={onMapPress}
           >
-            <MapLibreGL.CircleLayer
+            <MapLibreGL.Layer type="circle"
               id="hs-storms-halo"
-              minZoomLevel={3}
+              minzoom={3}
               style={{
                 circleRadius: [
                   "interpolate",
@@ -244,9 +245,9 @@ export function MapScreen() {
                 circleStrokeWidth: 0,
               }}
             />
-            <MapLibreGL.CircleLayer
+            <MapLibreGL.Layer type="circle"
               id="hs-storms-dot"
-              minZoomLevel={3}
+              minzoom={3}
               style={{
                 circleRadius: [
                   "interpolate",
@@ -262,8 +263,8 @@ export function MapScreen() {
                 circleOpacity: 1,
               }}
             />
-          </MapLibreGL.ShapeSource>
-        </MapLibreGL.MapView>
+          </MapLibreGL.GeoJSONSource>
+        </MapLibreGL.Map>
 
         <View style={[styles.fab, { backgroundColor: t.bgLift, borderColor: t.border }]}>
           <LocationButton onPress={onMyLocation} />
