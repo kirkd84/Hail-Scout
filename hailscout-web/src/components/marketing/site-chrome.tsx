@@ -28,15 +28,15 @@ export function SiteHeader() {
         <div className="flex items-center gap-2">
           <Link
             href="/sign-in"
-            className="hidden rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground sm:inline-flex"
+            className="inline-flex rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             Sign in
           </Link>
           <Link
-            href="/sign-up"
+            href="/sign-in"
             className="inline-flex items-center gap-1 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-copper-700"
           >
-            Start free trial <span aria-hidden>→</span>
+            Get started <span aria-hidden>→</span>
           </Link>
         </div>
       </div>

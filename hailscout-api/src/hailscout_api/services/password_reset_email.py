@@ -27,14 +27,36 @@ async def send_password_reset(email: str, reset_url: str) -> bool:
         return False
 
     from_addr = os.environ.get("RESEND_FROM_ADDRESS", "").strip() or DEFAULT_FROM
+    html = (
+        '<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;'
+        'max-width:480px;margin:0 auto;padding:8px 24px 24px;color:#0f172a;">'
+        '<h2 style="font-size:20px;font-weight:600;margin:24px 0 8px;">'
+        "Set your HailScout password</h2>"
+        '<p style="font-size:15px;line-height:1.6;color:#334155;margin:0 0 20px;">'
+        "Use the button below to set your password and get into HailScout. "
+        "This link expires in 1 hour.</p>"
+        f'<a href="{reset_url}" '
+        'style="display:inline-block;background:#0891B2;color:#ffffff;'
+        "text-decoration:none;padding:13px 26px;border-radius:8px;"
+        'font-size:15px;font-weight:600;">Set your password</a>'
+        '<p style="font-size:12px;line-height:1.6;color:#94a3b8;margin:24px 0 4px;">'
+        "If the button doesn't work, paste this link into your browser:</p>"
+        f'<p style="font-size:12px;line-height:1.5;color:#64748b;margin:0 0 20px;'
+        f'word-break:break-all;"><a href="{reset_url}" '
+        f'style="color:#0891B2;">{reset_url}</a></p>'
+        '<p style="font-size:12px;color:#94a3b8;margin:0;">'
+        "If you didn't request this, you can ignore this email — your password "
+        "won't change.</p></div>"
+    )
     payload = {
         "from": from_addr,
         "to": [email],
-        "subject": "Reset your HailScout password",
+        "subject": "Set your HailScout password",
+        "html": html,
         "text": (
-            "Someone requested a password reset for this HailScout account.\n\n"
-            f"Set a new password (link expires in 1 hour):\n{reset_url}\n\n"
-            "If this wasn't you, ignore this email — your password is unchanged."
+            "Set your HailScout password.\n\n"
+            f"Use this link to set your password (expires in 1 hour):\n{reset_url}\n\n"
+            "If you didn't request this, ignore this email — your password won't change."
         ),
     }
     try:
