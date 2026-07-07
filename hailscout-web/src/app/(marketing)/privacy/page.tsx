@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 
 export const metadata: Metadata = {
   title: "Privacy Policy · HailScout",
@@ -20,7 +21,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function PrivacyPolicyPage() {
   return (
-    <div className="container max-w-2xl py-14">
+    <main className="bg-background text-foreground">
+      <SiteHeader />
+      <div className="container max-w-2xl py-14">
       <p className="font-mono-num text-[11px] uppercase tracking-wide-caps text-copper">
         Legal
       </p>
@@ -125,6 +128,8 @@ export default function PrivacyPolicyPage() {
           .
         </p>
       </Section>
-    </div>
+      </div>
+      <SiteFooter />
+    </main>
   );
 }

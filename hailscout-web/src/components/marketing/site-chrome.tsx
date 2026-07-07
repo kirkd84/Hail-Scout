@@ -61,6 +61,7 @@ export function SiteFooter() {
             <Link href="/claim" className="hover:text-foreground">Claim lookup</Link>
             <Link href="/api" className="hover:text-foreground">API</Link>
             <Link href="/sign-in" className="hover:text-foreground">Sign in</Link>
+            <Link href="/privacy" className="hover:text-foreground">Privacy</Link>
           </nav>
         </div>
       </div>
