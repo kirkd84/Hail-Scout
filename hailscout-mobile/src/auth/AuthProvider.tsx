@@ -20,7 +20,10 @@ interface AuthState {
   /** Fresh access token for API calls (refreshes transparently). */
   getToken: () => Promise<string | null>;
   /** Finish sign-in with a verified provider id_token. */
-  completeSignIn: (provider: "google" | "microsoft", idToken: string) => Promise<void>;
+  completeSignIn: (
+    provider: "google" | "microsoft" | "apple",
+    idToken: string,
+  ) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -100,7 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const completeSignIn = useCallback(
-    async (provider: "google" | "microsoft", idToken: string) => {
+    async (provider: "google" | "microsoft" | "apple", idToken: string) => {
       const r = await session.exchange(provider, idToken);
       await session.saveTokens(r.access_token, r.refresh_token);
       cache.current = { token: r.access_token, exp: session.decodeExpMs(r.access_token) };

@@ -20,8 +20,8 @@ export function SignUpScreen() {
         <Text style={[styles.title, { color: t.fg }]}>Get set up</Text>
         <Text style={[styles.sub, { color: t.fgMuted }]}>
           HailScout accounts are created by your company administrator. Once
-          they&apos;ve added your work email, sign in with the matching Google or
-          Microsoft account.
+          they&apos;ve added your work email, sign in with the matching Apple,
+          Google, or Microsoft account.
         </Text>
         <Pressable
           onPress={() => nav.navigate("SignIn")}

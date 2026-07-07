@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import * as WebBrowser from "expo-web-browser";
+import * as AppleAuthentication from "expo-apple-authentication";
 import * as Google from "expo-auth-session/providers/google";
 import {
   useAuthRequest,
@@ -32,13 +33,44 @@ const SCOPES = ["openid", "profile", "email"];
 const GOOGLE_PLACEHOLDER = "unconfigured.apps.googleusercontent.com";
 
 export function SignInScreen() {
-  const t = theme(useColorScheme());
+  const scheme = useColorScheme();
+  const t = theme(scheme);
   const { completeSignIn } = useAuth();
-  const [busy, setBusy] = useState<null | "google" | "microsoft">(null);
+  const [busy, setBusy] = useState<null | "google" | "microsoft" | "apple">(null);
   const [error, setError] = useState<string | null>(null);
+  // Sign in with Apple — iOS only. Required by App Store guideline 4.8 when
+  // we offer Google/Microsoft. Availability is checked at runtime.
+  const [appleAvailable, setAppleAvailable] = useState(false);
+  useEffect(() => {
+    AppleAuthentication.isAvailableAsync()
+      .then(setAppleAvailable)
+      .catch(() => setAppleAvailable(false));
+  }, []);
 
   const googleConfigured = !!(env.GOOGLE_ANDROID_CLIENT_ID || env.GOOGLE_IOS_CLIENT_ID);
   const microsoftConfigured = !!env.MICROSOFT_CLIENT_ID;
+
+  const onApplePress = async () => {
+    setError(null);
+    setBusy("apple");
+    try {
+      const cred = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      if (!cred.identityToken) throw new Error("Apple didn't return an identity token.");
+      await completeSignIn("apple", cred.identityToken);
+    } catch (e) {
+      // User cancelling the native sheet is not an error.
+      if ((e as { code?: string })?.code !== "ERR_REQUEST_CANCELED") {
+        setError(e instanceof Error ? e.message : "Apple sign-in failed.");
+      }
+    } finally {
+      setBusy(null);
+    }
+  };
 
   // Google — the provider helper manages the iOS/Android client IDs + id_token.
   const [, gRes, gPrompt] = Google.useAuthRequest({
@@ -151,15 +183,28 @@ export function SignInScreen() {
             }}
             t={t}
           />
+          {appleAvailable && (
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+              buttonStyle={
+                scheme === "dark"
+                  ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+                  : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+              }
+              cornerRadius={RADIUS.md}
+              style={{ height: 50, width: "100%" }}
+              onPress={() => void onApplePress()}
+            />
+          )}
           {error && <Text style={[styles.error, { color: t.destructive }]}>{error}</Text>}
-          {!googleConfigured && !microsoftConfigured ? (
+          {!googleConfigured && !microsoftConfigured && !appleAvailable ? (
             <Text style={[styles.fine, { color: t.accent }]}>
               Sign-in isn’t enabled in this build yet — it’s coming in the next update.
             </Text>
           ) : (
             <Text style={[styles.fine, { color: t.fgMuted }]}>
-              Use the Google or Microsoft account tied to your work email. No account?
-              Ask your administrator to add you.
+              Use the Apple, Google, or Microsoft account tied to your work email. No
+              account? Ask your administrator to add you.
             </Text>
           )}
         </View>

@@ -43,9 +43,9 @@ export default function PrivacyPolicyPage() {
         <ul className="space-y-1.5 list-disc pl-5">
           <li>
             <strong>Account information</strong> — your name, email, and role,
-            obtained when you sign in with Google or Microsoft, or when your
-            organization&apos;s administrator adds you. We do not see your
-            Google/Microsoft password.
+            obtained when you sign in with Apple, Google, or Microsoft, or when
+            your organization&apos;s administrator adds you. We never see your
+            Apple/Google/Microsoft password.
           </li>
           <li>
             <strong>Location</strong> — in the mobile app, with your permission,
