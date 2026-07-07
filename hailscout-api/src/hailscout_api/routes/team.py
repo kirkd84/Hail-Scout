@@ -16,6 +16,7 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from hailscout_api.auth.invite import issue_and_send_set_password_invite
 from hailscout_api.auth.session import verify_access_token
 from hailscout_api.core import AuthenticationError, AuthorizationError, get_logger
 from hailscout_api.db.models.org import Seat, User
@@ -262,9 +263,11 @@ async def add_team_member(
     We provision the account immediately (pre-staged, exactly like a
     super-admin-created org admin): a ``users`` row with a placeholder
     ``auth_subject`` that links to the real Google/Microsoft identity the
-    first time that email signs in. No invite email needed — they just sign
-    in with the matching work account. Idempotent for an email already on
-    this team; rejected if the email belongs to another workspace.
+    first time that email signs in. We ALSO email a one-click set-password
+    link so a password-first teammate has a working on-ramp — SSO still works
+    untouched (they can ignore the email and sign in with their work account).
+    Idempotent for an email already on this team; rejected if the email
+    belongs to another workspace.
     """
     me = await _resolve_user(request, session)
     _require_admin(me)
@@ -295,6 +298,9 @@ async def add_team_member(
     session.add(member)
     await session.flush()
     session.add(Seat(org_id=me.org_id, user_id=member.id))
+    # Email a one-click set-password link (additive; SSO path unchanged). The
+    # token is staged in this same transaction; a mail failure never raises.
+    await issue_and_send_set_password_invite(session, member)
     await session.commit()
     await session.refresh(member)
 
