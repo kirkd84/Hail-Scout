@@ -25,6 +25,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hailscout_api.auth.hr_provision import require_provision_key
+from hailscout_api.auth.invite import issue_and_send_set_password_invite
 from hailscout_api.core import get_logger
 from hailscout_api.db.models.org import Organization, Seat, User, UserSession
 from hailscout_api.db.session import get_db_session
@@ -193,6 +194,10 @@ async def provision_user(
         },
         commit=False,
     )
+    # Proactively email a one-click set-password link (additive — SSO still
+    # works; this just gives password-first users a working on-ramp). Staged in
+    # the same transaction; a mail failure won't roll back the new account.
+    await issue_and_send_set_password_invite(session, user)
     await session.commit()
 
     logger.info("provision.user.created", org_id=org_id, user_id=user.id, email=email)

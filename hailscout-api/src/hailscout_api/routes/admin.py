@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from hailscout_api.auth.invite import issue_and_send_set_password_invite
 from hailscout_api.auth.middleware import bearer_token
 from hailscout_api.auth.session import verify_access_token
 from hailscout_api.auth.super_admin import require_super_admin
@@ -186,6 +187,10 @@ async def create_org(
         # Allocate a seat so the user can immediately access the workspace
         # once their OAuth identity is linked on first sign-in.
         session.add(Seat(org_id=org.id, user_id=admin.id))
+        # Email the new org admin a one-click set-password link (additive; they
+        # may instead sign in with Google/Microsoft). Token staged in the same
+        # transaction; a mail failure never raises.
+        await issue_and_send_set_password_invite(session, admin)
 
     await session.commit()
     await session.refresh(org)
