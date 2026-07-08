@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   photo: { width: 150, height: 112, objectFit: "cover", borderRadius: 6, borderWidth: 0.5, borderColor: COLORS.border },
 });
 
-/** Tier → display color. Mirrors the verification tier ranking. */
+/** Tier -> display color. Mirrors the verification tier ranking. */
 function tierColor(tier: string): string {
   switch (tier) {
     case "ground_truth_confirmed": return "#2F7A4F"; // forest green — strongest
@@ -280,7 +280,7 @@ export function HailImpactReport({
               <Text>STORM SWATH · {address ?? "affected area"}</Text>
               <Text>
                 {storm.bbox
-                  ? `${storm.bbox.min_lat.toFixed(2)},${storm.bbox.min_lng.toFixed(2)} → ${storm.bbox.max_lat.toFixed(2)},${storm.bbox.max_lng.toFixed(2)}`
+                  ? `${storm.bbox.min_lat.toFixed(2)},${storm.bbox.min_lng.toFixed(2)} -> ${storm.bbox.max_lat.toFixed(2)},${storm.bbox.max_lng.toFixed(2)}`
                   : ""}
               </Text>
             </View>
@@ -299,13 +299,13 @@ export function HailImpactReport({
               {atPoint != null ? "Hail diameter at this address" : "Max hail diameter"}
             </Text>
             <Text style={[styles.heroNumber, { color: c.text }]}>
-              {headlineSize.toFixed(2)}″
+              {headlineSize.toFixed(2)}"
             </Text>
             <Text style={[styles.heroObject, { color: c.text }]}>{c.object}</Text>
             <Text style={[styles.heroBin, { color: c.text }]}>{sourceLabel(storm.source)} · {c.label}</Text>
             {showPeak && (
               <Text style={[styles.heroPeak, { color: c.text }]}>
-                Storm peak nearby: {storm.max_hail_size_in.toFixed(2)}″
+                Storm peak nearby: {storm.max_hail_size_in.toFixed(2)}"
               </Text>
             )}
           </View>
@@ -325,7 +325,7 @@ export function HailImpactReport({
             {v.signals.map((s) => (
               <View key={s.key} style={styles.signalRow}>
                 <Text style={[styles.signalMark, { color: s.present ? tierColor("ground_truth_confirmed") : COLORS.textMuted }]}>
-                  {s.present ? "✓" : "—"}
+                  {s.present ? "•" : "—"}
                 </Text>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.signalLabel}>{s.label}</Text>
@@ -365,7 +365,7 @@ export function HailImpactReport({
             <View style={styles.metaCol}>
               <Text style={styles.metaLabel}>Bounds</Text>
               <Text style={[styles.metaValue, styles.mono]}>
-                {storm.bbox.min_lat.toFixed(2)}, {storm.bbox.min_lng.toFixed(2)} →{" "}
+                {storm.bbox.min_lat.toFixed(2)}, {storm.bbox.min_lng.toFixed(2)}{" -> "}
                 {storm.bbox.max_lat.toFixed(2)}, {storm.bbox.max_lng.toFixed(2)}
               </Text>
             </View>
@@ -377,7 +377,7 @@ export function HailImpactReport({
         <Text style={styles.sectionTitle}>What this means</Text>
         <Text style={styles.sectionBody}>
           {sourceLabel(storm.source)} data identified hail with a diameter of{" "}
-          {headlineSize.toFixed(2)}″ ({c.object.toLowerCase()})
+          {headlineSize.toFixed(2)}" ({c.object.toLowerCase()})
           {atPoint != null ? " at this address" : " across the affected area"} on{" "}
           {fmtDateTime(storm.start_time)}. Hail of this magnitude commonly causes
           shingle bruising, granule loss, and potential decking damage — sufficient
@@ -429,13 +429,13 @@ export function HailImpactReport({
           </View>
           <View style={styles.metaCol}>
             <Text style={styles.metaLabel}>Hail size at location</Text>
-            <Text style={styles.metaValue}>{headlineSize.toFixed(2)}″ ({c.object})</Text>
+            <Text style={styles.metaValue}>{headlineSize.toFixed(2)}" ({c.object})</Text>
           </View>
           {storm.lsr_confirmed && storm.lsr_observed_size_in != null && (
             <View style={styles.metaCol}>
               <Text style={styles.metaLabel}>NWS ground report</Text>
               <Text style={styles.metaValue}>
-                {storm.lsr_observed_size_in.toFixed(2)}″ observed
+                {storm.lsr_observed_size_in.toFixed(2)}" observed
                 {storm.lsr_observed_at ? ` ${fmtDateTime(storm.lsr_observed_at)}` : ""}
               </Text>
             </View>
@@ -511,7 +511,7 @@ export function HailImpactReport({
         <View style={styles.disclaimer}>
           <Text>
             Limitations & proper use: Radar-derived hail-size estimates carry
-            approximately ±0.25″ uncertainty and describe hail aloft, not confirmed
+            approximately ±0.25" uncertainty and describe hail aloft, not confirmed
             ground impact at a specific structure. This report establishes that a
             hail event of the stated magnitude occurred at this location and time,
             corroborated by the evidence above; it does not substitute for an
