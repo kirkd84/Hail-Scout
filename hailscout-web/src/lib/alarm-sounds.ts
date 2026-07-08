@@ -11,9 +11,9 @@
  *   wind     gust howl (zone wind alerts)
  *   chaching optional "revenue mode" layer on 2"+ zone hits
  *
- * Files are procedurally generated WAVs (scripts/gen-alarm-sounds.cjs);
- * swap any file in public/sounds/ for a studio sample without touching
- * this module. Preferences persist in localStorage.
+ * Files are studio samples in public/sounds/ (*.mp3), keyed by the names
+ * above and sized to the ladder; swap any file for a new sample without
+ * touching this module. Preferences persist in localStorage.
  */
 
 export type AlarmSoundName =
@@ -82,7 +82,7 @@ export function playAlarm(
   const prefs = getAlarmPrefs();
   if (prefs.muted && !opts.ignoreMute) return;
   try {
-    const audio = new Audio(`/sounds/${name}.wav`);
+    const audio = new Audio(`/sounds/${name}.mp3`);
     audio.volume = opts.volume ?? prefs.volume;
     void audio.play().catch(() => {
       /* autoplay blocked pre-interaction — fine */
