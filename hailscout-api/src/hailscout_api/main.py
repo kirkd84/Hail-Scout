@@ -88,12 +88,18 @@ def create_app() -> FastAPI:
     except Exception as exc:
         log.exception("hailscout.boot.db_init_failed: %s", exc)
 
+    # Hide the interactive docs + raw OpenAPI schema in production — they
+    # expose every route (including the super-admin and HR-provision
+    # endpoints) to anonymous callers at the public URL. Kept on in
+    # dev/staging for convenience.
+    _is_prod = settings.env == "production"
     app = FastAPI(
         title="HailScout API",
         description="Storm intelligence platform for roofing contractors",
         version="0.1.0",
-        docs_url="/docs",
-        openapi_url="/openapi.json",
+        docs_url=None if _is_prod else "/docs",
+        redoc_url=None if _is_prod else "/redoc",
+        openapi_url=None if _is_prod else "/openapi.json",
     )
 
     app.add_middleware(
@@ -110,7 +116,10 @@ def create_app() -> FastAPI:
 
     @app.get("/", include_in_schema=False)
     async def root() -> dict[str, str]:
-        return {"name": "HailScout API", "version": "0.1.0", "docs": "/docs"}
+        info = {"name": "HailScout API", "version": "0.1.0"}
+        if not _is_prod:
+            info["docs"] = "/docs"
+        return info
 
     v1 = APIRouter(prefix="/v1")
     v1.include_router(health.router, tags=["health"])

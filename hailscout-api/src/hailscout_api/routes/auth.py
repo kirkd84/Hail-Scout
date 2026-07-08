@@ -12,6 +12,9 @@ from __future__ import annotations
 
 import os
 import secrets
+import threading
+import time as _time
+from collections import deque
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -136,6 +139,40 @@ def _client_ip(request: Request) -> str | None:
     return request.client.host[:64] if request.client else None
 
 
+# ── IP rate limiting ─────────────────────────────────────────────────────────
+# In-memory per-IP throttle on the unauthenticated auth POSTs. Complements the
+# durable per-email lockout (is_locked/record_failure): that brake can't stop
+# one IP cycling through many emails, and /exchange has no per-email brake at
+# all before its expensive OIDC verify. Per-replica (like the geocode limiter)
+# — imperfect across replicas but still caps abuse.
+_AUTH_RATE_WINDOW = 60.0  # seconds
+_AUTH_RATE_MAX = 30  # auth POSTs per IP per window
+_auth_rl_lock = threading.Lock()
+_auth_hits: dict[str, deque[float]] = {}
+
+
+def _check_auth_rate_limit(ip: str | None) -> None:
+    """Raise 429 if ``ip`` has exceeded the auth rate limit this window."""
+    if not ip:
+        return
+    now = _time.monotonic()
+    cutoff = now - _AUTH_RATE_WINDOW
+    with _auth_rl_lock:
+        # Occasional sweep so idle IPs don't accumulate forever.
+        if len(_auth_hits) > 10_000:
+            for k in [k for k, v in _auth_hits.items() if not v or v[-1] < cutoff]:
+                _auth_hits.pop(k, None)
+        hits = _auth_hits.setdefault(ip, deque())
+        while hits and hits[0] < cutoff:
+            hits.popleft()
+        if len(hits) >= _AUTH_RATE_MAX:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many attempts; please slow down.",
+            )
+        hits.append(now)
+
+
 def _as_aware(dt: datetime) -> datetime:
     """Treat naive datetimes as UTC so comparisons never raise."""
     return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
@@ -151,6 +188,7 @@ async def exchange(
     session: AsyncSession = Depends(get_db_session),
 ) -> TokenResponse:
     """Verify a provider id_token and issue HailScout session tokens."""
+    _check_auth_rate_limit(_client_ip(request))
     provider = body.provider.lower().strip()
     try:
         identity = await verify_oidc_id_token(provider, body.id_token)
@@ -421,6 +459,7 @@ async def password_login(
     re-submitting without a code is the resend path. A live
     ``device_trust_token`` skips the code.
     """
+    _check_auth_rate_limit(_client_ip(request))
     email = body.email.lower().strip()
 
     if await is_locked(session, email):
@@ -646,6 +685,7 @@ async def forgot_password(
     Doubles as SET-initial-password for invited/seeded users who have only
     ever signed in with Google/Microsoft (or never signed in at all).
     """
+    _check_auth_rate_limit(_client_ip(request))
     email = body.email.lower().strip()
 
     # Abuse brake on a SEPARATE namespaced counter. This used to share the
