@@ -15,15 +15,15 @@ variable "alb_zone_id" {
 variable "root_domain" {
   description = "Root domain name"
   type        = string
-  default     = "hailscout.com"
+  default     = "hailscout.net"
 }
 
-# Get the hosted zone for hailscout.com
+# Get the hosted zone for hailscout.net
 data "aws_route53_zone" "main" {
   name = var.root_domain
 }
 
-# API subdomain: api.hailscout.com -> ALB
+# API subdomain: api.hailscout.net -> ALB
 resource "aws_route53_record" "api" {
   zone_id = data.aws_route53_zone.main.zone_id
   name    = "api.${var.root_domain}"

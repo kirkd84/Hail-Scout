@@ -3,7 +3,7 @@
 /**
  * Hail-swath vector tile layer (production source).
  *
- * Adds a vector source pointing at the tile service (`tiles.hailscout.com`)
+ * Adds a vector source pointing at the tile service (`tiles.hailscout.net`)
  * and renders swaths colored by hail size. The tile service isn't deployed
  * yet, so we silently swallow source errors — the StormFixturesLayer
  * provides demo data on top of whatever this tries to render.

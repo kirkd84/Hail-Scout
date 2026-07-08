@@ -134,7 +134,7 @@ class Settings(BaseSettings):
 
     # Geocoding
     geocoder_provider: Literal["nominatim", "mapbox"] = "nominatim"
-    nominatim_user_agent: str = "HailScout/0.1.0 (+https://hailscout.com)"
+    nominatim_user_agent: str = "HailScout/0.1.0 (+https://hailscout.net)"
     mapbox_api_key: str = ""
 
     # Routing (turn-by-turn navigate-to-lead). Key stays server-side so it never
@@ -153,7 +153,7 @@ class Settings(BaseSettings):
     aws_secret_access_key: str | None = None
 
     # CORS — list of allowed origins. Accepts CSV in the env var, e.g.
-    # CORS_ORIGINS="http://localhost:3000,https://app.hailscout.com"
+    # CORS_ORIGINS="http://localhost:3000,https://app.hailscout.net"
     cors_origins: list[str] = [
         "http://localhost:3000",
         "http://localhost:3001",

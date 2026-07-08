@@ -94,8 +94,8 @@ export default function PrivacyPolicyPage() {
             hailscout.net/account/delete
           </a>{" "}
           or by emailing{" "}
-          <a className="text-copper-700 underline" href="mailto:privacy@hailscout.com">
-            privacy@hailscout.com
+          <a className="text-copper-700 underline" href="mailto:privacy@hailscout.net">
+            privacy@hailscout.net
           </a>
           . We complete deletions within 30 days, except records we are legally
           required to retain.
@@ -122,8 +122,8 @@ export default function PrivacyPolicyPage() {
         <p>
           We&apos;ll update this page and the &quot;last updated&quot; date when
           this policy changes. Questions? Email{" "}
-          <a className="text-copper-700 underline" href="mailto:privacy@hailscout.com">
-            privacy@hailscout.com
+          <a className="text-copper-700 underline" href="mailto:privacy@hailscout.net">
+            privacy@hailscout.net
           </a>
           .
         </p>

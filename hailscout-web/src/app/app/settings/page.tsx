@@ -298,7 +298,7 @@ function IntegrationsTab() {
         description="Pipe storm alerts to Zapier, Make, n8n, or any HTTPS endpoint. Same payload format as the Slack integration."
       >
         <p className="text-sm text-foreground/55">
-          Email <span className="font-mono">hello@hailscout.com</span> if you
+          Email <span className="font-mono">hello@hailscout.net</span> if you
           need this today and we'll wire it up by hand.
         </p>
       </SectionCard>
@@ -401,10 +401,10 @@ function HelpTab() {
         description="No tickets. No queue. Email a founder and you'll hear back in hours, not days."
       >
         <a
-          href="mailto:hello@hailscout.com"
+          href="mailto:hello@hailscout.net"
           className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-copper-700"
         >
-          hello@hailscout.com <span aria-hidden>↗</span>
+          hello@hailscout.net <span aria-hidden>↗</span>
         </a>
       </SectionCard>
     </>

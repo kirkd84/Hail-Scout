@@ -11,7 +11,7 @@ export const env = {
   MICROSOFT_TENANT: process.env.EXPO_PUBLIC_MICROSOFT_TENANT ?? "common",
   API_BASE_URL:
     process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://hail-scout-production.up.railway.app",
-  TILES_BASE_URL: process.env.EXPO_PUBLIC_TILES_BASE_URL ?? "https://tiles.hailscout.com",
+  TILES_BASE_URL: process.env.EXPO_PUBLIC_TILES_BASE_URL ?? "https://tiles.hailscout.net",
 } as const;
 
 export type Env = typeof env;

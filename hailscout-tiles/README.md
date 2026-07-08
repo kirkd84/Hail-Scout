@@ -17,7 +17,7 @@ hail_swaths (PostGIS)
   ↓
 [Upload] → s3://hailscout-tiles/
   ↓
-CloudFront CDN → https://tiles.hailscout.com/swaths/{z}/{x}/{y}.pbf
+CloudFront CDN → https://tiles.hailscout.net/swaths/{z}/{x}/{y}.pbf
 ```
 
 ## Key Decisions
@@ -181,7 +181,7 @@ Insert this into your MapLibre spec under `layers[]` with:
 {
   "source": {
     "type": "vector",
-    "tiles": ["https://tiles.hailscout.com/swaths/{z}/{x}/{y}.pbf"],
+    "tiles": ["https://tiles.hailscout.net/swaths/{z}/{x}/{y}.pbf"],
     "minzoom": 4,
     "maxzoom": 14
   }
@@ -206,8 +206,8 @@ See `infra/cloudfront-distribution.tf` for Terraform spec. Key settings:
 - **Cache policies:**
   - `/swaths/*`: Cache-Control: max-age=60, must-revalidate
   - `/historical/*`: Cache-Control: max-age=31536000, immutable
-- **Domain:** `tiles.hailscout.com` (via Route53 CNAME)
-- **HTTPS:** ACM certificate for *.hailscout.com
+- **Domain:** `tiles.hailscout.net` (via Route53 CNAME)
+- **HTTPS:** ACM certificate for *.hailscout.net
 
 ## Color Legend
 

@@ -2,7 +2,7 @@
 name = "hailscout-api"
 version = "0.1.0"
 description = "FastAPI service for HailScout hail tracking platform"
-authors = ["HailScout Team <dev@hailscout.com>"]
+authors = ["HailScout Team <dev@hailscout.net>"]
 license = "Proprietary"
 readme = "README.md"
 packages = [{include = "hailscout_api", from = "src"}]

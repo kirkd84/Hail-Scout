@@ -30,7 +30,7 @@ export default function DeleteAccountPage() {
     } catch {
       setStatus("error");
       setMsg(
-        "Something went wrong submitting the request. Please email privacy@hailscout.com and we'll handle it.",
+        "Something went wrong submitting the request. Please email privacy@hailscout.net and we'll handle it.",
       );
     }
   };
@@ -133,8 +133,8 @@ export default function DeleteAccountPage() {
           </button>
           <p className="text-xs text-muted-foreground">
             Prefer email? Write{" "}
-            <a className="text-copper-700 underline" href="mailto:privacy@hailscout.com?subject=Account%20deletion%20request">
-              privacy@hailscout.com
+            <a className="text-copper-700 underline" href="mailto:privacy@hailscout.net?subject=Account%20deletion%20request">
+              privacy@hailscout.net
             </a>
             . See our{" "}
             <a className="text-copper-700 underline" href="/privacy">

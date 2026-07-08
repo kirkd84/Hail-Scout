@@ -5,7 +5,7 @@
       "priority": 1,
       "condition": {
         "field": "host-header",
-        "values": ["api.hailscout.com"]
+        "values": ["api.hailscout.net"]
       },
       "actions": [
         {

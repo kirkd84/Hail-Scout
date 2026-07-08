@@ -114,7 +114,7 @@ To validate this legend with real swath data:
 1. **Test case:** May 2023 Brownsville, TX storm (PRD reference).
    - Query: `SELECT DISTINCT hail_size_category FROM hail_swaths WHERE storm_id = '...' AND updated_at > '2023-05-15' AND updated_at < '2023-05-16'`
    - Expected: All 8 categories present in output tiles.
-   - Render: Load `https://tiles.hailscout.com/historical/2023-05-15/{z}/{x}/{y}.pbf` in MapLibre; visually verify color progression.
+   - Render: Load `https://tiles.hailscout.net/historical/2023-05-15/{z}/{x}/{y}.pbf` in MapLibre; visually verify color progression.
 
 2. **Colorblind test:**
    - Render tiles with legend in a Deuteranopia simulator.

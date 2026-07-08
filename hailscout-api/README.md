@@ -281,7 +281,7 @@ Configs provided but **not deployed yet** per ticket instructions:
 **Manual pre-deployment:**
 1. Set Clerk JWKS endpoint in ECS task environment
 2. Provision RDS Postgres 16 + PostGIS
-3. Provision ECS cluster + ALB + Route53 alias for `api.hailscout.com`
+3. Provision ECS cluster + ALB + Route53 alias for `api.hailscout.net`
 4. Create ECR repo
 5. Run migrations on RDS: `alembic upgrade head`
 

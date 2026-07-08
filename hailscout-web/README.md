@@ -111,8 +111,8 @@ Create `.env.local` from `.env.example`:
 ```env
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=<your-clerk-publishable-key>
 CLERK_SECRET_KEY=<your-clerk-secret-key>
-NEXT_PUBLIC_API_BASE_URL=https://api.hailscout.com
-NEXT_PUBLIC_TILES_BASE_URL=https://tiles.hailscout.com
+NEXT_PUBLIC_API_BASE_URL=https://api.hailscout.net
+NEXT_PUBLIC_TILES_BASE_URL=https://tiles.hailscout.net
 NEXT_PUBLIC_MAP_CENTER_LAT=39.8
 NEXT_PUBLIC_MAP_CENTER_LNG=-98.58
 NEXT_PUBLIC_MAP_DEFAULT_ZOOM=4
@@ -131,7 +131,7 @@ NEXT_PUBLIC_MAP_DEFAULT_ZOOM=4
 
 ## API Integration
 
-The frontend calls `https://api.hailscout.com` endpoints via the `apiClient` wrapper in `src/lib/api.ts`. The wrapper:
+The frontend calls `https://api.hailscout.net` endpoints via the `apiClient` wrapper in `src/lib/api.ts`. The wrapper:
 
 1. Automatically attaches Clerk JWT in the `Authorization` header
 2. Handles 401 → redirect to sign-in
@@ -152,7 +152,7 @@ The frontend calls `https://api.hailscout.com` endpoints via the `apiClient` wra
 1. Connect GitHub repo at `https://vercel.com/new`
 2. Set `rootDirectory` to `hailscout-web` in Vercel project settings
 3. Add environment variables in Vercel dashboard (Clerk keys, API/tiles URLs)
-4. Domain: `app.hailscout.com`
+4. Domain: `app.hailscout.net`
 
 See `vercel.json` for config details and env var contracts.
 
@@ -202,7 +202,7 @@ Currently shipped:
 
 ### ML/Swath Agent (hailscout-tiles)
 - Tile generation pipeline from `hail_swaths` table
-- Vector tiles served at `https://tiles.hailscout.com/swaths/{z}/{x}/{y}.pbf`
+- Vector tiles served at `https://tiles.hailscout.net/swaths/{z}/{x}/{y}.pbf`
 - Color coding per PRD §2.5
 
 ### Data Pipeline Agent (hailscout-data-pipeline)

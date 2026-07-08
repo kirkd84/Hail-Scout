@@ -16,7 +16,7 @@ from hailscout_api.core import get_logger
 logger = get_logger(__name__)
 
 RESEND_API_URL = "https://api.resend.com/emails"
-DEFAULT_FROM = "HailScout <alerts@notifications.hailscout.app>"
+DEFAULT_FROM = "HailScout <alerts@notifications.hailscout.net>"
 
 
 async def send_password_reset(email: str, reset_url: str) -> bool:

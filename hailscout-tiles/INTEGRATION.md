@@ -9,8 +9,8 @@ Add this vector tile source to your MapLibre GL JS map configuration:
   "id": "swaths-source",
   "type": "vector",
   "tiles": [
-    "https://tiles.hailscout.com/swaths/{z}/{x}/{y}.pbf",
-    "https://tiles.hailscout.com/historical/{date}/{z}/{x}/{y}.pbf"
+    "https://tiles.hailscout.net/swaths/{z}/{x}/{y}.pbf",
+    "https://tiles.hailscout.net/historical/{date}/{z}/{x}/{y}.pbf"
   ],
   "minzoom": 4,
   "maxzoom": 14
@@ -76,7 +76,7 @@ interface SwathFeature {
 
 ### Current Tiles (`/swaths/`)
 
-- **URL:** `https://tiles.hailscout.com/swaths/{z}/{x}/{y}.pbf`
+- **URL:** `https://tiles.hailscout.net/swaths/{z}/{x}/{y}.pbf`
 - **Data:** Last 7 days of swaths
 - **Refresh:** Every 5 minutes (refreshed by the `generate-current` job)
 - **Cache TTL:** 60 seconds (via CloudFront)
@@ -84,7 +84,7 @@ interface SwathFeature {
 
 ### Historical Tiles (`/historical/{date}/`)
 
-- **URL:** `https://tiles.hailscout.com/historical/{YYYY-MM-DD}/{z}/{x}/{y}.pbf`
+- **URL:** `https://tiles.hailscout.net/historical/{YYYY-MM-DD}/{z}/{x}/{y}.pbf`
 - **Data:** All swaths for a specific date
 - **Refresh:** On-demand via `generate-historical` job
 - **Cache TTL:** 1 year (immutable; served with `immutable` cache header)
@@ -178,7 +178,7 @@ const SwathsLayer = () => (
   <>
     <MapLibreGL.VectorSource
       id="swaths-source"
-      tileUrlTemplates={["https://tiles.hailscout.com/swaths/{z}/{x}/{y}.pbf"]}
+      tileUrlTemplates={["https://tiles.hailscout.net/swaths/{z}/{x}/{y}.pbf"]}
       minZoomLevel={4}
       maxZoomLevel={14}
     >

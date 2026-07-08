@@ -2,7 +2,7 @@
 name = "hailscout-tiles"
 version = "0.1.0"
 description = "Vector tile service for hail-swath polygons"
-authors = ["HailScout <dev@hailscout.com>"]
+authors = ["HailScout <dev@hailscout.net>"]
 license = "Proprietary"
 readme = "README.md"
 packages = [{ include = "hailscout_tiles", from = "src" }]

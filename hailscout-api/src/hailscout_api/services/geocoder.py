@@ -41,7 +41,7 @@ class NominatimGeocoder(Geocoder):
     https://nominatim.org/release-docs/latest/api/Overview/
     """
 
-    def __init__(self, user_agent: str = "HailScout/0.1.0 (+https://hailscout.com)") -> None:
+    def __init__(self, user_agent: str = "HailScout/0.1.0 (+https://hailscout.net)") -> None:
         """Initialize Nominatim geocoder."""
         self.user_agent = user_agent
         self.base_url = "https://nominatim.openstreetmap.org"

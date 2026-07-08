@@ -3,7 +3,7 @@ import { z } from "zod";
 /** Validated environment variables. Reads `NEXT_PUBLIC_*` for client + server, others server-only. */
 const schema = z.object({
   NEXT_PUBLIC_API_BASE_URL: z.string().url().default("https://hail-scout-production.up.railway.app"),
-  NEXT_PUBLIC_TILES_BASE_URL: z.string().url().default("https://tiles.hailscout.com"),
+  NEXT_PUBLIC_TILES_BASE_URL: z.string().url().default("https://tiles.hailscout.net"),
   NEXT_PUBLIC_MAPTILER_KEY: z.string().optional(),
   NEXT_PUBLIC_MAP_CENTER_LAT: z.coerce.number().default(39.8),
   NEXT_PUBLIC_MAP_CENTER_LNG: z.coerce.number().default(-98.58),

@@ -10,7 +10,7 @@ present. If not, we log "email.send_skipped_no_key" and return False
 so the caller can still record a delivery_status=skipped. This lets
 the rest of the pipeline ship without a live email vendor configured.
 
-Sender address is `alerts@notifications.hailscout.app` by default
+Sender address is `alerts@notifications.hailscout.net` by default
 (override via `RESEND_FROM_ADDRESS`). The domain needs to be verified
 in Resend for production use; until then the no-key path is the
 honest default.
@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 
 
 RESEND_API_URL = "https://api.resend.com/emails"
-DEFAULT_FROM = "HailScout Alerts <alerts@notifications.hailscout.app>"
+DEFAULT_FROM = "HailScout Alerts <alerts@notifications.hailscout.net>"
 
 
 # Mirror the Slack module's reference scale so the two surfaces speak
