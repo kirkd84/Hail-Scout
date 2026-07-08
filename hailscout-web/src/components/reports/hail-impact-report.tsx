@@ -33,21 +33,24 @@ interface ReportProps {
   preparedBy?: string;
   /** Field-captured damage photos (dataURLs) — embedded on page 2. */
   photos?: string[];
-  /** Hex override for the brand primary (defaults to topographic teal). */
+  /** Hex override for the brand primary (defaults to the brand deep-cyan). */
   brandPrimary?: string;
-  /** Hex override for the brand accent (defaults to copper). */
+  /** Hex override for the brand accent (defaults to the brand cyan). */
   brandAccent?: string;
 }
 
+// Slate + cyan brand palette (matches the web rebrand: teal-*→slate,
+// copper-*→cyan). react-pdf can't read CSS vars, so these mirror the
+// resolved token hex values from globals.css.
 const COLORS = {
-  cream: "#F5F1EA",
-  creamLift: "#FAF7F1",
-  paper: "#FFFFFF",
-  charcoal: "#2B2620",
-  textMuted: "#6B6052",
-  border: "#E0D9CC",
-  teal: "#0F4C5C",
-  copper: "#D87C4A",
+  cream: "#F1F5F9", // slate-100 — page background
+  creamLift: "#F8FAFC", // slate-50 — lifted panel
+  paper: "#FFFFFF", // white — cards
+  charcoal: "#1F2937", // slate-800 — body text
+  textMuted: "#64748B", // slate-500 — muted text
+  border: "#E2E8F0", // slate-200
+  teal: "#0E7490", // brand primary → PenSnap deep cyan (cyan-700)
+  copper: "#06B6D4", // accent → PenSnap cyan (cyan-500)
 };
 
 const styles = StyleSheet.create({
