@@ -39,15 +39,19 @@ export function StatTicker() {
         const data = (await res.json()) as PublicStats;
         if (!cancelled) setStats(data);
       } catch {
-        // Fallback — derive from local fixtures
+        // Never invent public stats. In explicit demo mode, show
+        // fixture-derived counts; otherwise leave stats unset so the ticker
+        // shows nothing rather than fabricated numbers on an API hiccup.
         if (cancelled) return;
-        setStats({
-          storms_tracked: STORM_FIXTURES.length,
-          storms_live: STORM_FIXTURES.filter((s) => s.is_live).length,
-          addresses_monitored: 0,
-          alerts_this_week: 0,
-          organizations: 0,
-        });
+        if (process.env.NEXT_PUBLIC_USE_FIXTURES === "1") {
+          setStats({
+            storms_tracked: STORM_FIXTURES.length,
+            storms_live: STORM_FIXTURES.filter((s) => s.is_live).length,
+            addresses_monitored: 0,
+            alerts_this_week: 0,
+            organizations: 0,
+          });
+        }
       }
     };
     void load();

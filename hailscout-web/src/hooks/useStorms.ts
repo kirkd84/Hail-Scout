@@ -12,11 +12,13 @@
  * marketing site (live gallery, claim lookup) can render without a Clerk
  * session. Authenticated callers get the same data.
  *
- * Fixture fallback: when NEXT_PUBLIC_USE_FIXTURES === "1" we skip the
- * network entirely and return filtered fixtures. With `fallbackToFixtures:
- * true` the hook also substitutes fixtures when the API replies with an
- * empty list — useful for the post-deploy validation window before the
- * pipeline has filled the DB.
+ * Fixtures: when NEXT_PUBLIC_USE_FIXTURES === "1" we skip the network
+ * entirely and return demo fixtures (offline/dev). Separately, the
+ * `fallbackToFixtures` param can substitute fixtures when the live API
+ * returns an empty list — but ONLY in an explicit demo/validation build
+ * (NEXT_PUBLIC_ALLOW_FIXTURE_FALLBACK === "1"). In production that flag is
+ * off, so an empty OR errored /v1/storms yields an honest empty result and
+ * real users are NEVER shown fabricated storms.
  */
 
 import useSWR from "swr";
@@ -136,6 +138,15 @@ export function adaptApiStorm(s: ApiStorm): Storm {
 }
 
 const isFixtureMode = () => process.env.NEXT_PUBLIC_USE_FIXTURES === "1";
+// Opt-in ONLY. When the live API returns empty — or ERRORS, since a failed
+// request also yields apiStorms=[] — substitute demo fixtures only if this
+// explicit flag is set (demo/validation/screenshot builds). Default OFF, so
+// real users are never shown fabricated storms; an empty or failed
+// /v1/storms renders an honest empty result instead. (The mobile app dropped
+// fixture fallback for the same reason: inventing storms in a data-accuracy
+// product is dishonest.)
+const allowFixtureFallback = () =>
+  process.env.NEXT_PUBLIC_ALLOW_FIXTURE_FALLBACK === "1";
 
 // ---- Hooks ----
 
@@ -248,7 +259,8 @@ export function useStorms(args: UseStormsArgs) {
       geometry: sw.geometry,
     })),
   }));
-  const usingFallback = fallbackToFixtures && !isLoading && apiStorms.length === 0;
+  const usingFallback =
+    allowFixtureFallback() && fallbackToFixtures && !isLoading && apiStorms.length === 0;
 
   return {
     storms: usingFallback
@@ -332,7 +344,7 @@ export function useStormsAtPoint(args: UseStormsAtPointArgs | null) {
 
   const hits = data?.hits ?? [];
   const usingFallback =
-    args.fallbackToFixtures && !isLoading && hits.length === 0;
+    allowFixtureFallback() && args.fallbackToFixtures && !isLoading && hits.length === 0;
 
   return {
     hits: usingFallback ? fixturesAtPoint(args.lng, args.lat).map(fixtureToHit) : hits,

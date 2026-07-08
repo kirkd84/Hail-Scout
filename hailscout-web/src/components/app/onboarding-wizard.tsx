@@ -59,9 +59,12 @@ async function getHitsAtPoint(
       } as StormFixture));
     }
   } catch {
-    // fall through to fixture fallback
+    // fall through
   }
-  return fixturesAtPoint(lng, lat);
+  // A real lookup with no hail history returns NO storms. Fixtures only ever
+  // appear in explicit demo mode — never as a silent substitute for a live
+  // result, which would invent storms at a clean address during onboarding.
+  return process.env.NEXT_PUBLIC_USE_FIXTURES === "1" ? fixturesAtPoint(lng, lat) : [];
 }
 
 type Step = "welcome" | "address" | "storms" | "report" | "team" | "done";
@@ -140,7 +143,9 @@ export function OnboardingWizard({ forceOpen }: Props) {
     try {
       const r = await searchAddress(addressInput.trim());
       if (r) {
-        const hits = fixturesAtPoint(r.lng, r.lat);
+        // Real address → real /v1/storms/at-point lookup (honest empty if no
+        // hail history). Never fabricate storms for a user's own address.
+        const hits = await getHitsAtPoint(r.lat, r.lng);
         await save({
           address: r.pretty,
           lat: r.lat,
