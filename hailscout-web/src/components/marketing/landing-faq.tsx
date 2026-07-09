@@ -34,8 +34,8 @@ const FAQS: QA[] = [
     a: "Yes. The switch takes about 10 minutes — paste your customer address list into the bulk-import tool, invite your team, configure Slack. Existing storms backfill automatically. We have customers running both tools in parallel for a week before cutting over; that pattern works well.",
   },
   {
-    q: "Is there a free trial?",
-    a: "14 days, full access, no credit card required. You'll get the same map your paying customers see — with a banner at the top reminding you to upgrade when you're ready. Cancel anytime in one click.",
+    q: "How do I get started?",
+    a: "Request access and we'll onboard your team directly — you'll see the same live map your customers rely on, on your own territory, before you commit.",
   },
   {
     q: "Who's behind HailScout?",

@@ -52,7 +52,7 @@ const ROWS: CompetitorRow[] = [
   { feature: "Per-seat pricing",           hailtrace: "Yes", ihm: "Yes", hailscout: { value: "Unlimited seats", tone: "highlight" } },
   { feature: "API for CRM integrations",   hailtrace: "—",   ihm: "Limited", hailscout: { value: "API-first", tone: "highlight" } },
   { feature: "Team / multi-tenant",        hailtrace: "Add-on", ihm: "Limited", hailscout: { value: "Built-in", tone: "highlight" } },
-  { feature: "Free trial",                 hailtrace: "Demo only", ihm: "Demo only", hailscout: { value: "14-day full access", tone: "highlight" } },
+  { feature: "Onboarding",                 hailtrace: "—", ihm: "—", hailscout: { value: "Hands-on setup", tone: "highlight" } },
 ];
 
 function ComparisonGrid() {
@@ -206,8 +206,8 @@ function FinalCta() {
           Try the map. Decide for yourself.
         </h2>
         <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-          <Link href="/sign-up" className="inline-flex items-center gap-2 rounded-md bg-copper px-5 py-3 text-sm font-medium text-primary-foreground shadow-atlas-lg transition-colors hover:bg-copper-700">
-            Start your free trial <span aria-hidden>→</span>
+          <Link href="/request-access" className="inline-flex items-center gap-2 rounded-md bg-copper px-5 py-3 text-sm font-medium text-primary-foreground shadow-atlas-lg transition-colors hover:bg-copper-700">
+            Request access <span aria-hidden>→</span>
           </Link>
           <Link href="/pricing" className="inline-flex items-center gap-2 rounded-md border border-primary-foreground/20 bg-transparent px-5 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-foreground/10">
             See pricing

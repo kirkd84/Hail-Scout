@@ -196,10 +196,10 @@ export default function AlertsPage() {
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <Link
-              href="/sign-up"
+              href="/request-access"
               className="inline-flex items-center gap-2 rounded-md bg-copper px-5 py-3 text-sm font-medium text-primary-foreground hover:bg-copper-700"
             >
-              Start your free trial <span aria-hidden>→</span>
+              Request access <span aria-hidden>→</span>
             </Link>
             <Link
               href="/storms"

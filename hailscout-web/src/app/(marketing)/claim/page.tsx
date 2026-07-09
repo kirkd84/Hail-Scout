@@ -214,10 +214,10 @@ export default function ClaimLookupPage() {
                   Copy verified link
                 </button>
                 <Link
-                  href="/sign-up"
+                  href="/request-access"
                   className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-copper-700"
                 >
-                  I&apos;m a contractor — start free trial <span aria-hidden>→</span>
+                  I&apos;m a contractor — request access <span aria-hidden>→</span>
                 </Link>
               </div>
             </div>
@@ -421,8 +421,8 @@ function FinalCta() {
           HailScout pulls every storm in the U.S. hail belt onto one map. Save customer addresses, get alerted instantly, generate branded Hail Impact Reports.
         </p>
         <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-          <Link href="/sign-up" className="inline-flex items-center gap-2 rounded-md bg-copper px-5 py-3 text-sm font-medium text-primary-foreground shadow-atlas-lg hover:bg-copper-700">
-            Start your free trial <span aria-hidden>→</span>
+          <Link href="/request-access" className="inline-flex items-center gap-2 rounded-md bg-copper px-5 py-3 text-sm font-medium text-primary-foreground shadow-atlas-lg hover:bg-copper-700">
+            Request access <span aria-hidden>→</span>
           </Link>
           <Link href="/" className="inline-flex items-center gap-2 rounded-md border border-primary-foreground/20 bg-transparent px-5 py-3 text-sm font-medium text-primary-foreground hover:bg-primary-foreground/10">
             How HailScout works

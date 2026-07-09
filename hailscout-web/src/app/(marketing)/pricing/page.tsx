@@ -46,12 +46,12 @@ const PROMISES: { k: string; v: string }[] = [
     v: "Your whole crew and sales team are included. Headcount never changes the bill.",
   },
   {
-    k: "14-day free trial",
-    v: "Full access, no credit card. Explore the entire map before you pay a cent.",
+    k: "See it before you commit",
+    v: "We set your team up and walk you through the live map on your own territory first.",
   },
   {
-    k: "Cancel anytime",
-    v: "No multi-year lock-in to get started. Stay because it works, not because you're stuck.",
+    k: "Personal onboarding",
+    v: "A real person gets your crew canvassing — not a form and a shrug.",
   },
 ];
 
@@ -108,7 +108,7 @@ const TIERS: Tier[] = [
     blurb: "For small roofing contractors getting started.",
     price: 899,
     priceLabel: "/year",
-    cta: { label: "Start free trial", href: "/sign-up" },
+    cta: { label: "Request access", href: "/request-access" },
     features: [
       "Nationwide hail mapping — live + 15yr archive",
       "Unlimited team members",
@@ -124,7 +124,7 @@ const TIERS: Tier[] = [
     blurb: "For growth-stage contractors with a sales team.",
     price: 1499,
     priceLabel: "/year",
-    cta: { label: "Notify me", href: "/sign-up" },
+    cta: { label: "Notify me", href: "/request-access" },
     features: [
       "Everything in Starter",
       "Photo damage AI triage",
@@ -237,8 +237,8 @@ const FAQS: { q: string; a: string }[] = [
     a: "Because you shouldn't have to sit through a sales call just to learn what a tool costs. Our price is the same whether you run one truck or forty — published, flat, and honest. No quote games, no “it depends.”",
   },
   {
-    q: "Can I try for free?",
-    a: "Yes. 14 days full access to Starter, no credit card required. The map is yours to explore from day one.",
+    q: "How do I get started?",
+    a: "Request access and we'll set your team up directly — you'll see the live map on your own territory before you commit. Email hello@hailscout.net or hit Request access.",
   },
   {
     q: "How many team members can I invite?",
@@ -295,10 +295,10 @@ function FinalCta() {
         </h2>
         <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
           <Link
-            href="/sign-up"
+            href="/request-access"
             className="inline-flex items-center gap-2 rounded-md bg-copper px-5 py-3 text-sm font-medium text-primary-foreground shadow-atlas-lg transition-colors hover:bg-copper-700"
           >
-            Start your free trial <span aria-hidden>→</span>
+            Request access <span aria-hidden>→</span>
           </Link>
           <Link
             href="/compare"

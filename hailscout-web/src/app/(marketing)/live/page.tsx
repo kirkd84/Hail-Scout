@@ -121,8 +121,8 @@ function Hero({
           )}
         </p>
         <div className="mt-7 flex flex-wrap justify-center gap-3">
-          <Link href="/sign-up" className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground shadow-atlas transition-colors hover:bg-copper-700">
-            Start your free trial <span aria-hidden>→</span>
+          <Link href="/request-access" className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground shadow-atlas transition-colors hover:bg-copper-700">
+            Request access <span aria-hidden>→</span>
           </Link>
           <Link href="/" className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-5 py-3 text-sm font-medium text-foreground hover:bg-muted">
             How HailScout works
@@ -351,8 +351,8 @@ function FinalCta() {
           Save your customers, get alerted instantly, generate Hail Impact Reports for any address. $899/yr nationwide.
         </p>
         <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-          <Link href="/sign-up" className="inline-flex items-center gap-2 rounded-md bg-copper px-5 py-3 text-sm font-medium text-primary-foreground shadow-atlas-lg hover:bg-copper-700">
-            Start your free trial <span aria-hidden>→</span>
+          <Link href="/request-access" className="inline-flex items-center gap-2 rounded-md bg-copper px-5 py-3 text-sm font-medium text-primary-foreground shadow-atlas-lg hover:bg-copper-700">
+            Request access <span aria-hidden>→</span>
           </Link>
           <Link href="/pricing" className="inline-flex items-center gap-2 rounded-md border border-primary-foreground/20 bg-transparent px-5 py-3 text-sm font-medium text-primary-foreground hover:bg-primary-foreground/10">
             See pricing

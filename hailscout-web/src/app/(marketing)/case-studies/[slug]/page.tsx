@@ -121,10 +121,10 @@ export default async function CaseStudyPage({
           </p>
           <div className="mt-8 flex justify-center gap-3 flex-wrap">
             <Link
-              href="/sign-up"
+              href="/request-access"
               className="inline-flex items-center gap-2 rounded-md bg-copper px-6 py-3 text-sm font-medium text-white shadow-atlas hover:bg-copper-700"
             >
-              Start free <span aria-hidden>→</span>
+              Request access <span aria-hidden>→</span>
             </Link>
             <Link
               href="/pricing"

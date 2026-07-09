@@ -60,10 +60,10 @@ function Hero() {
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
-              href="/sign-up"
+              href="/request-access"
               className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground shadow-atlas transition-all hover:bg-copper-700"
             >
-              Start your free trial <span aria-hidden>→</span>
+              Request access <span aria-hidden>→</span>
             </Link>
             <Link
               href="#how"
@@ -73,7 +73,7 @@ function Hero() {
             </Link>
           </div>
           <p className="mt-5 text-sm text-muted-foreground">
-            No credit card required. Cancel anytime.
+            We onboard your crew directly — set up in a day.
           </p>
         </div>
 
@@ -242,10 +242,10 @@ function FinalCta() {
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Link
-            href="/sign-up"
+            href="/request-access"
             className="inline-flex items-center gap-2 rounded-md bg-copper px-6 py-3 text-sm font-medium text-primary-foreground shadow-atlas-lg transition-colors hover:bg-copper-700"
           >
-            Start your free trial <span aria-hidden>→</span>
+            Request access <span aria-hidden>→</span>
           </Link>
           <Link
             href="/pricing"
