@@ -13,12 +13,45 @@ import { theme, SPACING, RADIUS } from "@/lib/tokens";
 import { AppHeader } from "@/components/AppHeader";
 import { Card } from "@/components/Card";
 import { Wordmark } from "@/components/Wordmark";
+import { deleteAccount } from "@/auth/session";
 
 const VERSION = "0.2.0";
 
 export function SettingsScreen() {
   const t = theme(useColorScheme());
-  const { signOut, user, organization } = useAuth();
+  const { signOut, user, organization, getToken } = useAuth();
+
+  const onDeleteAccount = () => {
+    Alert.alert(
+      "Delete account",
+      "This permanently deletes your HailScout account and the data tied to it. You'll be signed out immediately. This can't be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete account",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const token = await getToken();
+              if (!token) throw new Error("Please sign in again.");
+              await deleteAccount(token);
+            } catch (e) {
+              Alert.alert(
+                "Couldn't delete account",
+                e instanceof Error ? e.message : "Please try again.",
+              );
+              return;
+            }
+            await signOut();
+            Alert.alert(
+              "Account deleted",
+              "Your account has been deleted and you've been signed out.",
+            );
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <View style={[styles.root, { backgroundColor: t.bg }]}>
@@ -47,31 +80,16 @@ export function SettingsScreen() {
           </Pressable>
         </Card>
 
-        {/* Account deletion — required by Google Play for any app with
-            sign-in. Opens the deletion-request flow on the web. */}
+        {/* Account deletion — required by Apple (5.1.1v) + Google Play for
+            any app with sign-in. Deletes in-app: deactivates + revokes the
+            account server-side, then signs out. */}
         <Card>
-          <Pressable
-            onPress={() =>
-              Alert.alert(
-                "Delete account",
-                "This permanently removes your HailScout account and associated data. We'll open the deletion request page to continue.",
-                [
-                  { text: "Cancel", style: "cancel" },
-                  {
-                    text: "Continue",
-                    style: "destructive",
-                    onPress: () =>
-                      Linking.openURL("https://hailscout.net/account/delete"),
-                  },
-                ],
-              )
-            }
-          >
+          <Pressable onPress={onDeleteAccount}>
             <Text style={[styles.linkLabel, { color: t.destructive }]}>
               DELETE ACCOUNT
             </Text>
             <Text style={[styles.linkValue, { color: t.fg }]}>
-              Request account + data deletion  →
+              Delete account + data  →
             </Text>
             <Text style={[styles.sub, { color: t.fgMuted }]}>
               Permanently removes your account and the data tied to it.

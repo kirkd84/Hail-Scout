@@ -115,6 +115,20 @@ export async function logout(refresh: string): Promise<void> {
   }
 }
 
+/** Delete the signed-in user's own account (App Store 5.1.1(v) / Play). The
+ * server immediately disables the account + revokes sessions; the data purge
+ * completes within 30 days. The caller signs out on success. */
+export async function deleteAccount(accessToken: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/v1/account/delete`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+  });
+  if (!res.ok) throw new Error("Account deletion failed. Please try again.");
+}
+
 export interface MeResult {
   user: SessionUser;
   organization: SessionOrg;
