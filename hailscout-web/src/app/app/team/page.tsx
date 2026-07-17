@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useTeam, type TeamMember } from "@/hooks/useTeam";
 import { useMe } from "@/hooks/useMe";
 import { EmptyState } from "@/components/app/empty-state";
@@ -33,8 +33,10 @@ const ROLE_TONE: Record<string, { color: string; bg: string; ring: string }> = {
 
 export default function TeamPage() {
   const { me } = useMe();
-  const { members, updateRole, remove, resetMfa, invite, updateName, isLoading, error } =
-    useTeam();
+  const {
+    members, updateRole, remove, resetMfa, invite, updateName,
+    updateEmail, sendPasswordReset, setActive, isLoading, error,
+  } = useTeam();
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -48,6 +50,10 @@ export default function TeamPage() {
   const [editFirst, setEditFirst] = useState("");
   const [editLast, setEditLast] = useState("");
   const [nameBusy, setNameBusy] = useState(false);
+  // Per-member admin actions menu — fixed-positioned (via the ⋯ button's
+  // rect) so the members list's overflow-hidden doesn't clip it.
+  const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [actionBusyId, setActionBusyId] = useState<string | null>(null);
 
   const startEdit = (m: TeamMember) => {
     setEditingId(m.id);
@@ -90,6 +96,63 @@ export default function TeamPage() {
       );
     } finally {
       setMfaBusyId(null);
+    }
+  };
+
+  const flash = (msg: string, ms = 4000) => {
+    setMfaFlash(msg);
+    if (ms) setTimeout(() => setMfaFlash(null), ms);
+  };
+
+  const handleEditEmail = async (m: TeamMember) => {
+    setMenu(null);
+    const next = window.prompt(`New email for ${memberName(m)}:`, m.email);
+    if (!next || next.trim().toLowerCase() === m.email) return;
+    setActionBusyId(m.id);
+    setMfaFlash(null);
+    try {
+      await updateEmail(m.id, next.trim());
+      flash(`Email updated to ${next.trim().toLowerCase()}.`);
+    } catch (e) {
+      flash(e instanceof Error && e.message ? e.message : "Couldn't update email", 6000);
+    } finally {
+      setActionBusyId(null);
+    }
+  };
+
+  const handleSendReset = async (m: TeamMember) => {
+    setMenu(null);
+    setActionBusyId(m.id);
+    setMfaFlash(null);
+    try {
+      flash(await sendPasswordReset(m.id), 6000);
+    } catch (e) {
+      flash(e instanceof Error && e.message ? e.message : "Couldn't send reset", 6000);
+    } finally {
+      setActionBusyId(null);
+    }
+  };
+
+  const handleToggleActive = async (m: TeamMember) => {
+    setMenu(null);
+    const disabling = !m.is_disabled;
+    if (
+      disabling &&
+      !confirm(
+        `Deactivate ${memberName(m)}?\n\nThey're signed out immediately and can't sign back in until reactivated. Their data is kept.`,
+      )
+    ) {
+      return;
+    }
+    setActionBusyId(m.id);
+    setMfaFlash(null);
+    try {
+      await setActive(m.id, !disabling);
+      flash(disabling ? `${memberName(m)} deactivated.` : `${memberName(m)} reactivated.`);
+    } catch (e) {
+      flash(e instanceof Error && e.message ? e.message : "Couldn't update status", 6000);
+    } finally {
+      setActionBusyId(null);
     }
   };
 
@@ -251,6 +314,7 @@ export default function TeamPage() {
                 className={cn(
                   "group grid grid-cols-[3fr_140px_1fr_150px] items-center hover:bg-secondary/30 transition-colors",
                   i < members.length - 1 ? "border-b border-border/60" : "",
+                  m.is_disabled && "opacity-60",
                 )}
               >
                 <div className="px-5 py-3 flex items-center gap-3 min-w-0">
@@ -305,6 +369,11 @@ export default function TeamPage() {
                               super
                             </span>
                           )}
+                          {m.is_disabled && (
+                            <span className="ml-2 text-[9px] uppercase tracking-wide-caps font-mono rounded-md bg-destructive/10 text-destructive px-1.5 py-0.5 ring-1 ring-destructive/25 normal-case">
+                              deactivated
+                            </span>
+                          )}
                           {(canManage || isMe) && (
                             <button
                               type="button"
@@ -349,30 +418,30 @@ export default function TeamPage() {
                 <div className="px-5 py-3 text-xs text-muted-foreground">
                   {new Date(m.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                 </div>
-                <div className="px-5 py-3 flex items-center justify-end gap-3">
+                <div className="px-5 py-3 flex items-center justify-end">
                   {canManage && !isMe && (
                     <button
                       type="button"
-                      onClick={() => void handleResetMfa(m)}
-                      disabled={mfaBusyId === m.id}
-                      title="Un-enroll this teammate's two-factor so they can set it up again (use when they've lost their phone)"
-                      className="text-[11px] font-mono uppercase tracking-wide-caps text-copper/80 hover:text-copper-700 disabled:opacity-50"
-                    >
-                      {mfaBusyId === m.id ? "Resetting…" : "Reset 2FA"}
-                    </button>
-                  )}
-                  {canRemove && !isMe && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (confirm(`Remove ${m.email} from the workspace?`)) {
-                          void remove(m.id);
-                        }
+                      aria-label="Manage member"
+                      title="Manage member"
+                      disabled={actionBusyId === m.id || mfaBusyId === m.id}
+                      onClick={(e) => {
+                        const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        setMenu(
+                          menu?.id === m.id ? null : { id: m.id, x: r.right, y: r.bottom },
+                        );
                       }}
-                      aria-label="Remove member"
-                      className="text-foreground/40 hover:text-destructive opacity-60 hover:opacity-100"
+                      className="rounded-md p-1.5 text-foreground/50 hover:bg-secondary hover:text-foreground disabled:opacity-50"
                     >
-                      <IconClose className="h-4 w-4" />
+                      {actionBusyId === m.id || mfaBusyId === m.id ? (
+                        <span className="px-1 font-mono text-[11px]">…</span>
+                      ) : (
+                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
+                          <circle cx="5" cy="12" r="1.6" />
+                          <circle cx="12" cy="12" r="1.6" />
+                          <circle cx="19" cy="12" r="1.6" />
+                        </svg>
+                      )}
                     </button>
                   )}
                 </div>
@@ -381,6 +450,48 @@ export default function TeamPage() {
           })}
         </div>
 
+        {menu && (() => {
+          const m = members.find((x) => x.id === menu.id);
+          if (!m) return null;
+          return (
+            <>
+              <div className="fixed inset-0 z-30" onClick={() => setMenu(null)} />
+              <div
+                className="fixed z-40 w-56 rounded-lg border border-border bg-card py-1 text-sm shadow-panel"
+                style={{ left: Math.max(8, menu.x - 224), top: menu.y + 6 }}
+              >
+                <MenuItem onClick={() => void handleEditEmail(m)}>Edit email</MenuItem>
+                <MenuItem onClick={() => void handleSendReset(m)}>
+                  Send password reset
+                </MenuItem>
+                <MenuItem
+                  onClick={() => {
+                    setMenu(null);
+                    void handleResetMfa(m);
+                  }}
+                >
+                  Reset two-factor
+                </MenuItem>
+                <div className="my-1 border-t border-border/60" />
+                <MenuItem tone="warn" onClick={() => void handleToggleActive(m)}>
+                  {m.is_disabled ? "Reactivate account" : "Deactivate account"}
+                </MenuItem>
+                {canRemove && (
+                  <MenuItem
+                    tone="danger"
+                    onClick={() => {
+                      setMenu(null);
+                      if (confirm(`Remove ${m.email} from the workspace?`)) void remove(m.id);
+                    }}
+                  >
+                    Remove from workspace
+                  </MenuItem>
+                )}
+              </div>
+            </>
+          );
+        })()}
+
         {!canManage && (
           <p className="text-xs text-muted-foreground">
             Read-only view — your role is <strong>{myRole}</strong>. Ask an admin or owner to invite or change roles.
@@ -388,6 +499,32 @@ export default function TeamPage() {
         )}
       </div>
     </div>
+  );
+}
+
+function MenuItem({
+  children,
+  onClick,
+  tone = "default",
+}: {
+  children: ReactNode;
+  onClick: () => void;
+  tone?: "default" | "warn" | "danger";
+}) {
+  const color =
+    tone === "danger"
+      ? "text-destructive hover:bg-destructive/10"
+      : tone === "warn"
+        ? "text-copper-700 hover:bg-copper/10"
+        : "text-foreground hover:bg-secondary";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn("block w-full px-3.5 py-2 text-left transition-colors", color)}
+    >
+      {children}
+    </button>
   );
 }
 

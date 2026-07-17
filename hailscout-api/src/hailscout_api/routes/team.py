@@ -7,8 +7,9 @@ gated to admins/owners for write actions.
 
 from __future__ import annotations
 
+import os
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -16,11 +17,13 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hailscout_api.auth.session import verify_access_token
+from hailscout_api.auth.session import hash_refresh_token, verify_access_token
 from hailscout_api.core import AuthenticationError, AuthorizationError, get_logger
-from hailscout_api.db.models.org import Seat, User
+from hailscout_api.db.models.org import Seat, User, UserSession
+from hailscout_api.db.models.password_auth import UserToken
 from hailscout_api.db.session import get_db_session
 from hailscout_api.services.audit import write_event
+from hailscout_api.services.password_reset_email import send_password_reset
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -33,6 +36,7 @@ class TeamMember(BaseModel):
     last_name: Optional[str] = None
     role: str
     is_super_admin: bool
+    is_disabled: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -45,6 +49,14 @@ class TeamRoleUpdate(BaseModel):
 class TeamNameUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+
+
+class TeamEmailUpdate(BaseModel):
+    email: EmailStr
+
+
+class TeamActiveUpdate(BaseModel):
+    active: bool
 
 
 class TeamInvite(BaseModel):
@@ -312,3 +324,178 @@ async def add_team_member(
         org_id=me.org_id, email=email, role=body.role, added_by=me.id,
     )
     return member
+
+
+@router.patch("/team/{user_id}/email", response_model=TeamMember)
+async def update_team_email(
+    request: Request,
+    user_id: str,
+    body: TeamEmailUpdate,
+    session: AsyncSession = Depends(get_db_session),
+) -> User:
+    """Change a teammate's email. Admin/owner only.
+
+    The new address must not already belong to another account. For SSO
+    users it becomes the address they sign in with (their linked provider
+    subject still resolves them); for password users it's their login id.
+    """
+    me = await _resolve_user(request, session)
+    _require_admin(me)
+
+    target = (
+        await session.execute(
+            select(User).where(and_(User.id == user_id, User.org_id == me.org_id)),
+        )
+    ).scalars().first()
+    if target is None:
+        raise HTTPException(status_code=404, detail="Member not found")
+
+    new_email = str(body.email).lower().strip()
+    if new_email != target.email:
+        clash = (
+            await session.execute(select(User).where(User.email == new_email))
+        ).scalars().first()
+        if clash is not None:
+            raise HTTPException(status_code=409, detail="That email is already in use.")
+
+    prev = target.email
+    target.email = new_email
+    await session.commit()
+    await session.refresh(target)
+    await write_event(
+        session,
+        action="team.email_changed",
+        org_id=me.org_id,
+        user_id=me.id,
+        subject_type="user",
+        subject_id=target.id,
+        metadata={"from": prev, "to": new_email},
+    )
+    return target
+
+
+@router.post("/team/{user_id}/send-password-reset")
+async def send_team_password_reset(
+    request: Request,
+    user_id: str,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, bool | str]:
+    """Email a teammate a link to set or reset their password. Admin/owner
+    only. Doubles as initial-password setup for members who've only ever
+    signed in with Google/Microsoft. The link is valid for 24 hours."""
+    me = await _resolve_user(request, session)
+    _require_admin(me)
+
+    target = (
+        await session.execute(
+            select(User).where(and_(User.id == user_id, User.org_id == me.org_id)),
+        )
+    ).scalars().first()
+    if target is None:
+        raise HTTPException(status_code=404, detail="Member not found")
+    if target.is_disabled:
+        raise HTTPException(
+            status_code=409, detail="Reactivate the account before sending a reset."
+        )
+
+    raw = secrets.token_urlsafe(32)
+    now = datetime.now(timezone.utc)
+    session.add(
+        UserToken(
+            id=f"utk_{secrets.token_hex(12)}",
+            user_id=target.id,
+            purpose="password_reset",
+            token_hash=hash_refresh_token(raw),
+            expires_at=now + timedelta(hours=24),
+            created_at=now,
+        )
+    )
+    await session.commit()
+
+    web_base = os.environ.get("WEB_BASE_URL", "https://hailscout.net").rstrip("/")
+    try:
+        await send_password_reset(target.email, f"{web_base}/reset-password?token={raw}")
+    except Exception as exc:  # email misconfigured (e.g. RESEND_API_KEY unset)
+        logger.warning("team.password_reset_send_failed", error=str(exc))
+        raise HTTPException(
+            status_code=502,
+            detail="Couldn't send the email — check email is configured.",
+        ) from exc
+
+    await write_event(
+        session,
+        action="team.password_reset_sent",
+        org_id=me.org_id,
+        user_id=me.id,
+        subject_type="user",
+        subject_id=target.id,
+        metadata={"email": target.email},
+    )
+    return {"ok": True, "message": f"Sent a password setup link to {target.email}."}
+
+
+@router.patch("/team/{user_id}/active", response_model=TeamMember)
+async def set_team_active(
+    request: Request,
+    user_id: str,
+    body: TeamActiveUpdate,
+    session: AsyncSession = Depends(get_db_session),
+) -> User:
+    """Enable or disable a teammate's account. Admin/owner only.
+
+    Disabling blocks sign-in immediately (the auth layer rejects disabled
+    users) and revokes their live sessions, so they're signed out at once —
+    without deleting the row (keeps audit/history intact). Can't disable
+    yourself or the last active owner.
+    """
+    me = await _resolve_user(request, session)
+    _require_admin(me)
+
+    target = (
+        await session.execute(
+            select(User).where(and_(User.id == user_id, User.org_id == me.org_id)),
+        )
+    ).scalars().first()
+    if target is None:
+        raise HTTPException(status_code=404, detail="Member not found")
+    if target.id == me.id:
+        raise HTTPException(status_code=409, detail="You can't deactivate your own account.")
+
+    if not body.active and target.role == "owner":
+        owners = (
+            await session.execute(
+                select(User).where(and_(User.org_id == me.org_id, User.role == "owner")),
+            )
+        ).scalars().all()
+        if not any(o.id != target.id and not o.is_disabled for o in owners):
+            raise HTTPException(
+                status_code=409, detail="Can't deactivate the last active owner."
+            )
+
+    target.is_disabled = not body.active
+    if target.is_disabled:
+        now = datetime.now(timezone.utc)
+        live = (
+            await session.execute(
+                select(UserSession).where(
+                    and_(
+                        UserSession.user_id == target.id,
+                        UserSession.revoked_at.is_(None),
+                    ),
+                ),
+            )
+        ).scalars()
+        for s in live:
+            s.revoked_at = now
+    await session.commit()
+    await session.refresh(target)
+    await write_event(
+        session,
+        action="team.active_changed",
+        org_id=me.org_id,
+        user_id=me.id,
+        subject_type="user",
+        subject_id=target.id,
+        metadata={"active": body.active},
+    )
+    return target

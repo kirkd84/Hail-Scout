@@ -12,6 +12,7 @@ export interface TeamMember {
   last_name?: string | null;
   role: string;
   is_super_admin: boolean;
+  is_disabled?: boolean;
   created_at: string;
 }
 
@@ -96,6 +97,46 @@ export function useTeam() {
     [auth, getToken, swr],
   );
 
+  // Change a teammate's email (admin/owner). Must be unique across workspaces.
+  const updateEmail = useCallback(
+    async (userId: string, email: string) => {
+      if (!auth) return;
+      const t = await getToken();
+      await apiClient.patch(`/v1/team/${userId}/email`, { email }, t || undefined);
+      await swr.mutate();
+    },
+    [auth, getToken, swr],
+  );
+
+  // Email a teammate a set/reset-password link (admin/owner). Returns the
+  // server's confirmation message. Doubles as initial-password setup for
+  // SSO-only members.
+  const sendPasswordReset = useCallback(
+    async (userId: string): Promise<string> => {
+      if (!auth) throw new Error("Not signed in");
+      const t = await getToken();
+      const r = await apiClient.post<{ ok: boolean; message: string }>(
+        `/v1/team/${userId}/send-password-reset`,
+        {},
+        t || undefined,
+      );
+      return r.message;
+    },
+    [auth, getToken],
+  );
+
+  // Enable/disable a teammate. Disabling blocks sign-in + revokes sessions
+  // immediately; the row (and history) is kept.
+  const setActive = useCallback(
+    async (userId: string, active: boolean) => {
+      if (!auth) return;
+      const t = await getToken();
+      await apiClient.patch(`/v1/team/${userId}/active`, { active }, t || undefined);
+      await swr.mutate();
+    },
+    [auth, getToken, swr],
+  );
+
   return {
     members: swr.data ?? [],
     isLoading: !!auth && !swr.data && !swr.error,
@@ -106,5 +147,8 @@ export function useTeam() {
     resetMfa,
     invite,
     updateName,
+    updateEmail,
+    sendPasswordReset,
+    setActive,
   };
 }
