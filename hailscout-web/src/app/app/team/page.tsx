@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { useTeam, type TeamMember } from "@/hooks/useTeam";
 import { useMe } from "@/hooks/useMe";
 import { EmptyState } from "@/components/app/empty-state";
@@ -52,7 +52,7 @@ export default function TeamPage() {
   const [nameBusy, setNameBusy] = useState(false);
   // Per-member admin actions menu — fixed-positioned (via the ⋯ button's
   // rect) so the members list's overflow-hidden doesn't clip it.
-  const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [menu, setMenu] = useState<{ id: string; style: CSSProperties } | null>(null);
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
 
   const startEdit = (m: TeamMember) => {
@@ -426,10 +426,36 @@ export default function TeamPage() {
                       title="Manage member"
                       disabled={actionBusyId === m.id || mfaBusyId === m.id}
                       onClick={(e) => {
+                        if (menu?.id === m.id) {
+                          setMenu(null);
+                          return;
+                        }
                         const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                        setMenu(
-                          menu?.id === m.id ? null : { id: m.id, x: r.right, y: r.bottom },
+                        const MENU_W = 224; // w-56
+                        const MENU_H = 268; // ~6 items — estimate for the flip
+                        const left = Math.min(
+                          Math.max(8, r.right - MENU_W),
+                          window.innerWidth - MENU_W - 8,
                         );
+                        const spaceBelow = window.innerHeight - r.bottom;
+                        const spaceAbove = r.top;
+                        // Open upward when the row is low on screen and there's
+                        // more room above — so the menu never drops off-screen.
+                        const openUp = spaceBelow < MENU_H && spaceAbove > spaceBelow;
+                        const style: CSSProperties = openUp
+                          ? {
+                              left,
+                              bottom: window.innerHeight - r.top + 6,
+                              maxHeight: spaceAbove - 12,
+                              overflowY: "auto",
+                            }
+                          : {
+                              left,
+                              top: r.bottom + 6,
+                              maxHeight: spaceBelow - 12,
+                              overflowY: "auto",
+                            };
+                        setMenu({ id: m.id, style });
                       }}
                       className="rounded-md p-1.5 text-foreground/50 hover:bg-secondary hover:text-foreground disabled:opacity-50"
                     >
@@ -458,7 +484,7 @@ export default function TeamPage() {
               <div className="fixed inset-0 z-30" onClick={() => setMenu(null)} />
               <div
                 className="fixed z-40 w-56 rounded-lg border border-border bg-card py-1 text-sm shadow-panel"
-                style={{ left: Math.max(8, menu.x - 224), top: menu.y + 6 }}
+                style={menu.style}
               >
                 <MenuItem onClick={() => void handleEditEmail(m)}>Edit email</MenuItem>
                 <MenuItem onClick={() => void handleSendReset(m)}>
