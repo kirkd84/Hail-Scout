@@ -17,6 +17,7 @@ Usage:
 from __future__ import annotations
 import argparse
 import logging
+import os
 import sys
 import time
 from datetime import datetime, timedelta, timezone
@@ -38,6 +39,7 @@ from hailscout_pipeline.ingestion.mrms_client import (
     IowaArchiveClient,
     MRMSClient,
 )
+from hailscout_pipeline.ingestion.mping_client import MpingClient
 from hailscout_pipeline.ingestion.spc_lsr_client import SpcLsrClient
 
 
@@ -274,15 +276,21 @@ def cmd_loop(args: argparse.Namespace) -> int:
             last_lsr == 0.0 or (time.monotonic() - last_lsr) >= lsr_interval
         )
         if due:
+            today = datetime.now(timezone.utc)
+            yday = today - timedelta(days=1)
+            span = argparse.Namespace(
+                since=yday.strftime("%Y-%m-%d"),
+                until=today.strftime("%Y-%m-%d"),
+            )
             try:
-                today = datetime.now(timezone.utc)
-                yday = today - timedelta(days=1)
-                cmd_lsr(argparse.Namespace(
-                    since=yday.strftime("%Y-%m-%d"),
-                    until=today.strftime("%Y-%m-%d"),
-                ))
+                cmd_lsr(span)
             except Exception:
                 log.exception("loop_lsr_pull_failed")
+            # mPING crowd-sourced hail — only runs if MPING_API_TOKEN is set.
+            try:
+                cmd_mping(span)
+            except Exception:
+                log.exception("loop_mping_pull_failed")
             last_lsr = time.monotonic()
 
         log.info("loop_sleep", seconds=interval)
@@ -353,6 +361,49 @@ def _parse_cadence(s: str) -> timedelta:
     return timedelta(seconds=seconds)
 
 
+def cmd_mping(args: argparse.Namespace) -> int:
+    """Pull mPING crowd-sourced hail reports for a UTC date range + upsert.
+
+    mPING has far more hail reports than SPC's LSR feed (public app
+    submissions), so it fills gaps where SPC has no spotter report and radar
+    coverage is thin. Needs MPING_API_TOKEN — a no-op without it. Idempotent:
+    Storm ids are ``mping_<report id>``.
+    """
+    token = os.environ.get("MPING_API_TOKEN", "").strip()
+    if not token:
+        log.info("mping_skipped_no_token")
+        return 0
+
+    since = datetime.fromisoformat(args.since).replace(tzinfo=timezone.utc)
+    until = (
+        datetime.fromisoformat(args.until).replace(tzinfo=timezone.utc)
+        if getattr(args, "until", None)
+        else since
+    )
+    # mPING is time-range scoped; extend the upper bound to end-of-day UTC so
+    # a whole day's reports come back when only dates are passed.
+    until = until.replace(hour=23, minute=59, second=59)
+    log.info("mping_start", since=since.isoformat(), until=until.isoformat())
+
+    client = MpingClient(token)
+    n_ok, n_fail = 0, 0
+    with SessionLocal() as session:
+        for report in client.fetch_range(since, until):
+            try:
+                upsert_lsr_report(session, report, source="mPING")
+                n_ok += 1
+            except Exception as e:  # noqa: BLE001
+                n_fail += 1
+                try:
+                    session.rollback()
+                except Exception:
+                    pass
+                log.warning("mping_upsert_failed",
+                            id=report.synthetic_id, error=str(e))
+    log.info("mping_done", ok=n_ok, fail=n_fail)
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(prog="hailscout-pipeline")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -388,6 +439,16 @@ def main() -> int:
     sp_lsr.add_argument("--until",
                         help="ISO date (UTC), default = --since")
     sp_lsr.set_defaults(func=cmd_lsr)
+
+    sp_mping = sub.add_parser(
+        "mping",
+        help="Ingest mPING crowd-sourced hail reports for a UTC date range",
+    )
+    sp_mping.add_argument("--since", required=True,
+                          help="ISO date (UTC), e.g. 2026-07-08")
+    sp_mping.add_argument("--until",
+                          help="ISO date (UTC), default = --since")
+    sp_mping.set_defaults(func=cmd_mping)
 
     args = ap.parse_args()
     return int(args.func(args))

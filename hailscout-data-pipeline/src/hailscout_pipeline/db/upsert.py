@@ -480,8 +480,8 @@ def upsert_nexrad_cell(session: Session, cell) -> dict:  # noqa: ANN001
 
 # ── SPC LSR upsert (Phase 21) ──────────────────────────────────────────
 
-def upsert_lsr_report(session: Session, report) -> dict:  # noqa: ANN001
-    """Upsert one SPC Local Storm Report as a Storm row.
+def upsert_lsr_report(session: Session, report, source: str = "SPC-LSR") -> dict:  # noqa: ANN001
+    """Upsert one ground-truth point report as a Storm row.
 
     Reuses the existing Storm schema with `source="SPC-LSR"` — each
     report becomes its own Storm so the existing API + UI surfaces
@@ -495,21 +495,22 @@ def upsert_lsr_report(session: Session, report) -> dict:  # noqa: ANN001
     Downstream consumers can use ST_Contains against bbox_geom for
     "is this address inside a reported impact zone" queries.
     """
-    # No nexrad_scit / py-ART import — this function is called from
-    # the MRMS-only image during the SPC LSR backfill, which doesn't
-    # ship py-ART. `_hail_size_to_category` lives locally in this
-    # module.
-    from hailscout_pipeline.ingestion.spc_lsr_client import StormReport
-
-    if not isinstance(report, StormReport):
-        raise TypeError(
-            f"upsert_lsr_report expects StormReport, got {type(report).__name__}"
-        )
+    # No nexrad_scit / py-ART import — this runs in the MRMS-only image
+    # during the ground-truth backfill, which doesn't ship py-ART.
+    # `_hail_size_to_category` lives locally in this module.
+    #
+    # Duck-typed: accepts any point report (SPC StormReport OR mPING
+    # MpingReport) exposing the attributes below, so a second ground-truth
+    # source reuses this exact Storm-row path just by passing `source`.
+    required = ("synthetic_id", "timestamp", "size_in", "lat", "lng",
+                "location", "state", "nws_office")
+    missing = [a for a in required if not hasattr(report, a)]
+    if missing:
+        raise TypeError(f"report is missing attributes: {missing}")
 
     timestamp = report.timestamp
     if timestamp.tzinfo is None:
         timestamp = timestamp.replace(tzinfo=timezone.utc)
-    source = "SPC-LSR"
     storm_id = report.synthetic_id
 
     centroid = Point(report.lng, report.lat)
