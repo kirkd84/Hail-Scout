@@ -62,6 +62,7 @@ export function SiteFooter() {
             <Link href="/api" className="hover:text-foreground">API</Link>
             <Link href="/sign-in" className="hover:text-foreground">Sign in</Link>
             <Link href="/privacy" className="hover:text-foreground">Privacy</Link>
+            <Link href="/terms" className="hover:text-foreground">Terms</Link>
           </nav>
         </div>
       </div>
