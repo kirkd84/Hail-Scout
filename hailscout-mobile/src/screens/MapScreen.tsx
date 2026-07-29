@@ -7,11 +7,20 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  Alert,
   useColorScheme,
 } from "react-native";
 import * as MapLibreGL from "@maplibre/maplibre-react-native";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { useStorms } from "@/hooks/useStorms";
+import { useMarkers } from "@/hooks/useMarkers";
+import {
+  MARKER_STATUSES,
+  STATUS_COLOR_PAIRS,
+  statusInfo,
+  type Marker,
+  type MarkerStatus,
+} from "@/lib/markers";
 import { theme, SPACING, RADIUS } from "@/lib/tokens";
 import { AppHeader } from "@/components/AppHeader";
 import { LocationButton } from "@/components/LocationButton";
@@ -175,6 +184,92 @@ export function MapScreen() {
 
   const fc = useMemo(() => buildFeatureCollection(visibleStorms), [visibleStorms]);
 
+  // ── Canvassing pins ──────────────────────────────────────────────────
+  // Server-backed and org-scoped, so pins dropped here show up on the web
+  // map and vice-versa.
+  const { markers, add: addMarker, update: updateMarker, remove: removeMarker } =
+    useMarkers();
+  const [editingMarker, setEditingMarker] = useState<Marker | null>(null);
+  const [markerBusy, setMarkerBusy] = useState(false);
+
+  const markerFc = useMemo<GeoJSON.FeatureCollection>(
+    () => ({
+      type: "FeatureCollection",
+      features: markers.map((m) => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [m.lng, m.lat] },
+        properties: { id: m.id, status: m.status },
+      })),
+    }),
+    [markers],
+  );
+
+  /** Drop a pin at the long-pressed spot, then open it for editing. */
+  const dropPinAt = async (lng: number, lat: number) => {
+    setMarkerBusy(true);
+    try {
+      const created = await addMarker({ lng, lat, status: "lead" });
+      setAtPoint(null);
+      setEditingMarker(created);
+    } catch (e) {
+      Alert.alert(
+        "Couldn't drop pin",
+        e instanceof Error ? e.message : "Please try again.",
+      );
+    } finally {
+      setMarkerBusy(false);
+    }
+  };
+
+  const setMarkerStatus = async (status: MarkerStatus) => {
+    if (!editingMarker) return;
+    setMarkerBusy(true);
+    try {
+      const saved = await updateMarker(editingMarker.id, { status });
+      setEditingMarker(saved);
+    } catch (e) {
+      Alert.alert("Couldn't save", e instanceof Error ? e.message : "Try again.");
+    } finally {
+      setMarkerBusy(false);
+    }
+  };
+
+  const deleteMarker = () => {
+    if (!editingMarker) return;
+    const target = editingMarker;
+    Alert.alert("Remove pin?", "This deletes the pin for your whole team.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: async () => {
+          setMarkerBusy(true);
+          try {
+            await removeMarker(target.id);
+            setEditingMarker(null);
+          } catch (e) {
+            Alert.alert("Couldn't remove", e instanceof Error ? e.message : "Try again.");
+          } finally {
+            setMarkerBusy(false);
+          }
+        },
+      },
+    ]);
+  };
+
+  /** Tap a pin on the map → open it. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onMarkerPress = (e: any) => {
+    const id = e?.nativeEvent?.features?.[0]?.properties?.id as string | undefined;
+    if (!id) return;
+    const hit = markers.find((m) => m.id === id);
+    if (hit) {
+      setSelected(null);
+      setAtPoint(null);
+      setEditingMarker(hit);
+    }
+  };
+
   const [selected, setSelected] = useState<MobileStorm | null>(null);
   const [atPoint, setAtPoint] = useState<AtPointResult | null>(null);
   const [atPointLoading, setAtPointLoading] = useState(false);
@@ -335,6 +430,31 @@ export function MapScreen() {
                 circleColor: HAIL_COLOR_STEPS,
                 circleStrokeColor: "#FFFFFF",
                 circleStrokeWidth: 1.4,
+                circleOpacity: 1,
+              }}
+            />
+          </MapLibreGL.GeoJSONSource>
+
+          {/* Canvassing pins — drawn last so they sit above storms. Colored
+              by status, matching the web map's palette. */}
+          <MapLibreGL.GeoJSONSource
+            id="hs-markers"
+            data={markerFc}
+            onPress={onMarkerPress}
+          >
+            <MapLibreGL.Layer
+              type="circle"
+              id="hs-markers-dot"
+              style={{
+                circleRadius: 7,
+                circleColor: [
+                  "match",
+                  ["get", "status"],
+                  ...STATUS_COLOR_PAIRS,
+                  "#3B82F6",
+                ] as any,
+                circleStrokeColor: "#FFFFFF",
+                circleStrokeWidth: 2,
                 circleOpacity: 1,
               }}
             />
@@ -591,8 +711,94 @@ export function MapScreen() {
               <Text style={styles.navHereIcon}>🧭</Text>
               <Text style={[styles.navHereTxt, { color: t.primaryFg }]}>Navigate here</Text>
             </TouchableOpacity>
+
+            {/* Drop a canvassing pin on this house — syncs to the web map. */}
+            <TouchableOpacity
+              onPress={() => {
+                if (atPoint) void dropPinAt(atPoint.lng, atPoint.lat);
+              }}
+              disabled={markerBusy}
+              activeOpacity={0.85}
+              style={[
+                styles.navHereBtn,
+                { backgroundColor: t.bgLift, borderWidth: 1, borderColor: t.border },
+              ]}
+            >
+              <Text style={styles.navHereIcon}>📍</Text>
+              <Text style={[styles.navHereTxt, { color: t.fg }]}>
+                {markerBusy ? "Dropping…" : "Drop pin here"}
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
+
+        {/* Pin editor — status + remove. */}
+        <Modal
+          visible={editingMarker !== null}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setEditingMarker(null)}
+        >
+          <Pressable style={styles.dateBackdrop} onPress={() => setEditingMarker(null)}>
+            <Pressable
+              style={[styles.dateSheet, { backgroundColor: t.bg, borderColor: t.border }]}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <Text style={[styles.dateEyebrow, { color: t.accent }]}>CANVASSING PIN</Text>
+              <Text style={[styles.dateTitle, { color: t.fg }]}>
+                {editingMarker ? statusInfo(editingMarker.status).label : "Pin"}
+              </Text>
+              <Text style={[styles.dateHint, { color: t.fgMuted }]}>
+                Saved for your whole team — this pin shows on the web map too.
+              </Text>
+
+              <View style={styles.statusWrap}>
+                {MARKER_STATUSES.map((s) => {
+                  const active = editingMarker?.status === s.id;
+                  return (
+                    <TouchableOpacity
+                      key={s.id}
+                      disabled={markerBusy}
+                      onPress={() => void setMarkerStatus(s.id)}
+                      style={[
+                        styles.statusChip,
+                        {
+                          borderColor: active ? s.color : t.border,
+                          backgroundColor: active ? s.color : t.bgLift,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.statusChipTxt,
+                          { color: active ? "#FFFFFF" : t.fg },
+                        ]}
+                      >
+                        {s.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <TouchableOpacity
+                onPress={deleteMarker}
+                disabled={markerBusy}
+                style={[styles.dateDone, { backgroundColor: t.bgLift, borderWidth: 1, borderColor: t.border }]}
+              >
+                <Text style={[styles.dateDoneTxt, { color: t.destructive }]}>
+                  Remove pin
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setEditingMarker(null)}
+                style={[styles.dateDone, { backgroundColor: t.primary }]}
+              >
+                <Text style={[styles.dateDoneTxt, { color: t.primaryFg }]}>Done</Text>
+              </TouchableOpacity>
+            </Pressable>
+          </Pressable>
+        </Modal>
       </View>
     </View>
   );
@@ -715,6 +921,19 @@ const styles = StyleSheet.create({
   dayBadgeTxt: { fontSize: 12, fontWeight: "700" },
   dayName: { fontSize: 14, fontWeight: "500" },
   dayMeta: { fontSize: 11, marginTop: 1 },
+  statusWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: SPACING.md,
+  },
+  statusChip: {
+    borderWidth: 1,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  statusChipTxt: { fontSize: 13, fontWeight: "600" },
   dateDone: {
     marginTop: SPACING.sm,
     borderRadius: RADIUS.md,
