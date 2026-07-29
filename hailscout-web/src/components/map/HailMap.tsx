@@ -15,6 +15,12 @@ interface HailMapProps {
   dropMode?: boolean;
   onMapReady?: (map: MapLibreMap) => void;
   onMarkerDrop?: (lat: number, lng: number) => void;
+  /**
+   * Press-and-hold a spot (or right-click on desktop) → drop a pin there
+   * WITHOUT arming drop mode first. Field ask: "when I press and hold a
+   * house, I should be able to drop a pin on the house."
+   */
+  onLongPressDrop?: (lat: number, lng: number) => void;
 }
 
 /**
@@ -82,7 +88,13 @@ function fallbackCartoStyle(isDark: boolean): maplibregl.StyleSpecification {
   };
 }
 
-export function HailMap({ basemap = "atlas", dropMode = false, onMapReady, onMarkerDrop }: HailMapProps) {
+export function HailMap({
+  basemap = "atlas",
+  dropMode = false,
+  onMapReady,
+  onMarkerDrop,
+  onLongPressDrop,
+}: HailMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -97,6 +109,17 @@ export function HailMap({ basemap = "atlas", dropMode = false, onMapReady, onMar
   useEffect(() => {
     onMarkerDropRef.current = onMarkerDrop;
   }, [onMarkerDrop]);
+
+  // Same once-registered-handler problem for the long-press callback and for
+  // dropMode (the handler must read the CURRENT value, not the initial one).
+  const onLongPressDropRef = useRef(onLongPressDrop);
+  useEffect(() => {
+    onLongPressDropRef.current = onLongPressDrop;
+  }, [onLongPressDrop]);
+  const dropModeRef = useRef(dropMode);
+  useEffect(() => {
+    dropModeRef.current = dropMode;
+  }, [dropMode]);
 
   // Initialize the map once.
   useEffect(() => {
@@ -137,7 +160,51 @@ export function HailMap({ basemap = "atlas", dropMode = false, onMapReady, onMar
 
     map.on("click", (e) => onMarkerDropRef.current?.(e.lngLat.lat, e.lngLat.lng));
 
+    // ── Press-and-hold → drop a pin ──────────────────────────────────
+    // Hold ~550ms without panning. Skipped while drop mode is armed (the
+    // click handler above already places the pin then — otherwise a hold
+    // would drop two). Right-click gives desktop parity, and the shared
+    // de-dupe window stops a device that fires BOTH a synthetic
+    // contextmenu and our touch timer from dropping twice.
+    const LONG_PRESS_MS = 550;
+    let pressTimer: ReturnType<typeof setTimeout> | null = null;
+    let lastDropAt = 0;
+    const clearPress = () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+      }
+    };
+    const fireLongPressDrop = (lat: number, lng: number) => {
+      if (dropModeRef.current) return;
+      const now = Date.now();
+      if (now - lastDropAt < 800) return;
+      lastDropAt = now;
+      // Light haptic so the hold registers on phones that support it.
+      try {
+        navigator.vibrate?.(15);
+      } catch {
+        /* not supported — cosmetic only */
+      }
+      onLongPressDropRef.current?.(lat, lng);
+    };
+
+    map.on("touchstart", (e) => {
+      clearPress();
+      // Multi-touch = pinch/zoom, not a hold.
+      if (e.points && e.points.length > 1) return;
+      const { lat, lng } = e.lngLat;
+      pressTimer = setTimeout(() => fireLongPressDrop(lat, lng), LONG_PRESS_MS);
+    });
+    // Any pan/zoom/lift cancels the pending hold.
+    map.on("touchmove", clearPress);
+    map.on("touchend", clearPress);
+    map.on("touchcancel", clearPress);
+    map.on("movestart", clearPress);
+    map.on("contextmenu", (e) => fireLongPressDrop(e.lngLat.lat, e.lngLat.lng));
+
     return () => {
+      clearPress();
       map.remove();
       mapRef.current = null;
     };

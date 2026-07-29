@@ -342,6 +342,21 @@ export default function MapPage() {
     setDropMode(false); // exit drop mode after dropping one
   };
 
+  /**
+   * Press-and-hold a house (or right-click) → drop a pin right there, no
+   * need to arm drop mode first. Opens the editor so the rep can set the
+   * status/notes while they're standing in front of it.
+   */
+  const handleLongPressDrop = async (lat: number, lng: number) => {
+    try {
+      const created = await add({ lng, lat, status: "lead" });
+      setEditingMarkerId(created.id);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to drop marker", err);
+    }
+  };
+
   const scopeLabel =
     viewportZoom > 7
       ? `${availableDates.length} in this area`
@@ -356,6 +371,7 @@ export default function MapPage() {
         dropMode={dropMode}
         onMapReady={setMap}
         onMarkerDrop={handleMapClick}
+        onLongPressDrop={handleLongPressDrop}
       />
       <TerritoriesLayer map={map} territories={territories} />
       <StormsLayer
