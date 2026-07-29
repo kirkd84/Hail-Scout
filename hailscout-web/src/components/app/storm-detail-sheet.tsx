@@ -24,6 +24,13 @@ interface StormDetailSheetProps {
   address?: string;
   /** Live MapLibre instance — when present, the report embeds a swath snapshot. */
   map?: MapLibreMap | null;
+  /**
+   * Show this storm's whole day on the map (UTC "YYYY-MM-DD"). When provided,
+   * the sheet offers a "See this day on the map" action — the field ask was
+   * "when I'm scouting an address, let me click the storm and see that day's
+   * data on the map." Filters the map to the day and closes the sheet.
+   */
+  onShowDay?: (day: string) => void;
 }
 
 /**
@@ -33,7 +40,14 @@ interface StormDetailSheetProps {
  * inches in the display serif. Below: meta rows in a clean two-column
  * "term/definition" pattern.
  */
-export function StormDetailSheet({ storm, isOpen, onClose, address, map }: StormDetailSheetProps) {
+export function StormDetailSheet({
+  storm,
+  isOpen,
+  onClose,
+  address,
+  map,
+  onShowDay,
+}: StormDetailSheetProps) {
   const isMobile = useIsMobile();
   if (!storm) return null;
   const c = hailColor(storm.max_hail_size_in);
@@ -89,6 +103,30 @@ export function StormDetailSheet({ storm, isOpen, onClose, address, map }: Storm
             </div>
           </div>
         </div>
+
+        {/* Put this storm's whole day on the map — the swath, plus every other
+            cell that hit that day. */}
+        {onShowDay && (
+          <div className="px-6 pb-4">
+            <button
+              type="button"
+              onClick={() => onShowDay(new Date(storm.start_time).toISOString().slice(0, 10))}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-atlas transition-colors hover:bg-copper-700"
+            >
+              See this day on the map
+              <span aria-hidden>→</span>
+            </button>
+            <p className="mt-1.5 text-center text-[11px] text-muted-foreground">
+              Shows every storm from{" "}
+              {new Date(storm.start_time).toLocaleDateString(undefined, {
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })}
+              .
+            </p>
+          </div>
+        )}
 
         {/* Impact Score — the rep's triage number (size + footprint +
             ground-truth confirmation). */}

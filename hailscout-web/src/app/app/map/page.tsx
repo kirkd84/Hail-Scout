@@ -566,6 +566,15 @@ export default function MapPage() {
         onClose={() => setShowStormDetail(false)}
         address={searchResults?.address}
         map={map}
+        // Scouting an address → tap a storm → put that whole day on the map.
+        // Selecting a single custom day also auto-fits the map to that day's
+        // storms (see the lastFitDayRef effect), so no extra camera work here.
+        onShowDay={(day) => {
+          setDateMode("custom");
+          setCustomDates([day]);
+          setShowStormDetail(false);
+          setShowResults(false);
+        }}
       />
 
       <MarkerEditor
