@@ -94,8 +94,104 @@ function Chip({
   );
 }
 
+interface DayRow {
+  date: string;
+  maxSize: number;
+  count: number;
+  where: string;
+}
+
+/** The storm-day multi-select list. Shared by the full "Map controls" sheet
+ *  and the dedicated "Storm date" sheet behind the map pill. */
+function DayList({
+  days,
+  selected,
+  todayStr,
+  onToggle,
+}: {
+  days: DayRow[];
+  selected: Set<string>;
+  todayStr: string;
+  onToggle: (day: string) => void;
+}) {
+  return (
+    <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+      {days.map((row) => {
+        const c = hailColor(row.maxSize);
+        const checked = selected.has(row.date);
+        return (
+          <li key={row.date}>
+            <button
+              type="button"
+              onClick={() => onToggle(row.date)}
+              className={cn(
+                "flex w-full items-center gap-3 px-3 py-2.5 text-left",
+                checked ? "bg-primary/5" : "bg-card",
+              )}
+              aria-pressed={checked}
+            >
+              <span
+                className={cn(
+                  "flex h-5 w-5 shrink-0 items-center justify-center rounded border text-[11px]",
+                  checked
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border",
+                )}
+                aria-hidden
+              >
+                {checked ? "✓" : ""}
+              </span>
+              <span
+                className="inline-flex w-14 shrink-0 items-center justify-center rounded-md py-1 font-mono-num text-xs font-medium"
+                style={{
+                  background: c.solid,
+                  color: row.maxSize >= 1.5 ? "#FAF7F1" : c.text,
+                }}
+              >
+                {row.maxSize.toFixed(2)}″
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm text-foreground/90">
+                  {row.date === todayStr
+                    ? "Today"
+                    : new Date(row.date + "T00:00:00Z").toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "2-digit",
+                        year: "numeric",
+                        timeZone: "UTC",
+                      })}
+                </span>
+                <span className="block font-mono-num text-[11px] text-foreground/55">
+                  {row.where}
+                  {row.count > 1 ? ` · ${row.count} cells` : ""}
+                </span>
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** Short label for the map date pill: the day being shown right now. */
+function dayLabel(day: string, todayStr: string): string {
+  if (day === todayStr) return "Today";
+  return new Date(day + "T00:00:00Z").toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 export function MobileMapControls(props: Props) {
   const [open, setOpen] = useState(false);
+  // Dedicated storm-date sheet. Dates were previously buried three sections
+  // deep in the controls sheet, so on a phone there was no visible way to
+  // pick a storm day (field feedback: "I'd like to search hail maps by storm
+  // date"). The pill below surfaces the current day and opens just this.
+  const [dateOpen, setDateOpen] = useState(false);
   const filtersActive =
     props.size !== "any" || props.source !== "all" || props.showUnverified;
 
@@ -134,8 +230,119 @@ export function MobileMapControls(props: Props) {
     )
     .slice(0, 8);
 
+  // What the date pill reads right now.
+  const pillLabel = (() => {
+    if (props.selectedDates.length === 0) {
+      return days.length ? "Pick a storm date" : "No storms in view";
+    }
+    if (props.selectedDates.length === 1) {
+      const d = dayLabel(props.selectedDates[0], todayStr);
+      return props.isRecentMode ? `Latest · ${d}` : d;
+    }
+    return `${props.selectedDates.length} storm days`;
+  })();
+
   return (
     <>
+      {/* Storm-date pill — sits under the address search. Picking the storm
+          day is the control a rep reaches for most, so it's visible on the
+          map instead of buried inside the controls sheet. */}
+      <div className="pointer-events-none absolute inset-x-0 top-[4.75rem] z-20 flex justify-center px-4">
+        <button
+          type="button"
+          onClick={() => setDateOpen(true)}
+          className="glass pointer-events-auto flex max-w-full items-center gap-2 rounded-full px-3.5 py-2 shadow-panel"
+          aria-haspopup="dialog"
+        >
+          <svg
+            viewBox="0 0 16 16"
+            className="h-3.5 w-3.5 shrink-0 text-copper"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          >
+            <rect x="2" y="3.5" width="12" height="10" rx="1.5" />
+            <path d="M2 6.5 H14 M5.5 2 V4.5 M10.5 2 V4.5" />
+          </svg>
+          <span className="truncate text-xs font-medium text-foreground/85">
+            {pillLabel}
+          </span>
+          <svg
+            viewBox="0 0 16 16"
+            className="h-3 w-3 shrink-0 text-foreground/45"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+          >
+            <path d="M4 6 L8 10 L12 6" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Focused storm-date sheet */}
+      <Sheet open={dateOpen} onOpenChange={setDateOpen}>
+        <SheetContent
+          side="bottom"
+          className="max-h-[82vh] overflow-y-auto rounded-t-2xl border-t border-border bg-card p-0 pb-[env(safe-area-inset-bottom)]"
+        >
+          <SheetHeader className="px-5 pt-5 pb-2">
+            <p className="text-[10px] font-mono uppercase tracking-wide-caps text-copper">
+              Storm date
+            </p>
+            <SheetTitle className="font-display text-xl font-medium tracking-tight-display">
+              Which storm?
+            </SheetTitle>
+          </SheetHeader>
+
+          <div className="px-5 pb-8 pt-2">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <p className="text-[11px] text-muted-foreground">
+                Tap a day for one storm — or several to see repeat hits.
+              </p>
+              <span className="flex shrink-0 items-center gap-3">
+                {!props.isRecentMode && (
+                  <button
+                    type="button"
+                    onClick={props.onMostRecent}
+                    className="text-[10px] font-mono uppercase tracking-wide-caps text-copper"
+                  >
+                    Latest
+                  </button>
+                )}
+                {props.selectedDates.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={props.onClear}
+                    className="text-[10px] font-mono uppercase tracking-wide-caps text-foreground/55"
+                  >
+                    Clear
+                  </button>
+                )}
+              </span>
+            </div>
+
+            {days.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No storms in view.</p>
+            ) : (
+              <DayList
+                days={days}
+                selected={selected}
+                todayStr={todayStr}
+                onToggle={props.onToggleDate}
+              />
+            )}
+
+            <p className="mt-3 text-[11px] leading-snug text-muted-foreground">
+              Showing storm days in the area you&apos;re viewing. Zoom into a city
+              to go further back — the map loads up to 5 years of history at
+              street level.
+            </p>
+          </div>
+        </SheetContent>
+      </Sheet>
+
       {/* Single launcher — bottom-left, mirrors the drop-pin pill on the right. */}
       <div className="pointer-events-auto absolute bottom-6 left-4 z-20 pb-[env(safe-area-inset-bottom)]">
         <button
@@ -236,60 +443,12 @@ export function MobileMapControls(props: Props) {
               {days.length === 0 ? (
                 <p className="text-xs text-muted-foreground">No storms in view.</p>
               ) : (
-                <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
-                  {days.map((row) => {
-                    const c = hailColor(row.maxSize);
-                    const checked = selected.has(row.date);
-                    return (
-                      <li key={row.date}>
-                        <button
-                          type="button"
-                          onClick={() => props.onToggleDate(row.date)}
-                          className={cn(
-                            "flex w-full items-center gap-3 px-3 py-2.5 text-left",
-                            checked ? "bg-primary/5" : "bg-card",
-                          )}
-                          aria-pressed={checked}
-                        >
-                          <span
-                            className={cn(
-                              "flex h-5 w-5 shrink-0 items-center justify-center rounded border text-[11px]",
-                              checked
-                                ? "border-primary bg-primary text-primary-foreground"
-                                : "border-border",
-                            )}
-                            aria-hidden
-                          >
-                            {checked ? "✓" : ""}
-                          </span>
-                          <span
-                            className="inline-flex w-14 shrink-0 items-center justify-center rounded-md py-1 font-mono-num text-xs font-medium"
-                            style={{
-                              background: c.solid,
-                              color: row.maxSize >= 1.5 ? "#FAF7F1" : c.text,
-                            }}
-                          >
-                            {row.maxSize.toFixed(2)}″
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm text-foreground/90">
-                              {row.date === todayStr
-                                ? "Today"
-                                : new Date(row.date + "T00:00:00Z").toLocaleDateString(
-                                    undefined,
-                                    { month: "short", day: "2-digit", year: "numeric", timeZone: "UTC" },
-                                  )}
-                            </span>
-                            <span className="block font-mono-num text-[11px] text-foreground/55">
-                              {row.where}
-                              {row.count > 1 ? ` · ${row.count} cells` : ""}
-                            </span>
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
+                <DayList
+                  days={days}
+                  selected={selected}
+                  todayStr={todayStr}
+                  onToggle={props.onToggleDate}
+                />
               )}
             </div>
 
