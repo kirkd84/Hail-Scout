@@ -7,7 +7,10 @@ export type AuthStackParamList = {
 
 export type MainTabsParamList = {
   Home:      undefined;
-  Atlas:     undefined;
+  // `focusDay` (UTC YYYY-MM-DD) opens the map filtered to one storm day —
+  // used by "See this day on the map" from a storm record elsewhere in the
+  // app. `focusStormId` also flies the camera to that cell.
+  Atlas:     { focusDay?: string; focusStormId?: string } | undefined;
   Alerts:    undefined;
   Addresses: undefined;
   Settings:  undefined;

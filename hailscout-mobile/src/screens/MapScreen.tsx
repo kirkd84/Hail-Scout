@@ -4,6 +4,9 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Modal,
+  Pressable,
+  ScrollView,
   useColorScheme,
 } from "react-native";
 import * as MapLibreGL from "@maplibre/maplibre-react-native";
@@ -15,9 +18,9 @@ import { LocationButton } from "@/components/LocationButton";
 import { ColorLegend } from "@/components/ColorLegend";
 import type { MobileStorm } from "@/lib/storm-fixtures";
 import { apiRequest } from "@/lib/api";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { StackNavigationProp } from "@react-navigation/stack";
-import type { AppStackParamList } from "@/navigation/types";
+import type { AppStackParamList, MainTabsParamList } from "@/navigation/types";
 
 const DEFAULT_CENTER: [number, number] = [-98.58, 39.8];
 const DEFAULT_ZOOM = 4;
@@ -71,6 +74,20 @@ interface AtPointHit {
 interface AtPointResponse { lat: number; lng: number; hits: AtPointHit[]; total: number }
 interface AtPointResult { lat: number; lng: number; top: AtPointHit | null; total: number }
 
+/** UTC calendar day ("YYYY-MM-DD") — the unit storms are grouped by. */
+const utcDay = (iso: string) => new Date(iso).toISOString().slice(0, 10);
+
+/** Short label for the date pill / day rows. */
+function dayLabel(day: string): string {
+  if (day === utcDay(new Date().toISOString())) return "Today";
+  return new Date(day + "T00:00:00Z").toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 function buildFeatureCollection(storms: MobileStorm[]): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
@@ -102,7 +119,61 @@ export function MapScreen() {
   // 30 days CONUS — same window the home screen uses. includeSwaths pulls
   // the band polygons so we render real filled swaths, not just centroids.
   const { storms, swaths } = useStorms({ daysBack: 30, includeSwaths: true });
-  const fc = useMemo(() => buildFeatureCollection(storms), [storms]);
+
+  // ── Storm-date filter ────────────────────────────────────────────────
+  // null = every day in the window (the long-standing default). Pick a day
+  // to see just that storm — the field ask was "let me search hail maps by
+  // storm date". Filtering is client-side over the same 30-day fetch, so
+  // switching days is instant and needs no extra request.
+  const route = useRoute<RouteProp<MainTabsParamList, "Atlas">>();
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [dateOpen, setDateOpen] = useState(false);
+
+  // "See this day on the map" from elsewhere in the app (e.g. the Home
+  // storm record) arrives as a route param.
+  useEffect(() => {
+    const d = route.params?.focusDay;
+    if (d) setSelectedDay(d);
+  }, [route.params?.focusDay]);
+
+  /** Distinct storm days in the window, newest first, with peak + count. */
+  const days = useMemo(() => {
+    const byDay = new Map<string, MobileStorm[]>();
+    for (const s of storms) {
+      const d = utcDay(s.start_time);
+      const arr = byDay.get(d);
+      if (arr) arr.push(s);
+      else byDay.set(d, [s]);
+    }
+    return [...byDay.entries()]
+      .map(([date, group]) => ({
+        date,
+        maxSize: group.reduce((m, s) => Math.max(m, s.peak_size_in), 0),
+        count: group.length,
+        where: group.reduce((a, b) => (b.peak_size_in > a.peak_size_in ? b : a)).city,
+      }))
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
+  }, [storms]);
+
+  const visibleStorms = useMemo(
+    () => (selectedDay ? storms.filter((s) => utcDay(s.start_time) === selectedDay) : storms),
+    [storms, selectedDay],
+  );
+
+  // Keep the swath bands in step with the day filter (features carry the
+  // storm_id they came from).
+  const visibleSwaths = useMemo(() => {
+    if (!selectedDay) return swaths;
+    const ids = new Set(visibleStorms.map((s) => s.id));
+    return {
+      type: "FeatureCollection" as const,
+      features: swaths.features.filter((f) =>
+        ids.has(String(f.properties?.storm_id ?? "")),
+      ),
+    };
+  }, [swaths, visibleStorms, selectedDay]);
+
+  const fc = useMemo(() => buildFeatureCollection(visibleStorms), [visibleStorms]);
 
   const [selected, setSelected] = useState<MobileStorm | null>(null);
   const [atPoint, setAtPoint] = useState<AtPointResult | null>(null);
@@ -180,7 +251,11 @@ export function MapScreen() {
       <AppHeader
         eyebrow="Atlas"
         title="Hail map"
-        subtitle={`${storms.length} cells · past 30 days`}
+        subtitle={
+          selectedDay
+            ? `${visibleStorms.length} cells · ${dayLabel(selectedDay)}`
+            : `${storms.length} cells · past 30 days`
+        }
       />
 
       <View style={styles.mapWrap}>
@@ -202,7 +277,7 @@ export function MapScreen() {
           {/* Hail SWATH bands — filled polygons, smallest-first stacking,
               colored by band size. Declared before centroids so the dots
               draw on top. Suspect (unverified) cells render dimmed. */}
-          <MapLibreGL.GeoJSONSource id="hs-swaths" data={swaths}>
+          <MapLibreGL.GeoJSONSource id="hs-swaths" data={visibleSwaths}>
             <MapLibreGL.Layer type="fill"
               id="hs-swaths-fill"
               style={{
@@ -270,6 +345,118 @@ export function MapScreen() {
           <LocationButton onPress={onMyLocation} />
         </View>
 
+        {/* Storm-date pill — top-left. Shows which day is on the map and
+            opens the day picker. */}
+        <TouchableOpacity
+          onPress={() => setDateOpen(true)}
+          activeOpacity={0.85}
+          accessibilityLabel="Choose storm date"
+          style={[
+            styles.datePill,
+            {
+              backgroundColor: t.bgLift,
+              borderColor: selectedDay ? t.primary : t.border,
+            },
+          ]}
+        >
+          <Text style={styles.datePillIcon}>🗓</Text>
+          <Text style={[styles.datePillTxt, { color: t.fg }]} numberOfLines={1}>
+            {selectedDay ? dayLabel(selectedDay) : "All storms · 30 days"}
+          </Text>
+          <Text style={[styles.datePillChevron, { color: t.fgMuted }]}>▾</Text>
+        </TouchableOpacity>
+
+        {/* Day picker */}
+        <Modal
+          visible={dateOpen}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setDateOpen(false)}
+        >
+          <Pressable style={styles.dateBackdrop} onPress={() => setDateOpen(false)}>
+            <Pressable
+              style={[styles.dateSheet, { backgroundColor: t.bg, borderColor: t.border }]}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <Text style={[styles.dateEyebrow, { color: t.accent }]}>STORM DATE</Text>
+              <Text style={[styles.dateTitle, { color: t.fg }]}>Which storm?</Text>
+              <Text style={[styles.dateHint, { color: t.fgMuted }]}>
+                Pick a day to see just that storm, or show everything from the
+                past 30 days.
+              </Text>
+
+              <ScrollView style={styles.dateList}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setSelectedDay(null);
+                    setDateOpen(false);
+                  }}
+                  style={[
+                    styles.dayRow,
+                    { borderColor: t.border },
+                    !selectedDay && { backgroundColor: t.bgLift },
+                  ]}
+                >
+                  <Text style={[styles.dayName, { color: t.fg }]}>
+                    All storms · past 30 days
+                  </Text>
+                  {!selectedDay && <Text style={{ color: t.primary }}>✓</Text>}
+                </TouchableOpacity>
+
+                {days.length === 0 && (
+                  <Text style={[styles.dateHint, { color: t.fgMuted, marginTop: SPACING.md }]}>
+                    No storms in this window.
+                  </Text>
+                )}
+
+                {days.map((d) => {
+                  const active = d.date === selectedDay;
+                  return (
+                    <TouchableOpacity
+                      key={d.date}
+                      onPress={() => {
+                        setSelectedDay(d.date);
+                        setDateOpen(false);
+                        setSelected(null);
+                      }}
+                      style={[
+                        styles.dayRow,
+                        { borderColor: t.border },
+                        active && { backgroundColor: t.bgLift },
+                      ]}
+                    >
+                      <View
+                        style={[styles.dayBadge, { backgroundColor: peakColorHex(d.maxSize) }]}
+                      >
+                        <Text style={[styles.dayBadgeTxt, { color: badgeTextColor(d.maxSize) }]}>
+                          {d.maxSize.toFixed(2)}″
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.dayName, { color: t.fg }]}>
+                          {dayLabel(d.date)}
+                        </Text>
+                        <Text style={[styles.dayMeta, { color: t.fgMuted }]}>
+                          {d.where}
+                          {d.count > 1 ? ` · ${d.count} cells` : ""}
+                        </Text>
+                      </View>
+                      {active && <Text style={{ color: t.primary }}>✓</Text>}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              <TouchableOpacity
+                onPress={() => setDateOpen(false)}
+                style={[styles.dateDone, { backgroundColor: t.primary }]}
+              >
+                <Text style={[styles.dateDoneTxt, { color: t.primaryFg }]}>Done</Text>
+              </TouchableOpacity>
+            </Pressable>
+          </Pressable>
+        </Modal>
+
         {/* Drive mode — live glanceable swath map + voice while you head in. */}
         <View style={styles.driveWrap} pointerEvents="box-none">
           <TouchableOpacity
@@ -325,6 +512,21 @@ export function MapScreen() {
                 <Text style={[styles.closeX, { color: t.fgMuted }]}>×</Text>
               </TouchableOpacity>
             </View>
+
+            {/* Tap a storm → put its whole day on the map (hidden when that
+                day is already the filter). */}
+            {utcDay(selected.start_time) !== selectedDay && (
+              <TouchableOpacity
+                onPress={() => setSelectedDay(utcDay(selected.start_time))}
+                activeOpacity={0.85}
+                style={[styles.navHereBtn, { backgroundColor: t.primary }]}
+              >
+                <Text style={styles.navHereIcon}>🗓</Text>
+                <Text style={[styles.navHereTxt, { color: t.primaryFg }]}>
+                  See this day on the map
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -466,6 +668,60 @@ const styles = StyleSheet.create({
   },
   navHereIcon: { fontSize: 16 },
   navHereTxt: { fontSize: 15, fontWeight: "700", letterSpacing: 0.2 },
+  datePill: {
+    position: "absolute",
+    left: SPACING.lg,
+    top: SPACING.lg,
+    maxWidth: "62%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  datePillIcon: { fontSize: 12 },
+  datePillTxt: { fontSize: 12, fontWeight: "600", flexShrink: 1 },
+  datePillChevron: { fontSize: 10 },
+  dateBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" },
+  dateSheet: {
+    borderTopLeftRadius: RADIUS.lg,
+    borderTopRightRadius: RADIUS.lg,
+    borderWidth: 1,
+    padding: SPACING.lg,
+    maxHeight: "80%",
+  },
+  dateEyebrow: { fontSize: 10, fontFamily: "Courier", letterSpacing: 1.4 },
+  dateTitle: { fontSize: 22, fontWeight: "500", marginTop: 2 },
+  dateHint: { fontSize: 12, lineHeight: 17, marginTop: 4 },
+  dateList: { marginTop: SPACING.md },
+  dayRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.sm,
+    borderWidth: 1,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 10,
+    marginBottom: 6,
+  },
+  dayBadge: {
+    minWidth: 54,
+    alignItems: "center",
+    borderRadius: RADIUS.sm,
+    paddingVertical: 4,
+  },
+  dayBadgeTxt: { fontSize: 12, fontWeight: "700" },
+  dayName: { fontSize: 14, fontWeight: "500" },
+  dayMeta: { fontSize: 11, marginTop: 1 },
+  dateDone: {
+    marginTop: SPACING.sm,
+    borderRadius: RADIUS.md,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  dateDoneTxt: { fontSize: 14, fontWeight: "600" },
   legendWrap: {
     position: "absolute",
     left: SPACING.lg,

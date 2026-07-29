@@ -14,6 +14,8 @@ interface Props {
   storm: MobileStorm | null;
   visible: boolean;
   onClose: () => void;
+  /** Open the map filtered to this storm's day. Omit to hide the action. */
+  onSeeOnMap?: () => void;
 }
 
 function objectLabel(inches: number): string {
@@ -43,7 +45,7 @@ function colorHex(inches: number): string {
  * map centroid. Shows the at-a-glance facts a rep needs: size + object,
  * where, when, and whether it's ground-confirmed (the verification moat).
  */
-export function StormDetailModal({ storm, visible, onClose }: Props) {
+export function StormDetailModal({ storm, visible, onClose, onSeeOnMap }: Props) {
   const t = theme(useColorScheme());
   if (!storm) return null;
   const size = storm.peak_size_in;
@@ -117,6 +119,21 @@ export function StormDetailModal({ storm, visible, onClose }: Props) {
             Long-press anywhere on the map to check the exact hail size at a
             specific address.
           </Text>
+
+          {/* Jump to the map filtered to this storm's day. */}
+          {onSeeOnMap && (
+            <Pressable
+              onPress={onSeeOnMap}
+              style={({ pressed }) => [
+                styles.doneBtn,
+                { backgroundColor: pressed ? t.bgMuted : t.bgLift, borderWidth: 1, borderColor: t.border },
+              ]}
+            >
+              <Text style={[styles.doneText, { color: t.fg }]}>
+                See this day on the map
+              </Text>
+            </Pressable>
+          )}
 
           <Pressable
             onPress={onClose}

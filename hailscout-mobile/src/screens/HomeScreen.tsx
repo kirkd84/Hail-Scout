@@ -15,9 +15,13 @@ import { AppHeader } from "@/components/AppHeader";
 import { StormRow } from "@/components/StormRow";
 import { StormDetailModal } from "@/components/StormDetailModal";
 import type { MobileStorm } from "@/lib/storm-fixtures";
+import { useNavigation } from "@react-navigation/native";
+import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
+import type { MainTabsParamList } from "@/navigation/types";
 
 export function HomeScreen() {
   const t = theme(useColorScheme());
+  const navigation = useNavigation<BottomTabNavigationProp<MainTabsParamList>>();
   const { user } = useAuth();
   const [, setTick] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -133,6 +137,15 @@ export function HomeScreen() {
         storm={detail}
         visible={!!detail}
         onClose={() => setDetail(null)}
+        onSeeOnMap={
+          detail
+            ? () => {
+                const day = new Date(detail.start_time).toISOString().slice(0, 10);
+                setDetail(null);
+                navigation.navigate("Atlas", { focusDay: day });
+              }
+            : undefined
+        }
       />
     </View>
   );
