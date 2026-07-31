@@ -8,6 +8,13 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "scheme": "hailscout",
+    "updates": {
+      "url": "https://u.expo.dev/36ababd5-bab4-46fd-9f68-660b0593676b",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
