@@ -23,12 +23,11 @@ import os
 from datetime import datetime
 from typing import Iterable, Optional
 
-import httpx
+from hailscout_api.services.email_sender import deliver
 
 log = logging.getLogger(__name__)
 
 
-RESEND_API_URL = "https://api.resend.com/emails"
 DEFAULT_FROM = "HailScout Alerts <alerts@notifications.hailscout.net>"
 
 
@@ -166,42 +165,16 @@ async def send_alert_email(
     Returns True on a 2xx response, False otherwise (including the
     no-key skip case).
     """
-    api_key = os.environ.get("RESEND_API_KEY", "").strip()
-    if not api_key:
-        log.info("email.send_skipped_no_key",
-                 extra={"to_count": len(list(to_addresses))})
-        return False
-
-    from_addr = os.environ.get("RESEND_FROM_ADDRESS", "").strip() or DEFAULT_FROM
-    to_list = [a for a in (a.strip() for a in to_addresses) if a]
-    if not to_list:
-        log.warning("email.no_recipients")
-        return False
-
-    payload = {
-        "from": from_addr,
-        "to": to_list,
-        "subject": subject,
-        "text": text_body,
-        "html": html_body,
-    }
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-
-    try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
-            r = await client.post(RESEND_API_URL, json=payload, headers=headers)
-            ok = 200 <= r.status_code < 300
-            if not ok:
-                log.warning("email.send_failed",
-                            extra={"status": r.status_code,
-                                   "body": r.text[:300]})
-            return ok
-    except Exception as exc:  # pragma: no cover
-        log.warning("email.send_exception: %s", exc)
-        return False
+    # Delivery backend (Resend or SMTP) is chosen inside email_sender.
+    return await deliver(
+        to_addresses,
+        subject,
+        html_body,
+        text_body,
+        from_addr=os.environ.get("EMAIL_FROM", "").strip()
+        or os.environ.get("RESEND_FROM_ADDRESS", "").strip()
+        or DEFAULT_FROM,
+    )
 
 
 async def send_test_email(

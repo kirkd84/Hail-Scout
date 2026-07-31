@@ -1,32 +1,25 @@
-"""Password-reset email via Resend (same gating pattern as email_alerts).
+"""Password-reset / set-password email.
 
-Without ``RESEND_API_KEY`` the reset link is logged instead of sent, so the
-flow stays testable (grab the link from Railway logs) before the sending
-domain is verified in Resend.
+Delivery goes through :mod:`email_sender`, which sends via Resend or plain
+SMTP depending on what's configured. With NO provider configured the reset
+link is logged instead of sent, so the flow stays testable (grab the link
+from the Railway logs) before mail is wired up.
 """
 
 from __future__ import annotations
 
-import os
-
-import httpx
-
 from hailscout_api.core import get_logger
+from hailscout_api.services.email_sender import deliver, email_configured
 
 logger = get_logger(__name__)
 
-RESEND_API_URL = "https://api.resend.com/emails"
-DEFAULT_FROM = "HailScout <alerts@notifications.hailscout.net>"
-
 
 async def send_password_reset(email: str, reset_url: str) -> bool:
-    api_key = os.environ.get("RESEND_API_KEY", "").strip()
-    if not api_key:
+    if not email_configured():
         # Deliberate graceful degrade — see module docstring.
         logger.info("auth.password_reset.email_skipped", email=email, reset_url=reset_url)
         return False
 
-    from_addr = os.environ.get("RESEND_FROM_ADDRESS", "").strip() or DEFAULT_FROM
     html = (
         '<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;'
         'max-width:480px;margin:0 auto;padding:8px 24px 24px;color:#0f172a;">'
@@ -48,27 +41,11 @@ async def send_password_reset(email: str, reset_url: str) -> bool:
         "If you didn't request this, you can ignore this email — your password "
         "won't change.</p></div>"
     )
-    payload = {
-        "from": from_addr,
-        "to": [email],
-        "subject": "Set your HailScout password",
-        "html": html,
-        "text": (
-            "Set your HailScout password.\n\n"
-            f"Use this link to set your password (expires in 1 hour):\n{reset_url}\n\n"
-            "If you didn't request this, ignore this email — your password won't change."
-        ),
-    }
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            r = await client.post(
-                RESEND_API_URL,
-                json=payload,
-                headers={"Authorization": f"Bearer {api_key}"},
-            )
-        ok = r.status_code in (200, 201)
-        logger.info("auth.password_reset.email_sent", email=email, ok=ok, status=r.status_code)
-        return ok
-    except httpx.HTTPError as exc:
-        logger.warning("auth.password_reset.email_error", email=email, error=str(exc))
-        return False
+    text = (
+        "Set your HailScout password.\n\n"
+        f"Use this link to set your password (expires in 1 hour):\n{reset_url}\n\n"
+        "If you didn't request this, ignore this email — your password won't change."
+    )
+    ok = await deliver([email], "Set your HailScout password", html, text)
+    logger.info("auth.password_reset.email_sent", email=email, ok=ok)
+    return ok
