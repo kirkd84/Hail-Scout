@@ -6,7 +6,7 @@ an audit row, idempotent) and the authz matrix (normal users blocked,
 same-tenant scoping, no resetting a super-admin, no self-reset).
 
 Uses an in-memory SQLite DB wired in via a ``get_db_session`` dependency
-override, and mints a real HailScout access token so the endpoint's own
+override, and mints a real Hail GPS access token so the endpoint's own
 verify-and-lookup runs end to end.
 """
 

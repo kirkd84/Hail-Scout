@@ -1,3 +1,3 @@
-"""HailScout Tiles — Vector tile service for hail-swath polygons."""
+"""Hail GPS Tiles — Vector tile service for hail-swath polygons."""
 
 __version__ = "0.1.0"

@@ -1,4 +1,4 @@
-# HailScout Data Pipeline
+# Hail GPS Data Pipeline
 
 Production-ready Python service for continuous ingestion of NOAA hail data into PostGIS.
 
@@ -310,8 +310,8 @@ Lambda execution role must assume both. See SAM `template.yaml` for role definit
 ## Contact & Feedback
 
 - **Issues:** GitHub Issues in this repo
-- **Slack:** `#data-pipeline` in HailScout Slack (Month 2+)
-- **PRD reference:** `HailScout_Build_Doc_2.md` (source of truth)
+- **Slack:** `#data-pipeline` in Hail GPS Slack (Month 2+)
+- **PRD reference:** `Hail GPS_Build_Doc_2.md` (source of truth)
 
 ---
 

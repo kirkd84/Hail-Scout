@@ -1,4 +1,4 @@
-"""HailScout API package."""
+"""Hail GPS API package."""
 
 from __future__ import annotations
 

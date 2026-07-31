@@ -1,5 +1,5 @@
 /**
- * HailScout mobile API client.
+ * Hail GPS mobile API client.
  *
  * Reads the API base URL from the env (compiled at build time via Expo).
  * Use with the `useApi()` hook for token injection.

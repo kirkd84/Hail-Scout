@@ -5,7 +5,7 @@ import { theme, SPACING, RADIUS } from "@/lib/tokens";
 import { Wordmark } from "@/components/Wordmark";
 
 /**
- * HailScout accounts are provisioned by an administrator (no self-serve
+ * Hail GPS accounts are provisioned by an administrator (no self-serve
  * sign-up yet — matches the web). This screen explains that and routes back
  * to the provider sign-in.
  */
@@ -19,7 +19,7 @@ export function SignUpScreen() {
         <Wordmark size={28} />
         <Text style={[styles.title, { color: t.fg }]}>Get set up</Text>
         <Text style={[styles.sub, { color: t.fgMuted }]}>
-          HailScout accounts are created by your company administrator. Once
+          Hail GPS accounts are created by your company administrator. Once
           they&apos;ve added your work email, sign in with the matching Apple,
           Google, or Microsoft account.
         </Text>

@@ -1,3 +1,3 @@
-"""Test suite for HailScout data pipeline."""
+"""Test suite for Hail GPS data pipeline."""
 
 from __future__ import annotations

@@ -145,7 +145,7 @@ function fmtDate(iso: string): string {
 
 export function PortfolioReport({
   blocks,
-  organizationName = "HailScout",
+  organizationName = "Hail GPS",
   brandPrimary,
   brandAccent,
 }: ReportProps) {

@@ -65,7 +65,7 @@ def format_alert_message(
             {
                 "type": "context",
                 "elements": [
-                    {"type": "mrkdwn", "text": "Posted automatically by HailScout · open the app to manage"},
+                    {"type": "mrkdwn", "text": "Posted automatically by Hail GPS · open the app to manage"},
                 ],
             },
         ],
@@ -90,15 +90,15 @@ async def send_slack_alert(webhook_url: str, payload: dict) -> bool:
 
 
 async def send_test_message(webhook_url: str) -> bool:
-    """Send a 'hello from HailScout' test ping."""
+    """Send a 'hello from Hail GPS' test ping."""
     payload = {
-        "text": "HailScout test message",
+        "text": "Hail GPS test message",
         "blocks": [
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": "*✓ HailScout connected*\nWe'll post here when storms touch your monitored addresses.",
+                    "text": "*✓ Hail GPS connected*\nWe'll post here when storms touch your monitored addresses.",
                 },
             },
         ],

@@ -1,6 +1,6 @@
-# HailScout Mobile
+# Hail GPS Mobile
 
-The HailScout iOS + Android app — Topographic-themed companion to the
+The Hail GPS iOS + Android app — Topographic-themed companion to the
 desktop atlas. Built with Expo, React Native, MapLibre, and Clerk.
 
 ## Status

@@ -8,7 +8,7 @@ export function generateStaticParams() {
 }
 
 /**
- * Maskable-safe app icon: the HailScout concentric-ring mark centered on a
+ * Maskable-safe app icon: the Hail GPS concentric-ring mark centered on a
  * solid teal field (fills the maskable safe area), rendered at the requested
  * size. Referenced by the PWA manifest at 192 + 512.
  */

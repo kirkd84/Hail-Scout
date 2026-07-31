@@ -1,6 +1,6 @@
 # EAS Build & Submission Cheat Sheet
 
-Quick reference for building and submitting HailScout to TestFlight + Google Play Internal.
+Quick reference for building and submitting Hail GPS to TestFlight + Google Play Internal.
 
 ## Prerequisites
 

@@ -188,7 +188,7 @@ async def public_accuracy(
     headline = None
     if confirmed_events >= _CONFIRM_HEADLINE_MIN:
         headline = (
-            f"{confirmed_events:,} hail events on HailScout are independently "
+            f"{confirmed_events:,} hail events on Hail GPS are independently "
             "confirmed by National Weather Service ground reports."
         )
 

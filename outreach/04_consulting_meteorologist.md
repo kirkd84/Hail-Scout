@@ -8,7 +8,7 @@
 
 Hi [Name],
 
-I'm Kirk, founder of HailScout, a storm-intelligence platform for roofing contractors launching this year. We're looking for a certified consulting meteorologist for retained part-time work starting month 4-5.
+I'm Kirk, founder of Hail GPS, a storm-intelligence platform for roofing contractors launching this year. We're looking for a certified consulting meteorologist for retained part-time work starting month 4-5.
 
 The role:
 - Review a small volume of "legal-tier" Hail Impact Reports each month (the ones destined for insurance disputes or court)
@@ -21,7 +21,7 @@ If you'd be open to a 20-minute chat, I'd love to walk through what we're buildi
 
 Best,
 Kirk
-Founder, HailScout
+Founder, Hail GPS
 kirk@rooftechnologies.com
 
 ---

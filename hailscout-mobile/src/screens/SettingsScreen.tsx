@@ -24,7 +24,7 @@ export function SettingsScreen() {
   const onDeleteAccount = () => {
     Alert.alert(
       "Delete account",
-      "This permanently deletes your HailScout account and the data tied to it. You'll be signed out immediately. This can't be undone.",
+      "This permanently deletes your Hail GPS account and the data tied to it. You'll be signed out immediately. This can't be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {

@@ -38,7 +38,7 @@ Once you provide these source assets:
 
 ## Design Guidance
 
-- **Brand consistency:** Use the HailScout brand color (#0066cc) in icon design
+- **Brand consistency:** Use the Hail GPS brand color (#0066cc) in icon design
 - **Contrast:** Ensure icons are visible on both light and dark backgrounds
 - **Simplicity:** Avoid complex designs that get muddy at small sizes
 - **Localization:** The icon/splash should be language-agnostic

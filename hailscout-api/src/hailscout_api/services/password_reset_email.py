@@ -24,9 +24,9 @@ async def send_password_reset(email: str, reset_url: str) -> bool:
         '<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;'
         'max-width:480px;margin:0 auto;padding:8px 24px 24px;color:#0f172a;">'
         '<h2 style="font-size:20px;font-weight:600;margin:24px 0 8px;">'
-        "Set your HailScout password</h2>"
+        "Set your Hail GPS password</h2>"
         '<p style="font-size:15px;line-height:1.6;color:#334155;margin:0 0 20px;">'
-        "Use the button below to set your password and get into HailScout. "
+        "Use the button below to set your password and get into Hail GPS. "
         "This link expires in 1 hour.</p>"
         f'<a href="{reset_url}" '
         'style="display:inline-block;background:#0891B2;color:#ffffff;'
@@ -42,10 +42,10 @@ async def send_password_reset(email: str, reset_url: str) -> bool:
         "won't change.</p></div>"
     )
     text = (
-        "Set your HailScout password.\n\n"
+        "Set your Hail GPS password.\n\n"
         f"Use this link to set your password (expires in 1 hour):\n{reset_url}\n\n"
         "If you didn't request this, ignore this email — your password won't change."
     )
-    ok = await deliver([email], "Set your HailScout password", html, text)
+    ok = await deliver([email], "Set your Hail GPS password", html, text)
     logger.info("auth.password_reset.email_sent", email=email, ok=ok)
     return ok

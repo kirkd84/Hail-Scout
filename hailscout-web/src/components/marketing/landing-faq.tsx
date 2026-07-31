@@ -10,7 +10,7 @@ interface QA {
 
 const FAQS: QA[] = [
   {
-    q: "What does HailScout cost?",
+    q: "What does Hail GPS cost?",
     a: "$899/year, flat. Unlimited team members, unlimited storms, nationwide coverage. No per-seat fees, no overage charges, no surprises. We charge a fraction of HailTrace ($3-8k/yr) and IHM ($1,999/yr) because the unit economics work and we'd rather earn through breadth than squeeze each customer.",
   },
   {
@@ -38,7 +38,7 @@ const FAQS: QA[] = [
     a: "Request access and we'll onboard your team directly — you'll see the same live map your customers rely on, on your own territory, before you commit.",
   },
   {
-    q: "Who's behind HailScout?",
+    q: "Who's behind Hail GPS?",
     a: "A small team of weather data engineers and former roofing-software product folks. We've built this for crews who beat the storm to the door. Reach us at hello@hailscout.net — we read every email.",
   },
 ];

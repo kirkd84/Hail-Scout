@@ -200,7 +200,7 @@ function Verdict({
   return (
     <div className="rounded-xl border border-copper/30 bg-copper/5 p-5">
       <p className="font-mono-num text-[10px] uppercase tracking-wide-caps text-copper-700">
-        HailScout · Verdict
+        Hail GPS · Verdict
       </p>
       <p className="mt-2 font-display text-xl font-medium tracking-tight-display text-foreground">
         {winner === "tie"

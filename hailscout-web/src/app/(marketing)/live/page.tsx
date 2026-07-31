@@ -125,7 +125,7 @@ function Hero({
             Request access <span aria-hidden>→</span>
           </Link>
           <Link href="/" className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-5 py-3 text-sm font-medium text-foreground hover:bg-muted">
-            How HailScout works
+            How Hail GPS works
           </Link>
         </div>
       </div>

@@ -1,4 +1,4 @@
-"""HailScout's own session tokens — we are the issuer.
+"""Hail GPS's own session tokens — we are the issuer.
 
 Two-token model:
 

@@ -48,7 +48,7 @@ export function PushAlertsCard() {
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             A lock-screen notification the instant a monitored address is hit.
-            Install HailScout to your home screen, then enable it here.
+            Install Hail GPS to your home screen, then enable it here.
           </p>
         </div>
         <ConnectionBadge connected={enabled && subscribedHere} />
@@ -63,7 +63,7 @@ export function PushAlertsCard() {
         )}
         {!supported && (
           <p className="rounded-md border border-border bg-secondary/30 px-3 py-2 text-xs text-muted-foreground">
-            This browser can&apos;t receive push. On iPhone/iPad, add HailScout to
+            This browser can&apos;t receive push. On iPhone/iPad, add Hail GPS to
             your Home Screen first, then open it from there.
           </p>
         )}

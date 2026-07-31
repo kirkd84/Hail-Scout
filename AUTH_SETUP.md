@@ -1,6 +1,6 @@
-# HailScout Auth Setup (Google + Microsoft, no Clerk)
+# Hail GPS Auth Setup (Google + Microsoft, no Clerk)
 
-HailScout now runs its **own** authentication — no Clerk, no per-user fees. Flow:
+Hail GPS now runs its **own** authentication — no Clerk, no per-user fees. Flow:
 
 ```
 Browser → "Continue with Google/Microsoft"
@@ -107,7 +107,7 @@ Sign in at `https://hailscout.net/sign-in` with the **Google or Microsoft accoun
 whose email matches a seeded user** (e.g. `kirk@copayee.com` is the super-admin).
 First login links that identity; sign-out + re-login works thereafter.
 
-If you see *"No HailScout account exists for that email"*, the email isn't in the
+If you see *"No Hail GPS account exists for that email"*, the email isn't in the
 `users` table yet — add it via super-admin **Tenant management → create org/admin**,
 then sign in again.
 

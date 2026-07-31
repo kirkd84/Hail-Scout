@@ -42,7 +42,7 @@ export default function GlobalError({
             Something broke
           </p>
           <h1 style={{ marginTop: 8, fontSize: 24, fontWeight: 500 }}>
-            HailScout hit an error
+            Hail GPS hit an error
           </h1>
           <p style={{ marginTop: 8, fontSize: 14, color: "#94A3B8" }}>
             Your data is fine — this is on our side.

@@ -1,4 +1,4 @@
-"""HailScout data pipeline CLI.
+"""Hail GPS data pipeline CLI.
 
 Subcommands:
     live      - Pull the latest MESH file from NOAA S3 and ingest

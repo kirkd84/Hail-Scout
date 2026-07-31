@@ -61,7 +61,7 @@ export function PortfolioReportButton({ addresses, className }: Props) {
       const a = document.createElement("a");
       const stamp = new Date().toISOString().slice(0, 10);
       a.href = url;
-      a.download = `HailScout-Portfolio-${stamp}.pdf`;
+      a.download = `Hail GPS-Portfolio-${stamp}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

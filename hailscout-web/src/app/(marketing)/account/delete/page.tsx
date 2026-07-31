@@ -41,7 +41,7 @@ export default function DeleteAccountPage() {
         Account &amp; data
       </p>
       <h1 className="mt-1 font-display text-4xl font-medium tracking-tight-display text-foreground">
-        Delete your HailScout account
+        Delete your Hail GPS account
       </h1>
       <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
         Request permanent deletion of your account and the personal data tied to

@@ -1,6 +1,6 @@
 # Color Legend — Hail Size Categories
 
-**Source of Truth:** This document defines the official hail size → color mapping for all HailScout products (web, mobile, API).
+**Source of Truth:** This document defines the official hail size → color mapping for all Hail GPS products (web, mobile, API).
 
 **Rationale:** Colors match industry-standard hail damage severity progression, derived from National Weather Service (NWS) hail damage climatology and NSSL research. Roofers and adjusters recognize these colors immediately.
 

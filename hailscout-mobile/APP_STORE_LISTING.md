@@ -1,4 +1,4 @@
-# HailScout — App Store Connect listing (iOS v1.0.0)
+# Hail GPS — App Store Connect listing (iOS v1.0.0)
 
 Paste-ready copy for App Store Connect, plus the pre-submission checklist.
 Bundle ID: `com.hailscout.app`. Keep all copy plain-language (no jargon).
@@ -9,7 +9,7 @@ Bundle ID: `com.hailscout.app`. Keep all copy plain-language (no jargon).
 
 **App Name** (≤30 chars)
 ```
-HailScout: Storm Damage Maps
+Hail GPS: Storm Damage Maps
 ```
 
 **Subtitle** (≤30 chars)
@@ -31,9 +31,9 @@ roofing,roof,restoration,inspection,adjuster,insurance,canvassing,radar,contract
 ```
 Know exactly where hail hit — and get to the right doors first.
 
-HailScout turns the latest storms into a clear, verified map of where hail fell and how big it was. Roofing and restoration crews stop guessing and start working where the damage actually is.
+Hail GPS turns the latest storms into a clear, verified map of where hail fell and how big it was. Roofing and restoration crews stop guessing and start working where the damage actually is.
 
-Search any address to see every storm that's hit it and the hail size on record. See a storm's real footprint on the map — not a rough circle. Then head out, and HailScout rides along with you.
+Search any address to see every storm that's hit it and the hail size on record. See a storm's real footprint on the map — not a rough circle. Then head out, and Hail GPS rides along with you.
 
 WHAT YOU CAN DO
 - Verified hail maps. Real storm swaths, color-coded by hail size — cross-checked against ground reports, so you can trust what you're driving to.
@@ -44,14 +44,14 @@ WHAT YOU CAN DO
 - Work your territory. Drop door-knock pins, track leads and follow-ups, and see your team's activity.
 
 BUILT FOR THE FIELD
-Whether you're a roofer, a restoration pro, or running a storm crew, HailScout is made to be used from the truck and the doorstep — fast, clear, and honest about what's real.
+Whether you're a roofer, a restoration pro, or running a storm crew, Hail GPS is made to be used from the truck and the doorstep — fast, clear, and honest about what's real.
 
 Sign in with Apple, Google, or Microsoft to get started.
 ```
 
 **What's New** (v1.0.0 release notes)
 ```
-Welcome to HailScout. See verified hail maps, look up any address, get storm alerts, and navigate straight to your next lead — with Drive Mode and voice call-outs so you can work every storm from the truck.
+Welcome to Hail GPS. See verified hail maps, look up any address, get storm alerts, and navigate straight to your next lead — with Drive Mode and voice call-outs so you can work every storm from the truck.
 ```
 
 **URLs**
@@ -84,7 +84,7 @@ Rule of thumb: declare exactly what the app does, nothing aspirational.
 Status as of the current build:
 
 1. ~~**Guideline 4.8 — Sign in with Apple.**~~ **DONE** — native Sign in with Apple ships in the app; the backend verifies Apple tokens (`APPLE_OAUTH_CLIENT_ID` set on Railway). Ships with the next EAS build.
-2. **[STILL REQUIRED — KIRK] Demo account for App Review.** This is the most likely rejection now. Sign-in is **invite-only**: an unknown Apple/Google account gets a 403 ("Ask your administrator to add you"), so a reviewer who signs in with their own Apple ID sees a dead end → Guideline 2.1 rejection. Fix: create a real HailScout user (e.g. `appreview@hailscout.net`) with a password set, seed its org with some storms/pins so the app isn't empty, and put those credentials in **App Review Information → Sign-In Information**. Note: password sign-in needs email working only for the *reset* flow — set the password directly so the reviewer doesn't need an email.
+2. **[STILL REQUIRED — KIRK] Demo account for App Review.** This is the most likely rejection now. Sign-in is **invite-only**: an unknown Apple/Google account gets a 403 ("Ask your administrator to add you"), so a reviewer who signs in with their own Apple ID sees a dead end → Guideline 2.1 rejection. Fix: create a real Hail GPS user (e.g. `appreview@hailscout.net`) with a password set, seed its org with some storms/pins so the app isn't empty, and put those credentials in **App Review Information → Sign-In Information**. Note: password sign-in needs email working only for the *reset* flow — set the password directly so the reviewer doesn't need an email.
 3. ~~**Privacy policy live.**~~ **DONE** — `https://hailscout.net/privacy` (with site chrome + footer link). Terms also live at `/terms`.
 4. ~~**`ORS_API_KEY` set.**~~ **DONE** — navigate-to-lead works.
 5. **Account deletion (Guideline 5.1.1(v))** — **DONE**: Settings → Delete account now deletes in-app (deactivates + revokes sessions server-side), no longer a mailto. Mention it in review notes so the reviewer finds it.
@@ -98,7 +98,7 @@ Status as of the current build:
 7. **Export compliance:** app uses standard HTTPS only → exempt. Already set: `ITSAppUsesNonExemptEncryption=false` in app.json, so the per-build "Missing Compliance" prompt should stop appearing.
 8. **App Review notes** — paste-ready:
 ```
-HailScout is a business tool for roofing and restoration contractors. It shows
+Hail GPS is a business tool for roofing and restoration contractors. It shows
 where hail fell (from public NOAA/NWS radar and ground reports), lets crews look
 up an address, and navigates them to jobs.
 
@@ -115,7 +115,7 @@ Account deletion: Settings → Delete account (deletes in-app, per 5.1.1(v)).
 
 ## Filling in App Store Connect — field by field
 
-In App Store Connect → My Apps → HailScout:
+In App Store Connect → My Apps → Hail GPS:
 
 **1. App Information** (left sidebar)
 - Name / Subtitle → from Metadata above. Category: Business (primary), Weather (secondary). Age rating: 4+ (answer all "None").

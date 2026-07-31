@@ -1,4 +1,4 @@
-# HailScout — Claude Code Handoff (updated 2026-05-13)
+# Hail GPS — Claude Code Handoff (updated 2026-05-13)
 
 Hail intelligence platform for roofing contractors. Multi-tenant SaaS.
 Most of Phase 16 / 17 / 18 has shipped — see "Current state" below
@@ -305,7 +305,7 @@ mirrors web; reuse the API client at `hailscout-mobile/src/lib/api.ts`.
 ## Repo layout (top-level dirs)
 
 ```
-HailScout/
+Hail GPS/
 ├── hailscout-api/             # FastAPI + SQLAlchemy + Alembic. Railway-deployed.
 ├── hailscout-web/             # Next.js 15.5 + Clerk + MapLibre. Vercel-deployed.
 ├── hailscout-mobile/          # Expo + React Native + MapLibre RN.

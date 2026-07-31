@@ -9,7 +9,7 @@ interface WordmarkProps {
 }
 
 /**
- * HailScout wordmark — topographic mark + sans wordmark.
+ * Hail GPS wordmark — topographic mark + sans wordmark.
  *
  * The mark is a stylized contour-ring radar:
  *   • Outer ring (teal)         → the world
@@ -52,14 +52,14 @@ export function Wordmark({ size = "md", pulse = false, className, href = "/" }: 
         )}
       </span>
       <span className={cn("font-display font-medium tracking-tight-display text-foreground", s.text)}>
-        HailScout
+        Hail GPS
       </span>
     </span>
   );
 
   if (!href) return inner;
   return (
-    <Link href={href} className="inline-flex items-center" aria-label="HailScout home">
+    <Link href={href} className="inline-flex items-center" aria-label="Hail GPS home">
       {inner}
     </Link>
   );

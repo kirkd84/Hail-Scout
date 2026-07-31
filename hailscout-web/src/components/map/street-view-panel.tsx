@@ -7,7 +7,7 @@
  * Uses Google's Maps Embed API (streetview mode), which is FREE — no
  * per-load billing, unlike the Static Street View API. It needs a Google
  * Maps key exposed to the browser as NEXT_PUBLIC_GOOGLE_MAPS_KEY, HTTP-
- * referrer-restricted to the HailScout domains with "Maps Embed API"
+ * referrer-restricted to the Hail GPS domains with "Maps Embed API"
  * enabled.
  *
  * Graceful degradation: with NO key set, the panel is a one-click card that

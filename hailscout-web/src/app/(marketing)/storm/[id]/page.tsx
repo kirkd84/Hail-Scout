@@ -114,7 +114,7 @@ export default function PublicStormPage({
               <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M8 2 L9.5 6.5 L14 8 L9.5 9.5 L8 14 L6.5 9.5 L2 8 L6.5 6.5 Z" />
               </svg>
-              HailScout · Storm insight
+              Hail GPS · Storm insight
             </p>
             <p className="mt-3 font-display text-2xl font-medium tracking-tight-display text-foreground leading-snug">
               {makeHeadline(detail, where?.label)}
@@ -148,7 +148,7 @@ export default function PublicStormPage({
             Was your address hit by this storm?
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-primary-foreground/80">
-            Search any address on HailScout — see exactly what fell. Generate a Hail Impact Report to file your claim.
+            Search any address on Hail GPS — see exactly what fell. Generate a Hail Impact Report to file your claim.
           </p>
           <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
             <Link href="/request-access" className="inline-flex items-center gap-2 rounded-md bg-copper px-5 py-3 text-sm font-medium text-primary-foreground shadow-atlas-lg hover:bg-copper-700">
@@ -336,7 +336,7 @@ function makeBody(detail: ApiStormDetail, locationLabel?: string): string {
 
 function makeNextStep(detail: ApiStormDetail): string {
   if (detail.max_hail_size_in >= 1.5) {
-    return "Recommended next step: pull every address inside this footprint and run a HailScout impact report before adjusters do.";
+    return "Recommended next step: pull every address inside this footprint and run a Hail GPS impact report before adjusters do.";
   }
   return "Recommended next step: check whether your monitored addresses sit inside this swath — surface damage may still qualify for claims.";
 }

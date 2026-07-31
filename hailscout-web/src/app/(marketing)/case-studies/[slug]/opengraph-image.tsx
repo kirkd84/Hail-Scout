@@ -3,7 +3,7 @@ import { CASE_STUDIES, getCaseStudy } from "@/lib/case-studies";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "HailScout customer story";
+export const alt = "Hail GPS customer story";
 
 export async function generateImageMetadata({
   params,
@@ -16,7 +16,7 @@ export async function generateImageMetadata({
     {
       id: slug,
       size,
-      alt: cs ? `${cs.headline} — ${cs.region}` : "HailScout customer story",
+      alt: cs ? `${cs.headline} — ${cs.region}` : "Hail GPS customer story",
       contentType,
     },
   ];
@@ -72,7 +72,7 @@ export default async function OG({
             <path d="M5 14 Q14 7 23 14" stroke="#D87C4A" strokeWidth="1.2" strokeLinecap="round" />
             <circle cx="14" cy="14" r="1.4" fill="#D87C4A" />
           </svg>
-          <span style={{ fontSize: 30, color: "#2B2620", letterSpacing: -0.5, fontWeight: 500 }}>HailScout</span>
+          <span style={{ fontSize: 30, color: "#2B2620", letterSpacing: -0.5, fontWeight: 500 }}>Hail GPS</span>
         </div>
 
         <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", position: "relative", gap: 24 }}>

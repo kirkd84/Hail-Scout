@@ -1,4 +1,4 @@
-# HailScout Mobile — Auth & Run Setup
+# Hail GPS Mobile — Auth & Run Setup
 
 The mobile app was migrated **off Clerk** onto the same first-party auth as the
 web/API: native Google/Microsoft sign-in → provider `id_token` →

@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 
 const ERROR_COPY: Record<string, string> = {
   no_account:
-    "No HailScout account exists for that email yet. Ask your administrator to add you, then sign in again.",
+    "No Hail GPS account exists for that email yet. Ask your administrator to add you, then sign in again.",
   invalid_state: "Your sign-in session expired. Please try again.",
   oauth_failed:
     "We couldn't complete sign-in with that provider. Please try again.",

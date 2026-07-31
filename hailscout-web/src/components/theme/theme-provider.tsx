@@ -4,7 +4,7 @@ import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { type ComponentProps } from "react";
 
 /**
- * Client-side theme provider. Defaults to "system" so HailScout
+ * Client-side theme provider. Defaults to "system" so Hail GPS
  * follows the OS preference. The `class` attribute strategy plays
  * nicely with Tailwind's `darkMode: ["class"]` config.
  */

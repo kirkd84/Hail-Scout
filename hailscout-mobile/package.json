@@ -1,7 +1,7 @@
 {
   "name": "hailscout-mobile",
   "version": "1.0.0",
-  "description": "HailScout mobile app for storm restoration contractors",
+  "description": "Hail GPS mobile app for storm restoration contractors",
   "main": "index.tsx",
   "scripts": {
     "start": "expo start",

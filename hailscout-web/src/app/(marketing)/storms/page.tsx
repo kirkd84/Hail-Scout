@@ -43,7 +43,7 @@ const ORDER_OPTS: OrderOpt[] = [
 /**
  * /storms — public storm catalog.
  *
- * Browsable / filterable index of every cell HailScout has ingested,
+ * Browsable / filterable index of every cell Hail GPS has ingested,
  * across MRMS + NEXRAD. Lets prospects and shareable-link recipients
  * find specific events without signing up.
  *
@@ -212,7 +212,7 @@ export default function StormCatalogPage() {
             Run this on your customer list.
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-primary-foreground/80">
-            HailScout matches every saved address against every storm
+            Hail GPS matches every saved address against every storm
             automatically — no manual lookups, no missed claim windows.
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">

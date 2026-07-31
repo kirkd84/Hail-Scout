@@ -1,6 +1,6 @@
 """Shared onboarding helper: email a newly provisioned user a set-password link.
 
-A HailScout account can be created three ways (team invite, external HR
+A Hail GPS account can be created three ways (team invite, external HR
 provisioning, super-admin org creation). Each pre-stages a ``users`` row with NO
 password, on the assumption everyone signs in with Google/Microsoft SSO — which
 left password-first invitees with no on-ramp (``/v1/auth/login`` rejects a

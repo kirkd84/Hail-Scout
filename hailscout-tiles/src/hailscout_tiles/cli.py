@@ -42,7 +42,7 @@ def setup_logging(log_level: str) -> None:
 
 @click.group()
 def cli() -> None:
-    """HailScout Tiles — Vector tile service for hail swaths."""
+    """Hail GPS Tiles — Vector tile service for hail swaths."""
     pass
 
 

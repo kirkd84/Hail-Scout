@@ -539,7 +539,7 @@ async def test_push(
     if not subs:
         raise HTTPException(status_code=409, detail="No push subscription on this device yet")
     payload = {
-        "title": "HailScout test alert",
+        "title": "Hail GPS test alert",
         "body": "Push notifications are working. ⛈",
         "url": "/app/alerts",
     }

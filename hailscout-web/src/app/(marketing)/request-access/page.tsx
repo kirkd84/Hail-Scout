@@ -3,9 +3,9 @@ import Link from "next/link";
 import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 
 export const metadata: Metadata = {
-  title: "Request access · HailScout",
+  title: "Request access · Hail GPS",
   description:
-    "HailScout is onboarding roofing and restoration crews. Request access and we'll get your team set up.",
+    "Hail GPS is onboarding roofing and restoration crews. Request access and we'll get your team set up.",
 };
 
 export default function RequestAccessPage() {
@@ -20,13 +20,13 @@ export default function RequestAccessPage() {
           Request access
         </h1>
         <p className="mt-4 text-base text-muted-foreground leading-relaxed">
-          HailScout is rolling out to roofing and restoration crews. Tell us about
+          Hail GPS is rolling out to roofing and restoration crews. Tell us about
           your company and we&apos;ll get your team set up with the live storm map,
           alerts, and canvassing tools.
         </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <a
-            href="mailto:hello@hailscout.net?subject=HailScout%20access%20request&body=Company%3A%0AName%3A%0APhone%3A%0AWhere%20you%20work%3A"
+            href="mailto:hello@hailscout.net?subject=Hail GPS%20access%20request&body=Company%3A%0AName%3A%0APhone%3A%0AWhere%20you%20work%3A"
             className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-copper-700"
           >
             Email us to get set up <span aria-hidden>→</span>

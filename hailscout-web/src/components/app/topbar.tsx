@@ -38,7 +38,7 @@ function pageTitleFor(pathname: string): string {
   if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
   // Closest prefix match
   const prefix = Object.keys(PAGE_TITLES).find((k) => pathname.startsWith(k));
-  return prefix ? PAGE_TITLES[prefix] : "HailScout";
+  return prefix ? PAGE_TITLES[prefix] : "Hail GPS";
 }
 
 export function Topbar({ onSearchClick }: { onSearchClick?: () => void } = {}) {

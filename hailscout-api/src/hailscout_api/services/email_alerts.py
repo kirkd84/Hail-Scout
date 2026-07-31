@@ -28,7 +28,7 @@ from hailscout_api.services.email_sender import deliver
 log = logging.getLogger(__name__)
 
 
-DEFAULT_FROM = "HailScout Alerts <alerts@notifications.hailscout.net>"
+DEFAULT_FROM = "Hail GPS Alerts <alerts@notifications.hailscout.net>"
 
 
 # Mirror the Slack module's reference scale so the two surfaces speak
@@ -99,7 +99,7 @@ def render_alert_email(
         "queue door-knocks before the canvass window closes:",
         f"  {app_url}/live",
         "",
-        "— HailScout",
+        "— Hail GPS",
         "",
         "You're receiving this because your organization has hail "
         "alerts enabled. Manage recipients in Settings → Integrations.",
@@ -114,7 +114,7 @@ def render_alert_email(
 <body style="margin:0;padding:24px;background:#0b1220;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#e6ecf3">
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="max-width:540px;width:100%">
 <tr><td>
-  <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#8a9bb8;margin-bottom:6px">HailScout alert</div>
+  <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#8a9bb8;margin-bottom:6px">Hail GPS alert</div>
   <div style="font-size:28px;font-weight:600;line-height:1.2">
     {peak_size_in:.2f}″ hail
     <span style="color:#8a9bb8;font-weight:400"> · {object_name}-sized</span>
@@ -181,15 +181,15 @@ async def send_test_email(
     to_addresses: Iterable[str],
     app_url: str = "https://hailscout.net",
 ) -> bool:
-    """Send a 'hello from HailScout' ping. Used by the Settings UI to
+    """Send a 'hello from Hail GPS' ping. Used by the Settings UI to
     verify a fresh recipient list."""
-    subject = "HailScout test alert"
+    subject = "Hail GPS test alert"
     text = (
-        "This is a test from HailScout.\n\n"
+        "This is a test from Hail GPS.\n\n"
         "If you can read this, your organization's hail-alert email "
         "delivery is wired up correctly. The next real notification "
         "will arrive when a monitored address takes a hit.\n\n"
-        f"— HailScout\n  {app_url}"
+        f"— Hail GPS\n  {app_url}"
     )
     html = f"""\
 <!doctype html>
@@ -197,7 +197,7 @@ async def send_test_email(
 <body style="margin:0;padding:24px;background:#0b1220;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#e6ecf3">
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="max-width:540px;width:100%">
 <tr><td>
-  <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#8a9bb8;margin-bottom:6px">HailScout</div>
+  <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#8a9bb8;margin-bottom:6px">Hail GPS</div>
   <div style="font-size:22px;font-weight:600">Test alert delivered</div>
   <p style="color:#cdd6e3;font-size:14px;line-height:1.55;margin-top:14px">
     Your organization's hail-alert email delivery is wired up. The
@@ -206,7 +206,7 @@ async def send_test_email(
     it.
   </p>
   <p style="color:#8a9bb8;font-size:12px;margin-top:24px">
-    — HailScout · <a href="{app_url}" style="color:#8aa7d6">{app_url}</a>
+    — Hail GPS · <a href="{app_url}" style="color:#8aa7d6">{app_url}</a>
   </p>
 </td></tr>
 </table>

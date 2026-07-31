@@ -1,4 +1,4 @@
-# HailScout API — Week 1 Scaffold Summary
+# Hail GPS API — Week 1 Scaffold Summary
 
 **Status:** Production-ready scaffold complete. Ready for Kirk to pick up for Week 1 execution.
 

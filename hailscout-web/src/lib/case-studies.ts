@@ -26,7 +26,7 @@ export const CASE_STUDIES: CaseStudy[] = [
     headline:
       "How Ridgeline Roofing tripled their close rate after the May storms",
     deck:
-      "A four-truck Tornado Alley contractor swapped door-knocking guesswork for HailScout's polygon-grade hail data — and walked into the conference with the busiest spring of their decade.",
+      "A four-truck Tornado Alley contractor swapped door-knocking guesswork for Hail GPS's polygon-grade hail data — and walked into the conference with the busiest spring of their decade.",
     region: "Oklahoma City, OK",
     companySize: "4 trucks · 11 crew",
     stats: [
@@ -48,7 +48,7 @@ export const CASE_STUDIES: CaseStudy[] = [
         eyebrow: "The shift",
         heading: "Pull up the map, walk the polygon.",
         paragraphs: [
-          "Ridgeline started using HailScout the week after a March supercell dropped 2.5″ stones across Cleveland County. Mark dropped the company's monitored-address list — every customer, every warranty, every prior estimate — into the watchlist on a Sunday night.",
+          "Ridgeline started using Hail GPS the week after a March supercell dropped 2.5″ stones across Cleveland County. Mark dropped the company's monitored-address list — every customer, every warranty, every prior estimate — into the watchlist on a Sunday night.",
           "Monday at 6 a.m. he had a Slack alert: forty-three of his addresses sat inside the 2.0″ band. By the time the news trucks were filming, his foreman knew exactly which streets to walk.",
           "What changed wasn't enthusiasm — Mark was already a hustler. What changed was precision. The crew stopped knocking on undamaged homes. Every door was a real door. Every conversation started with: I see this storm dropped golf-ball hail right here on your roof. Want me to take a look?",
         ],
@@ -63,8 +63,8 @@ export const CASE_STUDIES: CaseStudy[] = [
         heading: "Three storms, $840K in Q2.",
         paragraphs: [
           "Ridgeline closed a third of every estimate they wrote in May. Their inspection-to-contract conversion went from a national-average 18% to a Tornado-Alley-respectable 42%. They added a fifth truck in July, paid cash for it, and named her Hailey.",
-          "More importantly, the team stopped resenting the route. The map was the route. HailScout told them where to go. The crew talked to homeowners who actually had damage, who actually wanted help, who actually wrote checks. Door-knocking stopped being a numbers game and started being a service.",
-          "The conference-week email from Mark to his 14 friends in the trade said it best: Stop trying to remember which neighborhood got hit last March. HailScout remembers.",
+          "More importantly, the team stopped resenting the route. The map was the route. Hail GPS told them where to go. The crew talked to homeowners who actually had damage, who actually wanted help, who actually wrote checks. Door-knocking stopped being a numbers game and started being a service.",
+          "The conference-week email from Mark to his 14 friends in the trade said it best: Stop trying to remember which neighborhood got hit last March. Hail GPS remembers.",
         ],
       },
     ],

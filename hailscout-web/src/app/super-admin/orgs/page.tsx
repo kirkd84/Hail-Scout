@@ -86,7 +86,7 @@ export default function SuperAdminOrgsPage() {
             Organizations
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Every tenant on HailScout. {orgs ? `${orgs.length} active.` : null}
+            Every tenant on Hail GPS. {orgs ? `${orgs.length} active.` : null}
           </p>
         </div>
         <button

@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: |
-  CloudWatch alarms for HailScout MRMS data pipeline.
+  CloudWatch alarms for Hail GPS MRMS data pipeline.
   - Alarm if no successful Lambda run in 10 minutes
   - Alarm if Lambda error rate exceeds threshold
 

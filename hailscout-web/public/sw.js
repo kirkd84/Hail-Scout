@@ -1,4 +1,4 @@
-/* HailScout service worker — deliberately conservative.
+/* Hail GPS service worker — deliberately conservative.
  *
  * It does NOT cache app JS/CSS (that would risk serving stale bundles and
  * breaking the app on deploy). It only:
@@ -41,7 +41,7 @@ self.addEventListener("push", (event) => {
   } catch (_e) {
     data = {};
   }
-  const title = data.title || "HailScout alert";
+  const title = data.title || "Hail GPS alert";
   const options = {
     body: data.body || "New hail activity on a monitored address.",
     icon: "/app-icon/192",

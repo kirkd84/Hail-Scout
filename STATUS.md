@@ -1,4 +1,4 @@
-# HailScout — Session Handoff (2026-05-03, post Phases 9–16)
+# Hail GPS — Session Handoff (2026-05-03, post Phases 9–16)
 
 Latest commit: `ff357e6`. Conference-ready build top-to-bottom, plus a
 post-conference push toward real data — pipeline rewrite, real PostGIS

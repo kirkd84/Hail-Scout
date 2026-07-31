@@ -106,7 +106,7 @@ export default function CalendarPage() {
             icon={IconCalendar}
             eyebrow="Follow-ups"
             title="Nothing on the calendar."
-            description="Set a follow-up date on any contact and it will land here, sorted by urgency. HailScout will tell you who to call back when."
+            description="Set a follow-up date on any contact and it will land here, sorted by urgency. Hail GPS will tell you who to call back when."
             primary={{ label: "Open contacts", href: "/app/customers" }}
             secondary={{ label: "Open the watchlist", href: "/app/addresses" }}
           />

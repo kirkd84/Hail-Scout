@@ -14,7 +14,7 @@ export default function SignInPage() {
           <Wordmark size="lg" pulse />
         </div>
         <h1 className="mb-6 font-display text-2xl font-medium tracking-tight-display text-foreground">
-          Sign in to HailScout
+          Sign in to Hail GPS
         </h1>
         <EmailSignInForm />
         <div className="my-5 flex w-full max-w-sm items-center gap-3 text-[10px] uppercase tracking-wide text-muted-foreground">

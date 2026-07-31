@@ -4,7 +4,7 @@ Revision ID: 017_own_auth
 Revises: 016_radar_size_at_lsr
 Create Date: 2026-06-04
 
-HailScout is now its own identity authority (Google/Microsoft OAuth in the
+Hail GPS is now its own identity authority (Google/Microsoft OAuth in the
 web tier -> provider id_token -> we verify + mint our own session tokens).
 
 Changes:

@@ -4,7 +4,7 @@ import { nearestMetro } from "@/lib/metros";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "HailScout storm record";
+export const alt = "Hail GPS storm record";
 export const dynamic = "force-dynamic";
 
 const API_BASE =
@@ -104,7 +104,7 @@ export default async function StormOG({
               <path d="M5 14 Q14 7 23 14" stroke="#D87C4A" strokeWidth="1.2" strokeLinecap="round" />
               <circle cx="14" cy="14" r="1.4" fill="#D87C4A" />
             </svg>
-            <span style={{ fontSize: 30, color: "#2B2620", letterSpacing: -0.5, fontWeight: 500 }}>HailScout</span>
+            <span style={{ fontSize: 30, color: "#2B2620", letterSpacing: -0.5, fontWeight: 500 }}>Hail GPS</span>
           </div>
           <span style={{ fontSize: 16, color: "#6B6052", letterSpacing: 2, textTransform: "uppercase" }}>
             Storm record · {source}

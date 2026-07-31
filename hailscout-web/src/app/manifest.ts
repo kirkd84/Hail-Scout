@@ -1,13 +1,13 @@
 import type { MetadataRoute } from "next";
 
 /**
- * PWA manifest — makes HailScout installable as a field app on phones/tablets.
+ * PWA manifest — makes Hail GPS installable as a field app on phones/tablets.
  * Next.js auto-injects the <link rel="manifest"> from this file.
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "HailScout — storm intelligence",
-    short_name: "HailScout",
+    name: "Hail GPS — storm intelligence",
+    short_name: "Hail GPS",
     description:
       "Verified hail maps, adjuster-grade claim packets, and lead lists for roofing contractors.",
     start_url: "/app/map",

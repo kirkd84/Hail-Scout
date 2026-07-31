@@ -67,7 +67,7 @@ export async function exchange(provider: string, idToken: string): Promise<Excha
     const detail = (body as { detail?: string })?.detail;
     throw new Error(
       res.status === 403
-        ? "No HailScout account exists for that email. Ask your administrator to add you."
+        ? "No Hail GPS account exists for that email. Ask your administrator to add you."
         : detail || "Sign-in failed. Please try again.",
     );
   }

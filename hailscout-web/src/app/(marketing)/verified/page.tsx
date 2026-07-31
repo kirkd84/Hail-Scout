@@ -34,7 +34,7 @@ function VerifiedView() {
   const latRaw = params.get("lat");
   const lngRaw = params.get("lng");
   const label = params.get("label") ?? undefined;
-  const brand = params.get("brand") || "HailScout";
+  const brand = params.get("brand") || "Hail GPS";
   const lat = latRaw ? Number(latRaw) : undefined;
   const lng = lngRaw ? Number(lngRaw) : undefined;
   const haveCoords = lat != null && !Number.isNaN(lat) && lng != null && !Number.isNaN(lng);

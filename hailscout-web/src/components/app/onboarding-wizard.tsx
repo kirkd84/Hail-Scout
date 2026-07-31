@@ -473,7 +473,7 @@ function InviteTeam({ onFinish }: { onFinish: () => void }) {
         Bring the crew
       </h2>
       <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-        HailScout is unlimited-seat — invite your whole sales team, your
+        Hail GPS is unlimited-seat — invite your whole sales team, your
         canvassers, your office staff. Markers and reports sync across
         every device.
       </p>

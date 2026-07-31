@@ -222,8 +222,8 @@ export function HailImpactReport({
   storm,
   address,
   mapImage,
-  organizationName = "HailScout",
-  preparedBy = "HailScout AI",
+  organizationName = "Hail GPS",
+  preparedBy = "Hail GPS AI",
   photos,
   brandPrimary,
   brandAccent,
@@ -418,7 +418,7 @@ export function HailImpactReport({
         <Text style={styles.eyebrow}>For the adjuster</Text>
         <Text style={[styles.display, { fontSize: 22 }]}>Methodology & evidence</Text>
         <Text style={styles.sectionBody}>
-          HailScout grades every detection by how much independent evidence supports
+          Hail GPS grades every detection by how much independent evidence supports
           it. This event is classified <Text style={{ fontFamily: "Helvetica-Bold" }}>{v?.tier_label ?? "Radar-indicated"}</Text>
           {" "}— the strongest class of evidence available for this location and time.
         </Text>

@@ -4,9 +4,9 @@ import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 import { ContourBg } from "@/components/brand/contour-bg";
 
 export const metadata: Metadata = {
-  title: "API · HailScout",
+  title: "API · Hail GPS",
   description:
-    "HailScout's public hail intelligence API. Query MRMS + NEXRAD cells by bbox, date, source, size. Free for prospects, no auth required for public endpoints.",
+    "Hail GPS's public hail intelligence API. Query MRMS + NEXRAD cells by bbox, date, source, size. Free for prospects, no auth required for public endpoints.",
 };
 
 /**
@@ -27,10 +27,10 @@ export default function ApiDocsPage() {
             Developer · public API
           </p>
           <h1 className="mt-2 font-display text-balance text-5xl font-medium leading-[1.05] tracking-tight-display text-foreground md:text-6xl">
-            Build on HailScout.
+            Build on Hail GPS.
           </h1>
           <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
-            REST endpoints over every hail cell HailScout has ingested,
+            REST endpoints over every hail cell Hail GPS has ingested,
             across MRMS &amp; NEXRAD. Returns proper GeoJSON. No auth
             required for any read endpoint listed here.
           </p>

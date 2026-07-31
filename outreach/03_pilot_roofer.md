@@ -8,7 +8,7 @@
 
 Hey [First Name],
 
-I'm Kirk — I run Roof Technologies, and we're building a hail mapping platform for roofing contractors called HailScout. Think Interactive Hail Maps or HailTrace, but with a better mobile app, AI-drafted Hail Impact Reports, and nationwide access at $899/yr instead of $2K-8K.
+I'm Kirk — I run Roof Technologies, and we're building a hail mapping platform for roofing contractors called Hail GPS. Think Interactive Hail Maps or HailTrace, but with a better mobile app, AI-drafted Hail Impact Reports, and nationwide access at $899/yr instead of $2K-8K.
 
 We're picking 3-5 contractors to be founding pilots. Here's the deal:
 
@@ -33,7 +33,7 @@ P.S. We're also working on contractor-photo damage triage using AI — upload a 
 Before sending, tweak these:
 
 - [ ] **First name** — get it right; LinkedIn first, company website second
-- [ ] **Local hook** — reference a recent storm in their market ("the May 28 outbreak that hit DFW pretty hard…") if you can find one. Use HailScout's data once it's live; until then, NOAA SPC reports are free.
+- [ ] **Local hook** — reference a recent storm in their market ("the May 28 outbreak that hit DFW pretty hard…") if you can find one. Use Hail GPS's data once it's live; until then, NOAA SPC reports are free.
 - [ ] **Crew size mention** — if their LinkedIn says "12 sales reps" or their website implies a certain size, name it: "for a team your size, the unlimited seats matter…"
 - [ ] **Current tool** — if you can sleuth what they're paying for (HailTrace logo on their truck, IHM watermark on a recent map they posted), call it out: "I know you're on HailTrace today…"
 

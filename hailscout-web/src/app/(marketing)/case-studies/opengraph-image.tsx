@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "HailScout customer stories — HailScout, in the field.";
+export const alt = "Hail GPS customer stories — Hail GPS, in the field.";
 export const dynamic = "force-static";
 
 export default function OG() {
@@ -43,7 +43,7 @@ export default function OG() {
             <path d="M5 14 Q14 7 23 14" stroke="#D87C4A" strokeWidth="1.2" strokeLinecap="round" />
             <circle cx="14" cy="14" r="1.4" fill="#D87C4A" />
           </svg>
-          <span style={{ fontSize: 32, color: "#2B2620", letterSpacing: -0.5, fontWeight: 500 }}>HailScout</span>
+          <span style={{ fontSize: 32, color: "#2B2620", letterSpacing: -0.5, fontWeight: 500 }}>Hail GPS</span>
         </div>
 
         <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", position: "relative" }}>
@@ -63,7 +63,7 @@ export default function OG() {
               flexDirection: "column",
             }}
           >
-            <span>HailScout,</span>
+            <span>Hail GPS,</span>
             <span style={{ color: "#2B2620" }}>in the field.</span>
           </div>
           <div style={{ fontSize: 26, color: "#6B6052", marginTop: 32, maxWidth: 880, lineHeight: 1.4 }}>

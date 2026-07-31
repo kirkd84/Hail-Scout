@@ -2,7 +2,7 @@ AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 
 Description: |
-  HailScout MRMS MESH ingestion pipeline.
+  Hail GPS MRMS MESH ingestion pipeline.
   - Lambda function runs every 2 minutes via EventBridge cron
   - Reads from noaa-mrms-pds bucket, writes to hailscout-raw
   - Upserts into PostGIS database

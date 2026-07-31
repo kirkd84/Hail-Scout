@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "HailScout — every hailstorm, on one map.";
+export const alt = "Hail GPS — every hailstorm, on one map.";
 export const dynamic = "force-static";
 
 export default function OpenGraphImage() {
@@ -45,7 +45,7 @@ export default function OpenGraphImage() {
             <path d="M5 14 Q14 7 23 14" stroke="#06B6D4" strokeWidth="1.2" strokeLinecap="round" />
             <circle cx="14" cy="14" r="1.4" fill="#06B6D4" />
           </svg>
-          <span style={{ fontSize: 32, color: "#1F2937", letterSpacing: -0.5, fontWeight: 500 }}>HailScout</span>
+          <span style={{ fontSize: 32, color: "#1F2937", letterSpacing: -0.5, fontWeight: 500 }}>Hail GPS</span>
         </div>
 
         <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", position: "relative" }}>

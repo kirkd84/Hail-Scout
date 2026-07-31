@@ -358,7 +358,7 @@ function AiInsightPanel({ storm }: { storm: Storm }) {
           </svg>
         </span>
         <p className="font-mono-num text-[10px] uppercase tracking-wide-caps text-copper-700">
-          HailScout AI · Storm insight
+          Hail GPS AI · Storm insight
         </p>
       </div>
       <p className="font-display text-base font-medium tracking-tight-display text-foreground leading-snug">

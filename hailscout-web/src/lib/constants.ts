@@ -1,6 +1,6 @@
 /** Application-wide constants. */
 
-export const APP_NAME = "HailScout";
+export const APP_NAME = "Hail GPS";
 export const APP_DESCRIPTION =
   "AI-native hail mapping for roofers. Nationwide coverage, $899/yr.";
 
@@ -42,7 +42,7 @@ export const PRICING = {
 
 /** Feature comparison table for landing page (PRD §1.3). */
 export const FEATURE_COMPARISON = {
-  columns: ["Feature", "HailTrace", "IHM", "HailScout"] as const,
+  columns: ["Feature", "HailTrace", "IHM", "Hail GPS"] as const,
   rows: [
     { feature: "Price (nationwide)", hailtrace: "$3-8K/yr", ihm: "$1,999/yr", hailscout: "$899/yr", highlight: true },
     { feature: "Real-time swaths", hailtrace: "✓", ihm: "✓", hailscout: "✓" },

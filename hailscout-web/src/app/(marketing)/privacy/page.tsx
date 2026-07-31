@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy · HailScout",
-  description: "How HailScout collects, uses, and protects your data.",
+  title: "Privacy Policy · Hail GPS",
+  description: "How Hail GPS collects, uses, and protects your data.",
 };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -36,7 +36,7 @@ export default function PrivacyPolicyPage() {
       <div className="rule-atlas my-6" />
 
       <p className="text-sm text-foreground/85 leading-relaxed">
-        HailScout provides hail-storm intelligence for roofing and restoration
+        Hail GPS provides hail-storm intelligence for roofing and restoration
         contractors via our website, web app, and mobile apps (the
         &quot;Service&quot;). This policy explains what we collect, why, and the
         choices you have.

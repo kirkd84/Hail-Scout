@@ -44,7 +44,7 @@ export function RoiCalculator() {
         <div className="mx-auto max-w-2xl text-center mb-10">
           <p className="font-mono-num text-xs uppercase tracking-wide-caps text-copper">ROI calculator</p>
           <h2 className="mt-3 font-display text-4xl font-medium tracking-tight-display text-foreground md:text-5xl">
-            What&apos;s HailScout worth to your crew?
+            What&apos;s Hail GPS worth to your crew?
           </h2>
           <p className="mt-4 text-pretty leading-relaxed text-muted-foreground">
             Slide a few numbers around. We use conservative industry averages — you&apos;ll likely beat them.
@@ -100,7 +100,7 @@ export function RoiCalculator() {
               <div className="rounded-md border border-copper/30 bg-copper/5 p-4">
                 <p className="text-xs leading-relaxed text-foreground/85">
                   Calculated against an industry-baseline close rate of 6% on cold canvassing and 25
-                  additional doors-per-rep-per-month surfaced by HailScout. Real-world results vary by
+                  additional doors-per-rep-per-month surfaced by Hail GPS. Real-world results vary by
                   territory density, sales process, and storm season.
                 </p>
               </div>

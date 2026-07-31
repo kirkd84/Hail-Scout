@@ -3,7 +3,7 @@
 GET /v1/me returns the signed-in user's profile, their org, and any seats.
 
 Implementation notes:
-* Auth: validates HailScout's own access token. The ``sub`` claim is our
+* Auth: validates Hail GPS's own access token. The ``sub`` claim is our
   internal user id (we mint the token), so we look up by ``User.id``.
 * Org context: the token carries ``org_id`` (minted from ``user.org_id``),
   but /me derives it from the user row regardless.

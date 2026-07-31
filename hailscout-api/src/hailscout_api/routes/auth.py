@@ -187,7 +187,7 @@ async def exchange(
     request: Request,
     session: AsyncSession = Depends(get_db_session),
 ) -> TokenResponse:
-    """Verify a provider id_token and issue HailScout session tokens."""
+    """Verify a provider id_token and issue Hail GPS session tokens."""
     _check_auth_rate_limit(_client_ip(request))
     provider = body.provider.lower().strip()
     try:
@@ -226,7 +226,7 @@ async def exchange(
         )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="No HailScout account exists for this email. Ask your administrator to add you.",
+            detail="No Hail GPS account exists for this email. Ask your administrator to add you.",
         )
 
     # Disabled accounts (e.g. deactivated by the HR provisioning API) cannot

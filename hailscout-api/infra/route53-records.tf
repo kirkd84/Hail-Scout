@@ -1,4 +1,4 @@
-# Route53 DNS records for HailScout API
+# Route53 DNS records for Hail GPS API
 # Usage: terraform apply -var="alb_dns_name=xyz.elb.amazonaws.com"
 
 variable "alb_dns_name" {

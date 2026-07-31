@@ -64,7 +64,7 @@ function ComparisonGrid() {
             <ColHead>Feature</ColHead>
             <ColHead>HailTrace</ColHead>
             <ColHead>IHM</ColHead>
-            <ColHead highlight>HailScout</ColHead>
+            <ColHead highlight>Hail GPS</ColHead>
           </div>
           {ROWS.map((row, i) => (
             <div
@@ -149,7 +149,7 @@ function Verdict() {
       <div className="container py-20 md:py-24">
         <div className="grid gap-12 md:grid-cols-2">
           <div>
-            <p className="font-mono-num text-xs uppercase tracking-wide-caps text-copper">Why HailScout</p>
+            <p className="font-mono-num text-xs uppercase tracking-wide-caps text-copper">Why Hail GPS</p>
             <h3 className="mt-3 font-display text-3xl font-medium tracking-tight-display text-foreground">
               We bet the company on three things.
             </h3>
@@ -186,7 +186,7 @@ function Verdict() {
                 the mobile experience and integration story.
               </p>
               <p>
-                <span className="font-medium text-foreground">When NOT to switch to HailScout:</span>
+                <span className="font-medium text-foreground">When NOT to switch to Hail GPS:</span>
                 You have a deeply entrenched workflow with one of the above and your team is
                 resistant to change. We'd rather you stay than churn.
               </p>

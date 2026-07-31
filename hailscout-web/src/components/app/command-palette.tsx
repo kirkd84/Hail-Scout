@@ -208,7 +208,7 @@ export function CommandPalette({ open, setOpen }: PaletteContextProps) {
           </Command.List>
 
           <div className="flex items-center justify-between border-t border-border px-4 py-2 text-[10px] font-mono uppercase tracking-wide-caps text-foreground/45">
-            <span>HailScout · ⌘K</span>
+            <span>Hail GPS · ⌘K</span>
             <span><kbd className="rounded bg-foreground/10 px-1.5 py-0.5">↵</kbd> select · <kbd className="rounded bg-foreground/10 px-1.5 py-0.5">esc</kbd> close</span>
           </div>
         </Command>

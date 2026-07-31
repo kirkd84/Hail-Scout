@@ -73,7 +73,7 @@ export function DownloadReportButton({ storm, address, map, className, compact =
       a.href = url;
       const stamp = new Date(storm.start_time).toISOString().slice(0, 10);
       const slug = (address || storm.id).replace(/[^a-z0-9]+/gi, "-").toLowerCase();
-      a.download = `HailScout-Impact-Report-${stamp}-${slug}.pdf`;
+      a.download = `Hail GPS-Impact-Report-${stamp}-${slug}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

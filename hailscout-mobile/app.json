@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "HailScout",
+    "name": "Hail GPS",
     "slug": "hailscout",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -24,8 +24,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.hailscout.app",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "HailScout needs access to your location to show the map and identify nearby hail damage.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "HailScout needs access to your location to show the map and identify nearby hail damage.",
+        "NSLocationWhenInUseUsageDescription": "Hail GPS needs access to your location to show the map and identify nearby hail damage.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Hail GPS needs access to your location to show the map and identify nearby hail damage.",
         "UIMainStoryboardFile": "",
         "UILaunchStoryboardName": "SplashScreen",
         "ITSAppUsesNonExemptEncryption": false

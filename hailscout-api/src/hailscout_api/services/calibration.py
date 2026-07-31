@@ -181,7 +181,7 @@ def marketing_headline(calib: dict[str, Any]) -> str | None:
         return None
     return (
         f"Across {n:,} hail events independently verified against "
-        f"National Weather Service ground reports, HailScout's size "
+        f"National Weather Service ground reports, Hail GPS's size "
         f"estimates fall within 0.25 inches of the reported size "
         f"{within_quarter * 100:.0f}% of the time."
     )

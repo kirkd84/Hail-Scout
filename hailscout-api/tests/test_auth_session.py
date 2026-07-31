@@ -1,4 +1,4 @@
-"""Unit tests for HailScout's own session-token core (no DB needed).
+"""Unit tests for Hail GPS's own session-token core (no DB needed).
 
 These cover the security-critical primitives: access-token round-trip, tamper
 rejection, wrong-secret rejection, expiry, token-type enforcement, and the

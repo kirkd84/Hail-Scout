@@ -1,6 +1,6 @@
 # Test Fixtures
 
-This directory holds test data fixtures for the HailScout data pipeline.
+This directory holds test data fixtures for the Hail GPS data pipeline.
 
 ## GRIB2 Fixtures
 

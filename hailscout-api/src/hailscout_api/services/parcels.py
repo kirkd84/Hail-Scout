@@ -2,7 +2,7 @@
 
 Powers draw-area lead lists + business-type prospecting. We POST a drawn
 GeoJSON polygon to Parcel-Service's ``/v1/parcels/in-polygon`` and normalize the
-result into a flat, HailScout-shaped lead row (address, owner, lat/lng, a coarse
+result into a flat, Hail GPS-shaped lead row (address, owner, lat/lng, a coarse
 land-use bucket). Configuration is server-side only (PARCEL_SERVICE_URL/TOKEN);
 when unset the caller surfaces a 503.
 """

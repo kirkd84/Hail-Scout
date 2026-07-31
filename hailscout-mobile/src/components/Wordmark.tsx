@@ -10,7 +10,7 @@ interface Props {
 }
 
 /**
- * HailScout wordmark — radar-ring topographic mark + sans wordmark.
+ * Hail GPS wordmark — radar-ring topographic mark + sans wordmark.
  * Mirrors the web Wordmark component.
  */
 export function Wordmark({ size = 24, color, showText = true }: Props) {
@@ -27,7 +27,7 @@ export function Wordmark({ size = 24, color, showText = true }: Props) {
         <Circle cx={14} cy={14} r={1.4} fill={accent} />
       </Svg>
       {showText && (
-        <Text style={[styles.text, { color: primary, fontSize: size * 0.7 }]}>HailScout</Text>
+        <Text style={[styles.text, { color: primary, fontSize: size * 0.7 }]}>Hail GPS</Text>
       )}
     </View>
   );

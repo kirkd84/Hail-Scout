@@ -11,7 +11,7 @@ import { CASE_STUDIES } from "@/lib/case-studies";
 export const metadata: Metadata = {
   title: "Customer stories",
   description:
-    "How roofing contractors are using HailScout to close more jobs after the storm.",
+    "How roofing contractors are using Hail GPS to close more jobs after the storm.",
 };
 
 export default function CaseStudiesIndex() {
@@ -24,7 +24,7 @@ export default function CaseStudiesIndex() {
           Customer stories
         </p>
         <h1 className="mt-3 font-display text-5xl md:text-6xl font-medium tracking-tight-display text-teal-900">
-          HailScout, in the field.
+          Hail GPS, in the field.
         </h1>
         <p className="mt-4 max-w-xl text-lg text-foreground/70">
           What real crews built when they swapped polygon-grade hail data for

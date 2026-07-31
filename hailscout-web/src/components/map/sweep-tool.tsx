@@ -295,7 +295,7 @@ export function SweepTool({ map, hideTrigger = false, startSignal = 0 }: Props) 
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `HailScout-Leads-${stamp}-${typeFilter}.csv`;
+    a.download = `Hail GPS-Leads-${stamp}-${typeFilter}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

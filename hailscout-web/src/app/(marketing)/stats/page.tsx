@@ -89,7 +89,7 @@ export default function StatsPage() {
             Every hailstorm, accounted for.
           </h1>
           <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
-            HailScout indexes every MRMS-detected hail cell across the
+            Hail GPS indexes every MRMS-detected hail cell across the
             continental U.S., plus high-resolution NEXRAD storm-cell
             tracking. Here&apos;s what the map looks like right now.
           </p>
@@ -255,7 +255,7 @@ export default function StatsPage() {
             Run these numbers against your customer list.
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-primary-foreground/80">
-            HailScout matches every saved address against every cell
+            Hail GPS matches every saved address against every cell
             automatically — no manual lookups, no missed claim windows.
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">

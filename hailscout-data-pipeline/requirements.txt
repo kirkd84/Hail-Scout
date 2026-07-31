@@ -1,4 +1,4 @@
-# HailScout data pipeline runtime dependencies.
+# Hail GPS data pipeline runtime dependencies.
 # System libs (GDAL, ecCodes, PROJ) are installed via the Dockerfile.
 
 cfgrib==0.9.10.4

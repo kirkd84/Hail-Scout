@@ -1,6 +1,6 @@
 """Authentication middleware for extracting user and org context.
 
-Verifies HailScout's own access token (HS256) — minted by ``/v1/auth`` after
+Verifies Hail GPS's own access token (HS256) — minted by ``/v1/auth`` after
 Google/Microsoft sign-in — and returns the per-request :class:`AuthContext`.
 """
 

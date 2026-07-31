@@ -1,4 +1,4 @@
-# HailScout Tiles — Vector Tile Service
+# Hail GPS Tiles — Vector Tile Service
 
 Transforms hail-swath polygons from PostGIS into industry-standard vector tiles (Mapbox Vector Tiles / MVT) served via S3 + CloudFront.
 
@@ -312,4 +312,4 @@ Before submitting a PR:
 
 ## License
 
-Copyright 2026 HailScout. All rights reserved. (TBD: open-source after MVP.)
+Copyright 2026 Hail GPS. All rights reserved. (TBD: open-source after MVP.)

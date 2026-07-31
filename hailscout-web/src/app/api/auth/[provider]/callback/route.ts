@@ -110,7 +110,7 @@ export async function GET(
 /**
  * Apple returns via form_post: a cross-site POST carrying code/state. The
  * very FIRST consent also includes a one-time `user` JSON blob (display
- * name) — deliberately unused: HailScout is invite-only, so the account (and
+ * name) — deliberately unused: Hail GPS is invite-only, so the account (and
  * its name) already exists. Returning users may get an id_token with no
  * email; the API resolves them by the linked (provider, sub) subject.
  */

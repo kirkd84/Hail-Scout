@@ -52,7 +52,7 @@ def render_alert_sms(
 ) -> str:
     where = address_label or address or storm_city or "a monitored address"
     return (
-        f"HailScout: {peak_size_in:.2f}\" hail hit {where}. "
+        f"Hail GPS: {peak_size_in:.2f}\" hail hit {where}. "
         "Open the app to verify and pull a claim report."
     )
 
@@ -88,6 +88,6 @@ async def send_sms(to_numbers: list[str], body: str) -> int:
 
 async def send_test_sms(to_numbers: list[str]) -> bool:
     n = await send_sms(
-        to_numbers, "HailScout test alert — SMS notifications are working. ⛈"
+        to_numbers, "Hail GPS test alert — SMS notifications are working. ⛈"
     )
     return n > 0

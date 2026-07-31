@@ -36,7 +36,7 @@ class DeletionRequestResponse(BaseModel):
 
 
 _CONFIRM = (
-    "We've received your request. Your HailScout account and the personal data "
+    "We've received your request. Your Hail GPS account and the personal data "
     "tied to it will be permanently deleted within 30 days, and we'll email a "
     "confirmation to this address."
 )

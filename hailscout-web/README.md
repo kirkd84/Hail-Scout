@@ -1,6 +1,6 @@
-# HailScout Web
+# Hail GPS Web
 
-Production-ready Next.js 15 web app for HailScout — AI-native hail mapping for roofing contractors.
+Production-ready Next.js 15 web app for Hail GPS — AI-native hail mapping for roofing contractors.
 
 ## Quick Start
 
@@ -248,6 +248,6 @@ Proprietary. All rights reserved.
 
 ---
 
-**Built for:** HailScout, Inc.  
+**Built for:** Hail GPS, Inc.  
 **Maintained by:** Frontend Agent (Cowork)  
 **Last updated:** Week 1 MVP

@@ -1,6 +1,6 @@
-# HailScout API
+# Hail GPS API
 
-Production-ready FastAPI service serving the HailScout data API. Ingests NOAA MRMS hail swaths, serves storm history and property-level hail impact queries for roofing contractors.
+Production-ready FastAPI service serving the Hail GPS data API. Ingests NOAA MRMS hail swaths, serves storm history and property-level hail impact queries for roofing contractors.
 
 **Status:** Week 1 scaffold — authentication, core schema, and initial endpoints wired. Stub endpoints for Month 2+ features.
 
@@ -333,4 +333,4 @@ Configs provided but **not deployed yet** per ticket instructions:
 
 ## License
 
-Proprietary — HailScout Inc.
+Proprietary — Hail GPS Inc.

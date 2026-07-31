@@ -281,7 +281,7 @@ function downloadCsv(markers: import("@/lib/markers").Marker[], members: TeamMem
   const a = document.createElement("a");
   const stamp = new Date().toISOString().slice(0, 10);
   a.href = url;
-  a.download = `HailScout-Markers-${stamp}.csv`;
+  a.download = `Hail GPS-Markers-${stamp}.csv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

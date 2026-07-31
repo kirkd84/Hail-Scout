@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "hailscout-api"
 version = "0.1.0"
-description = "FastAPI service for HailScout hail tracking platform"
-authors = ["HailScout Team <dev@hailscout.net>"]
+description = "FastAPI service for Hail GPS hail tracking platform"
+authors = ["Hail GPS Team <dev@hailscout.net>"]
 license = "Proprietary"
 readme = "README.md"
 packages = [{include = "hailscout_api", from = "src"}]

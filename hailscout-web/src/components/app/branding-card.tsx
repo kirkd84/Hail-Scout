@@ -5,7 +5,7 @@ import { useBranding } from "@/hooks/useReports";
 import { cn } from "@/lib/utils";
 
 const PRESETS = [
-  { label: "HailScout default", primary: "#0F4C5C", accent: "#D87C4A" },
+  { label: "Hail GPS default", primary: "#0F4C5C", accent: "#D87C4A" },
   { label: "Storm navy",        primary: "#0A1628", accent: "#FFD600" },
   { label: "Forest + amber",    primary: "#2F5233", accent: "#E8A23A" },
   { label: "Plum + rose",       primary: "#3F1B47", accent: "#E0507A" },
@@ -64,7 +64,7 @@ export function BrandingCard() {
             type="text"
             value={companyName}
             onChange={(e) => setCompanyName(e.target.value)}
-            placeholder="HailScout"
+            placeholder="Hail GPS"
             className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm focus:border-copper focus:outline-none"
           />
         </Field>
@@ -117,7 +117,7 @@ export function BrandingCard() {
           </div>
         </div>
 
-        <Preview primary={primary} accent={accent} companyName={companyName || "HailScout"} />
+        <Preview primary={primary} accent={accent} companyName={companyName || "Hail GPS"} />
 
         <div className="flex items-center justify-end gap-3">
           {savedFlash && (

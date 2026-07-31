@@ -23,7 +23,7 @@ async def require_super_admin(
 ) -> User:
     """Require the authenticated user to have ``is_super_admin = true``.
 
-    Resolves the caller from HailScout's own access token in the
+    Resolves the caller from Hail GPS's own access token in the
     ``Authorization`` header — the same verify-and-lookup the working routes
     use. Raises 401 if there's no valid authenticated user, 403 if the user is
     not a super-admin.

@@ -1,1 +1,1 @@
-"""Tests for HailScout API."""
+"""Tests for Hail GPS API."""

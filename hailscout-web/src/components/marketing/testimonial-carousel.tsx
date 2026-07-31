@@ -13,7 +13,7 @@ interface Quote {
 const QUOTES: Quote[] = [
   {
     body:
-      "HailScout is the difference between us showing up first and us showing up at all. Our team rolls before the storm passes.",
+      "Hail GPS is the difference between us showing up first and us showing up at all. Our team rolls before the storm passes.",
     name: "Marcus Holloway",
     role: "Owner — Holloway Roofing · Wichita, KS",
     initials: "MH",
@@ -27,7 +27,7 @@ const QUOTES: Quote[] = [
   },
   {
     body:
-      "We used to pay $4k a year for HailTrace and still chase paper. HailScout costs less and the PDFs go straight from the truck to the homeowner. Frankly we cancelled the other tool the day we signed up.",
+      "We used to pay $4k a year for HailTrace and still chase paper. Hail GPS costs less and the PDFs go straight from the truck to the homeowner. Frankly we cancelled the other tool the day we signed up.",
     name: "Eddie Vargas",
     role: "Operations Manager — Apex Roofing · Denver, CO",
     initials: "EV",

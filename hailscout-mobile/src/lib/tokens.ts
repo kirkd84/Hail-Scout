@@ -1,5 +1,5 @@
 /**
- * HailScout mobile design tokens — PenSnap-family palette (slate + cyan),
+ * Hail GPS mobile design tokens — PenSnap-family palette (slate + cyan),
  * matching the web rebrand (2026-07): cool slate neutrals, a bright cyan
  * brand pop, dark cyan for readable text/links. The warm hail/severity ramp
  * is intentionally NOT here — it stays in lib/hail.ts as data viz.

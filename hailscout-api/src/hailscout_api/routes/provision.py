@@ -181,7 +181,7 @@ async def provision_user(
         session,
         action="provision.user_created",
         org_id=org_id,
-        user_id=None,  # actor is the external HR system, not a HailScout user
+        user_id=None,  # actor is the external HR system, not a Hail GPS user
         subject_type="user",
         subject_id=user.id,
         metadata={

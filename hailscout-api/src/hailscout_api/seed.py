@@ -1,9 +1,9 @@
-"""Initial-data seeding for HailScout.
+"""Initial-data seeding for Hail GPS.
 
 Idempotent. Runs on container start (after `alembic upgrade head`) and creates
 the bootstrap orgs + users that make the demo deployment usable out of the box:
 
-- ``HailScout Demo``  — public-facing demo tenant (used for prospect demos).
+- ``Hail GPS Demo``  — public-facing demo tenant (used for prospect demos).
 - ``Roof Technologies`` — Kirk's production tenant. Admin: kirk@rooftechnologies.com.
 - ``kirk@copayee.com`` — system super-admin (cross-tenant). Belongs to the demo
   org by default but can manage every tenant.
@@ -35,7 +35,7 @@ logger = get_logger(__name__)
 
 # ── Configuration: bootstrap data ────────────────────────────────────
 DEMO_ORG_ID: Final = "org_hailscout_demo"
-DEMO_ORG_NAME: Final = "HailScout Demo"
+DEMO_ORG_NAME: Final = "Hail GPS Demo"
 
 ROOF_TECH_ORG_ID: Final = "org_roof_technologies"
 ROOF_TECH_ORG_NAME: Final = "Roof Technologies"

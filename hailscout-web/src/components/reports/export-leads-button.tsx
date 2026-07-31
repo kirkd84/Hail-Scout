@@ -103,7 +103,7 @@ export function ExportLeadsButton({ storm, className }: Props) {
     const a = document.createElement("a");
     const stamp = new Date(storm.start_time).toISOString().slice(0, 10);
     a.href = url;
-    a.download = `HailScout-Leads-${stamp}-${storm.id.slice(-8)}.csv`;
+    a.download = `Hail GPS-Leads-${stamp}-${storm.id.slice(-8)}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

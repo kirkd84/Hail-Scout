@@ -88,7 +88,7 @@ export default function AlertsPage() {
                 What just hit.
               </h1>
               <p className="mt-3 max-w-2xl text-base text-muted-foreground">
-                Auto-refreshing feed of every cell HailScout has tracked
+                Auto-refreshing feed of every cell Hail GPS has tracked
                 in the past 24 hours. Sorted newest first.
                 {liveCount > 0 && (
                   <span className="block mt-1 text-copper font-medium">

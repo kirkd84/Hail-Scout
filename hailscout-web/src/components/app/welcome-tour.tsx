@@ -119,7 +119,7 @@ export function WelcomeTour() {
             <Wordmark size="sm" pulse href={null} />
           </div>
           <p className="font-mono-num text-[10px] uppercase tracking-wide-caps text-copper">
-            Welcome to HailScout
+            Welcome to Hail GPS
           </p>
         </div>
 

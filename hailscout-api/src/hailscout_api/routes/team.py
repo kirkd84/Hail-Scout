@@ -294,7 +294,7 @@ async def add_team_member(
         if existing.org_id != me.org_id:
             raise HTTPException(
                 status_code=409,
-                detail="That email already belongs to another HailScout workspace.",
+                detail="That email already belongs to another Hail GPS workspace.",
             )
         # Already on this team — idempotent.
         return existing

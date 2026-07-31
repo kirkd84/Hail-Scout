@@ -8,7 +8,7 @@
 
 Hi Regrid team,
 
-I'm Kirk, founder of HailScout, a storm-intelligence platform launching in 2026 for roofing contractors.
+I'm Kirk, founder of Hail GPS, a storm-intelligence platform launching in 2026 for roofing contractors.
 
 We need nationwide parcel coverage eventually, but our 6-month MVP is focused on hail-alley states — Texas, Oklahoma, Kansas, Colorado, Missouri, Nebraska, and Iowa. Given your $80K/yr nationwide tier is ahead of our current stage, I'd like to explore:
 
@@ -20,7 +20,7 @@ Could we schedule a 20-minute intro call in the next two weeks? I can share proj
 
 Best,
 Kirk
-Founder, HailScout
+Founder, Hail GPS
 kirk@rooftechnologies.com | [phone]
 
 ---

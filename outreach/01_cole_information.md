@@ -2,13 +2,13 @@
 
 **To:** sales@coleinformation.com
 **From:** kirk@rooftechnologies.com
-**Subject:** Introduction — HailScout, new storm-restoration SaaS
+**Subject:** Introduction — Hail GPS, new storm-restoration SaaS
 
 ---
 
 Hi Cole team,
 
-I'm Kirk, founder of HailScout — a new storm-intelligence platform for roofing contractors launching nationwide in 2026. I'd like to open a conversation about licensing your residential contact data as part of our product.
+I'm Kirk, founder of Hail GPS — a new storm-intelligence platform for roofing contractors launching nationwide in 2026. I'd like to open a conversation about licensing your residential contact data as part of our product.
 
 For context, we'll be serving roofing contractors with a real-time and historical hail mapping tool. Contact enrichment on parcels inside active storm swaths is a core feature, and Cole is the industry-standard source — I believe both Interactive Hail Maps and HailTrace source from you.
 
@@ -23,7 +23,7 @@ Happy to share more about the product, roadmap, and expected volume on the call.
 
 Best,
 Kirk
-Founder, HailScout
+Founder, Hail GPS
 kirk@rooftechnologies.com | [phone]
 
 ---

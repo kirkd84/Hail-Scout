@@ -200,7 +200,7 @@ export default function StateStormsPage({
             Cover your {stateName} territory automatically.
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-primary-foreground/80">
-            HailScout matches every saved address in your customer list
+            Hail GPS matches every saved address in your customer list
             against every cell. Pull the leads inside each footprint as
             a CSV in one click.
           </p>

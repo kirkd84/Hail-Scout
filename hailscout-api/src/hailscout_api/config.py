@@ -1,4 +1,4 @@
-"""Pydantic settings for HailScout API.
+"""Pydantic settings for Hail GPS API.
 
 Pydantic v2 / pydantic-settings v2 syntax: env-var name comes from the field
 name (case-insensitive) by default, NOT from a deprecated `env="..."` kwarg
@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     database_pool_recycle: int = 3600
 
     # ------------------------------------------------------------------
-    # Authentication — HailScout is its own identity authority.
+    # Authentication — Hail GPS is its own identity authority.
     #
     # The browser runs the Google/Microsoft OAuth code-exchange in the web
     # tier (Arctic) and hands us the provider-signed OIDC id_token. We verify
@@ -134,7 +134,7 @@ class Settings(BaseSettings):
 
     # Geocoding
     geocoder_provider: Literal["nominatim", "mapbox"] = "nominatim"
-    nominatim_user_agent: str = "HailScout/0.1.0 (+https://hailscout.net)"
+    nominatim_user_agent: str = "Hail GPS/0.1.0 (+https://hailscout.net)"
     mapbox_api_key: str = ""
 
     # Routing (turn-by-turn navigate-to-lead). Key stays server-side so it never

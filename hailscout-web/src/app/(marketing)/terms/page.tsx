@@ -7,8 +7,8 @@ import type { Metadata } from "next";
 import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 
 export const metadata: Metadata = {
-  title: "Terms of Service · HailScout",
-  description: "The terms that govern your use of HailScout.",
+  title: "Terms of Service · Hail GPS",
+  description: "The terms that govern your use of Hail GPS.",
 };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -42,7 +42,7 @@ export default function TermsOfServicePage() {
 
         <p className="text-sm text-foreground/85 leading-relaxed">
           These Terms of Service (&quot;Terms&quot;) govern your access to and use of
-          HailScout&apos;s website, web application, and mobile apps, and the storm
+          Hail GPS&apos;s website, web application, and mobile apps, and the storm
           intelligence, maps, alerts, and reports they provide (together, the
           &quot;Service&quot;). By creating an account or using the Service, you agree to
           these Terms. If you don&apos;t agree, don&apos;t use the Service.
@@ -88,7 +88,7 @@ export default function TermsOfServicePage() {
 
         <Section title="Weather data &amp; accuracy — please read">
           <p>
-            HailScout&apos;s hail sizes and swaths are <strong>estimates</strong>,
+            Hail GPS&apos;s hail sizes and swaths are <strong>estimates</strong>,
             derived primarily from radar (NOAA MRMS / NEXRAD) and, where available,
             ground reports (SPC and other sources). Radar-derived hail size is a
             modeled estimate, not a direct measurement, and coverage and accuracy
@@ -118,7 +118,7 @@ export default function TermsOfServicePage() {
 
         <Section title="Our intellectual property">
           <p>
-            The Service, software, and HailScout brand are ours (or our licensors&apos;)
+            The Service, software, and Hail GPS brand are ours (or our licensors&apos;)
             and are protected by law. We grant you a limited, non-exclusive,
             non-transferable right to use the Service per these Terms while your
             account is active. Underlying weather data originates from public
@@ -147,7 +147,7 @@ export default function TermsOfServicePage() {
 
         <Section title="Limitation of liability">
           <p>
-            To the fullest extent permitted by law, HailScout will not be liable for
+            To the fullest extent permitted by law, Hail GPS will not be liable for
             any indirect, incidental, special, consequential, or punitive damages, or
             for lost profits, revenue, data, or business, arising out of or relating
             to the Service or the data — including any decision made, or claim filed,

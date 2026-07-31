@@ -10,7 +10,7 @@ import { TestimonialCarousel } from "@/components/marketing/testimonial-carousel
 import { LandingFaq } from "@/components/marketing/landing-faq";
 
 /**
- * HailScout marketing landing.
+ * Hail GPS marketing landing.
  *
  * Direction: Topographic (cream + deep teal + copper).
  * Tone: editorial / field guide / cartographer authority.
@@ -54,7 +54,7 @@ function Hero() {
             <span className="block text-primary">on one map.</span>
           </h1>
           <p className="mt-6 max-w-xl text-pretty text-lg leading-relaxed text-muted-foreground md:text-xl">
-            HailScout is the field guide your crew opens every morning. Track
+            Hail GPS is the field guide your crew opens every morning. Track
             real-time hail swaths, fifteen years of history, and every address
             worth a knock — before your competition does.
           </p>

@@ -34,7 +34,7 @@ MAX_ATTEMPTS = 5
 # login lockout's 5-per-15-min shape.
 MAX_CHALLENGES_PER_WINDOW = 5
 CHALLENGE_WINDOW = timedelta(minutes=15)
-_ISSUER = "HailScout"
+_ISSUER = "Hail GPS"
 
 ChallengePurpose = Literal["enroll", "login"]
 

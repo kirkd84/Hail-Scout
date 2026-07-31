@@ -94,7 +94,7 @@ def create_app() -> FastAPI:
     # dev/staging for convenience.
     _is_prod = settings.env == "production"
     app = FastAPI(
-        title="HailScout API",
+        title="Hail GPS API",
         description="Storm intelligence platform for roofing contractors",
         version="0.1.0",
         docs_url=None if _is_prod else "/docs",
@@ -116,7 +116,7 @@ def create_app() -> FastAPI:
 
     @app.get("/", include_in_schema=False)
     async def root() -> dict[str, str]:
-        info = {"name": "HailScout API", "version": "0.1.0"}
+        info = {"name": "Hail GPS API", "version": "0.1.0"}
         if not _is_prod:
             info["docs"] = "/docs"
         return info

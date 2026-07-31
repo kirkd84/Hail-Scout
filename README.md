@@ -1,12 +1,12 @@
-# HailScout — Monorepo
+# Hail GPS — Monorepo
 
 Real-time and historical hail tracking platform for storm-restoration contractors.
 
 **GitHub:** https://github.com/kirkd84/Hail-Scout
-**Master PRD:** [HailIntel_Build_Doc_2.md](./HailIntel_Build_Doc_2.md) (internal codename "HailIntel" — the consumer-facing brand is **HailScout**)
+**Master PRD:** [HailIntel_Build_Doc_2.md](./HailIntel_Build_Doc_2.md) (internal codename "HailIntel" — the consumer-facing brand is **Hail GPS**)
 **Owner:** Kirk · kirk@rooftechnologies.com
 
-> **Brand note.** The product, GitHub repo, codebase, and all customer-facing surfaces use **HailScout**. The original PRD (`HailIntel_Build_Doc_2.md`) was authored under the codename "HailIntel" and is preserved as a historical planning artifact — references to "HailIntel" in that file should be read as "HailScout".
+> **Brand note.** The product, GitHub repo, codebase, and all customer-facing surfaces use **Hail GPS**. The original PRD (`HailIntel_Build_Doc_2.md`) was authored under the codename "HailIntel" and is preserved as a historical planning artifact — references to "HailIntel" in that file should be read as "Hail GPS".
 
 ---
 

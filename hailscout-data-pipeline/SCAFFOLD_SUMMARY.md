@@ -1,4 +1,4 @@
-# HailScout Data Pipeline — Scaffold Summary
+# Hail GPS Data Pipeline — Scaffold Summary
 
 **Status:** Complete  
 **Date:** 2024-04-24  
@@ -213,7 +213,7 @@ hailscout-data-pipeline/
 
 All files created under:
 ```
-C:\Users\kirkd\My Drive (kirk@rooftechnologies.com)\HailScout\hailscout-data-pipeline\
+C:\Users\kirkd\My Drive (kirk@rooftechnologies.com)\Hail GPS\hailscout-data-pipeline\
 ```
 
 Key entry points:

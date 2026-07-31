@@ -6,7 +6,7 @@ from fastapi import HTTPException, status
 
 
 class HailScoutError(Exception):
-    """Base exception for HailScout API."""
+    """Base exception for Hail GPS API."""
 
     pass
 
@@ -48,7 +48,7 @@ class DatabaseError(HailScoutError):
 
 
 def http_exception_from_error(error: HailScoutError) -> HTTPException:
-    """Convert HailScout error to HTTP exception."""
+    """Convert Hail GPS error to HTTP exception."""
     error_map = {
         AuthenticationError: (status.HTTP_401_UNAUTHORIZED, "Authentication failed"),
         AuthorizationError: (status.HTTP_403_FORBIDDEN, "Access denied"),

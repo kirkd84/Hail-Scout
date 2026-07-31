@@ -1,4 +1,4 @@
-# Ruff configuration for HailScout Data Pipeline
+# Ruff configuration for Hail GPS Data Pipeline
 
 [lint]
 line-length = 100

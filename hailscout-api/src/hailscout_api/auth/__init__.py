@@ -1,6 +1,6 @@
 """Authentication package.
 
-HailScout is its own identity authority: Google/Microsoft OAuth runs in the web
+Hail GPS is its own identity authority: Google/Microsoft OAuth runs in the web
 tier, we verify the provider ``id_token`` (:mod:`auth.oidc`), then mint and
 verify our own session tokens (:mod:`auth.session`).
 """
