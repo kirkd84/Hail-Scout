@@ -57,7 +57,7 @@
             "deploymentTarget": "16.4"
           },
           "android": {
-            "compileSdkVersion": 35,
+            "compileSdkVersion": 36,
             "targetSdkVersion": 35,
             "minSdkVersion": 26
           }
