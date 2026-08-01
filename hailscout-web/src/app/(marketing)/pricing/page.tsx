@@ -140,7 +140,7 @@ const TIERS: Tier[] = [
     blurb: "For multi-territory operators and franchises.",
     price: null,
     priceLabel: "Custom",
-    cta: { label: "Talk to us", href: "mailto:hello@hailscout.net" },
+    cta: { label: "Talk to us", href: "mailto:hello@hailgps.com" },
     features: [
       "Everything in Pro",
       "Dedicated meteorologist review",
@@ -238,7 +238,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "How do I get started?",
-    a: "Request access and we'll set your team up directly — you'll see the live map on your own territory before you commit. Email hello@hailscout.net or hit Request access.",
+    a: "Request access and we'll set your team up directly — you'll see the live map on your own territory before you commit. Email hello@hailgps.com or hit Request access.",
   },
   {
     q: "How many team members can I invite?",

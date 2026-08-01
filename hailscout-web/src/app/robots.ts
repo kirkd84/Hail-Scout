@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const BASE = "https://hailscout.net";
+const BASE = "https://hailgps.com";
 
 /** Allow crawling the public marketing + storm pages; keep the authenticated
  *  app out of the index. */

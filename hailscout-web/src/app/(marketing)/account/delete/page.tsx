@@ -4,7 +4,7 @@ import { useState } from "react";
 import { apiClient } from "@/lib/api";
 
 /**
- * Public account-deletion page (hailscout.net/account/delete).
+ * Public account-deletion page (hailgps.com/account/delete).
  *
  * Reachable WITHOUT signing in — Google Play / App Store require a deletion
  * path users can reach even if they're locked out. Records the request via
@@ -30,7 +30,7 @@ export default function DeleteAccountPage() {
     } catch {
       setStatus("error");
       setMsg(
-        "Something went wrong submitting the request. Please email privacy@hailscout.net and we'll handle it.",
+        "Something went wrong submitting the request. Please email privacy@hailgps.com and we'll handle it.",
       );
     }
   };
@@ -133,8 +133,8 @@ export default function DeleteAccountPage() {
           </button>
           <p className="text-xs text-muted-foreground">
             Prefer email? Write{" "}
-            <a className="text-copper-700 underline" href="mailto:privacy@hailscout.net?subject=Account%20deletion%20request">
-              privacy@hailscout.net
+            <a className="text-copper-700 underline" href="mailto:privacy@hailgps.com?subject=Account%20deletion%20request">
+              privacy@hailgps.com
             </a>
             . See our{" "}
             <a className="text-copper-700 underline" href="/privacy">

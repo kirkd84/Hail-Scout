@@ -30,7 +30,7 @@ API only needs the public client IDs (to validate token audience).
    - While testing, add your sign-in emails under **Test users** (or **Publish**).
 2. **Credentials → Create credentials → OAuth client ID → Web application.**
    - **Authorized redirect URIs** (add all you use):
-     - `https://hailscout.net/api/auth/google/callback`
+     - `https://hailgps.com/api/auth/google/callback`
      - `http://localhost:3000/api/auth/google/callback`  *(local dev)*
    - Copy the **Client ID** and **Client secret**.
 
@@ -40,7 +40,7 @@ API only needs the public client IDs (to validate token audience).
    - **Supported account types:** "Accounts in any organizational directory and
      personal Microsoft accounts" → keeps `MICROSOFT_OAUTH_TENANT=common`.
    - **Redirect URI** (platform = Web):
-     - `https://hailscout.net/api/auth/microsoft/callback`
+     - `https://hailgps.com/api/auth/microsoft/callback`
      - `http://localhost:3000/api/auth/microsoft/callback`  *(add as a second Web URI)*
 2. **Certificates & secrets → New client secret.** Copy the secret **Value**.
 3. Copy the **Application (client) ID** from the Overview tab.
@@ -58,7 +58,7 @@ API only needs the public client IDs (to validate token audience).
 | `MICROSOFT_OAUTH_CLIENT_ID` | Azure application (client) ID |
 | `MICROSOFT_OAUTH_CLIENT_SECRET` | Azure client secret **value** |
 | `MICROSOFT_OAUTH_TENANT` | `common` (optional; default is `common`) |
-| `APP_URL` | `https://hailscout.net` (used to build redirect URIs) |
+| `APP_URL` | `https://hailgps.com` (used to build redirect URIs) |
 | `NEXT_PUBLIC_API_BASE_URL` | `https://hail-scout-production.up.railway.app` (already defaulted) |
 
 ### Railway — Hail-Scout API service (no client secrets needed here)
@@ -103,7 +103,7 @@ python -c "import secrets; print(secrets.token_urlsafe(64))"
 
 ## 5. First sign-in
 
-Sign in at `https://hailscout.net/sign-in` with the **Google or Microsoft account
+Sign in at `https://hailgps.com/sign-in` with the **Google or Microsoft account
 whose email matches a seeded user** (e.g. `kirk@copayee.com` is the super-admin).
 First login links that identity; sign-out + re-login works thereafter.
 

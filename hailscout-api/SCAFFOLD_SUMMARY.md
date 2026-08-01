@@ -147,10 +147,10 @@ Before Kirk/team deploys to ECS:
 3. [ ] Create ECR repo: `hailscout-api`
 4. [ ] Create ECS cluster: `hailscout`
 5. [ ] Create ECS service from task definition with ALB target group
-6. [ ] Create Route53 hosted zone for `hailscout.net` and alias `api.hailscout.net` to ALB
+6. [ ] Create Route53 hosted zone for `hailgps.com` and alias `api.hailgps.com` to ALB
 7. [ ] Run initial migration: `alembic upgrade head` on RDS
 8. [ ] Set GitHub secrets: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
-9. [ ] Test: `curl https://api.hailscout.net/health`
+9. [ ] Test: `curl https://api.hailgps.com/health`
 
 ## Next Steps (Week 2)
 

@@ -60,13 +60,13 @@ Each subdirectory is independently buildable, with its own README, dependencies,
         │   S3 + CloudFront    │   │   ECS Fargate · ALB  │
         └──────────┬───────────┘   └──────────┬───────────┘
                    │                          │
-                   │ tiles.hailscout.net      │ api.hailscout.net
+                   │ tiles.hailgps.com      │ api.hailgps.com
                    │                          │
                    ▼                          ▼
         ┌──────────────────────┐   ┌──────────────────────┐
         │   hailscout-web      │   │   hailscout-mobile   │
         │   Next.js · Vercel   │   │  Expo · iOS+Android  │
-        │   app.hailscout.net  │   │  TestFlight + Play   │
+        │   app.hailgps.com  │   │  TestFlight + Play   │
         └──────────────────────┘   └──────────────────────┘
 ```
 
@@ -121,7 +121,7 @@ Source of truth: [`hailscout-tiles/COLOR_LEGEND.md`](./hailscout-tiles/COLOR_LEG
 The web and mobile clients import this from `hailscout-tiles` rather than redefine it.
 
 ### API base URL
-Production: `https://api.hailscout.net/v1`
+Production: `https://api.hailgps.com/v1`
 Auth: `Authorization: Bearer <Clerk JWT>` + optional `X-Org-Id`
 
 ---
@@ -143,7 +143,7 @@ Auth: `Authorization: Bearer <Clerk JWT>` + optional `X-Org-Id`
 ## Critical path (Week 1 → Week 4)
 
 1. **Week 1 — accounts & domains** (PRD §4 — only Kirk can do these)
-   - Domains: hailscout.net (primary) + back-ups
+   - Domains: hailgps.com (primary) + back-ups
    - GitHub org `hailscout` (or stay on personal `kirkd84` and rename later)
    - AWS Activate, Stripe Atlas, Mercury, Clerk org, Apple/Google Developer accounts
    - Outreach: Cole + Regrid emails go out Monday — long lead times

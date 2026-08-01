@@ -117,7 +117,7 @@ class Settings(BaseSettings):
     # Web push (VAPID). Generate a keypair once; private key stays secret.
     vapid_public_key: str = ""
     vapid_private_key: str = ""
-    vapid_subject: str = "mailto:alerts@hailscout.net"
+    vapid_subject: str = "mailto:alerts@hailgps.com"
 
     # AI features (Anthropic). Powers Photo-AI roof-damage triage, claim-letter
     # drafting, and natural-language search. When the key is unset, those
@@ -134,7 +134,7 @@ class Settings(BaseSettings):
 
     # Geocoding
     geocoder_provider: Literal["nominatim", "mapbox"] = "nominatim"
-    nominatim_user_agent: str = "Hail GPS/0.1.0 (+https://hailscout.net)"
+    nominatim_user_agent: str = "Hail GPS/0.1.0 (+https://hailgps.com)"
     mapbox_api_key: str = ""
 
     # Routing (turn-by-turn navigate-to-lead). Key stays server-side so it never
@@ -153,13 +153,13 @@ class Settings(BaseSettings):
     aws_secret_access_key: str | None = None
 
     # CORS — list of allowed origins. Accepts CSV in the env var, e.g.
-    # CORS_ORIGINS="http://localhost:3000,https://app.hailscout.net"
+    # CORS_ORIGINS="http://localhost:3000,https://app.hailgps.com"
     cors_origins: list[str] = [
         "http://localhost:3000",
         "http://localhost:3001",
         # Production custom domain (Vercel).
-        "https://hailscout.net",
-        "https://www.hailscout.net",
+        "https://hailgps.com",
+        "https://www.hailgps.com",
         # Legacy Vercel domain (still resolves; kept for previews/links).
         "https://hail-scout.vercel.app",
     ]

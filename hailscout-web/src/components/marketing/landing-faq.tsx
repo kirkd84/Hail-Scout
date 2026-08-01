@@ -39,7 +39,7 @@ const FAQS: QA[] = [
   },
   {
     q: "Who's behind Hail GPS?",
-    a: "A small team of weather data engineers and former roofing-software product folks. We've built this for crews who beat the storm to the door. Reach us at hello@hailscout.net — we read every email.",
+    a: "A small team of weather data engineers and former roofing-software product folks. We've built this for crews who beat the storm to the door. Reach us at hello@hailgps.com — we read every email.",
   },
 ];
 
@@ -98,8 +98,8 @@ export function LandingFaq() {
         <div className="mt-8 text-center space-y-2">
           <p className="text-sm text-muted-foreground">
             Still have questions?{" "}
-            <a href="mailto:hello@hailscout.net" className="text-copper hover:text-copper-700">
-              hello@hailscout.net
+            <a href="mailto:hello@hailgps.com" className="text-copper hover:text-copper-700">
+              hello@hailgps.com
             </a>
             {" "}— we&apos;re a small team, expect a real reply.
           </p>

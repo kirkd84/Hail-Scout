@@ -83,7 +83,7 @@ export default function OpenGraphImage() {
             fontSize: 18,
           }}
         >
-          <span>hailscout.net</span>
+          <span>hailgps.com</span>
           <span style={{ fontFamily: "monospace", fontSize: 14 }}>PLATE 03 · DFW–OKC–ICT</span>
         </div>
       </div>

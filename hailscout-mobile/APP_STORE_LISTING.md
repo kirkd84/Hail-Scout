@@ -55,9 +55,9 @@ Welcome to Hail GPS. See verified hail maps, look up any address, get storm aler
 ```
 
 **URLs**
-- Support URL: `https://hailscout.net`
-- Marketing URL: `https://hailscout.net`
-- Privacy Policy URL: `https://hailscout.net/privacy`  ← must be live before submit
+- Support URL: `https://hailgps.com`
+- Marketing URL: `https://hailgps.com`
+- Privacy Policy URL: `https://hailgps.com/privacy`  ← must be live before submit
 
 **Category**
 - Primary: Business
@@ -84,8 +84,8 @@ Rule of thumb: declare exactly what the app does, nothing aspirational.
 Status as of the current build:
 
 1. ~~**Guideline 4.8 — Sign in with Apple.**~~ **DONE** — native Sign in with Apple ships in the app; the backend verifies Apple tokens (`APPLE_OAUTH_CLIENT_ID` set on Railway). Ships with the next EAS build.
-2. **[STILL REQUIRED — KIRK] Demo account for App Review.** This is the most likely rejection now. Sign-in is **invite-only**: an unknown Apple/Google account gets a 403 ("Ask your administrator to add you"), so a reviewer who signs in with their own Apple ID sees a dead end → Guideline 2.1 rejection. Fix: create a real Hail GPS user (e.g. `appreview@hailscout.net`) with a password set, seed its org with some storms/pins so the app isn't empty, and put those credentials in **App Review Information → Sign-In Information**. Note: password sign-in needs email working only for the *reset* flow — set the password directly so the reviewer doesn't need an email.
-3. ~~**Privacy policy live.**~~ **DONE** — `https://hailscout.net/privacy` (with site chrome + footer link). Terms also live at `/terms`.
+2. **[STILL REQUIRED — KIRK] Demo account for App Review.** This is the most likely rejection now. Sign-in is **invite-only**: an unknown Apple/Google account gets a 403 ("Ask your administrator to add you"), so a reviewer who signs in with their own Apple ID sees a dead end → Guideline 2.1 rejection. Fix: create a real Hail GPS user (e.g. `appreview@hailgps.com`) with a password set, seed its org with some storms/pins so the app isn't empty, and put those credentials in **App Review Information → Sign-In Information**. Note: password sign-in needs email working only for the *reset* flow — set the password directly so the reviewer doesn't need an email.
+3. ~~**Privacy policy live.**~~ **DONE** — `https://hailgps.com/privacy` (with site chrome + footer link). Terms also live at `/terms`.
 4. ~~**`ORS_API_KEY` set.**~~ **DONE** — navigate-to-lead works.
 5. **Account deletion (Guideline 5.1.1(v))** — **DONE**: Settings → Delete account now deletes in-app (deactivates + revokes sessions server-side), no longer a mailto. Mention it in review notes so the reviewer finds it.
 6. **Screenshots** (6.9"/6.7" iPhone required; 5.5" optional). Shot list, captured from the running app:

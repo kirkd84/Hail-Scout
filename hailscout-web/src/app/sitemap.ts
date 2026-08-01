@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const BASE = "https://hailscout.net";
+const BASE = "https://hailgps.com";
 
 // Public marketing + product routes (mirrors the site footer nav).
 const ROUTES = [

@@ -120,7 +120,7 @@ export default async function OG({
             fontSize: 18,
           }}
         >
-          <span>hailscout.net/case-studies/{slug}</span>
+          <span>hailgps.com/case-studies/{slug}</span>
           <span style={{ fontFamily: "monospace", fontSize: 14 }}>PLATE 09 · STORY {slug.toUpperCase()}</span>
         </div>
       </div>

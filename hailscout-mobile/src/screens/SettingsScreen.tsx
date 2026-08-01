@@ -71,9 +71,9 @@ export function SettingsScreen() {
         </Card>
 
         <Card>
-          <Pressable onPress={() => Linking.openURL("https://hailscout.net/app")}>
+          <Pressable onPress={() => Linking.openURL("https://hailgps.com/app")}>
             <Text style={[styles.linkLabel, { color: t.accent }]}>OPEN ON DESKTOP</Text>
-            <Text style={[styles.linkValue, { color: t.fg }]}>hailscout.net/app  →</Text>
+            <Text style={[styles.linkValue, { color: t.fg }]}>hailgps.com/app  →</Text>
             <Text style={[styles.sub, { color: t.fgMuted }]}>
               Markers and addresses sync between mobile and web.
             </Text>

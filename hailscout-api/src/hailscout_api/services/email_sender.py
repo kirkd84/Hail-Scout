@@ -41,7 +41,7 @@ from hailscout_api.core import get_logger
 log = get_logger(__name__)
 
 RESEND_API_URL = "https://api.resend.com/emails"
-DEFAULT_FROM = "Hail GPS <alerts@notifications.hailscout.net>"
+DEFAULT_FROM = "Hail GPS <alerts@hailgps.com>"
 
 
 def resolve_from() -> str:

@@ -185,8 +185,8 @@ export default function TermsOfServicePage() {
         <Section title="Contact">
           <p>
             Questions about these Terms? Email{" "}
-            <a className="text-copper-700 underline" href="mailto:hello@hailscout.net">
-              hello@hailscout.net
+            <a className="text-copper-700 underline" href="mailto:hello@hailgps.com">
+              hello@hailgps.com
             </a>
             .
           </p>

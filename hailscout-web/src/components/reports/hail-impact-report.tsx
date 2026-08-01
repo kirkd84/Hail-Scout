@@ -397,7 +397,7 @@ export function HailImpactReport({
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Report ID: {reportId} · Prepared by {preparedBy}</Text>
-          <Text style={styles.footerText}>{organizationName} · hailscout.net · Page 1 of 2</Text>
+          <Text style={styles.footerText}>{organizationName} · hailgps.com · Page 1 of 2</Text>
         </View>
       </Page>
 
@@ -528,7 +528,7 @@ export function HailImpactReport({
           <Text style={styles.footerText}>
             Generated {generatedAt} · Report ID: {reportId}
           </Text>
-          <Text style={styles.footerText}>{organizationName} · hailscout.net · Page 2 of 2</Text>
+          <Text style={styles.footerText}>{organizationName} · hailgps.com · Page 2 of 2</Text>
         </View>
       </Page>
     </Document>

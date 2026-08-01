@@ -10,7 +10,7 @@ present. If not, we log "email.send_skipped_no_key" and return False
 so the caller can still record a delivery_status=skipped. This lets
 the rest of the pipeline ship without a live email vendor configured.
 
-Sender address is `alerts@notifications.hailscout.net` by default
+Sender address is `alerts@hailgps.com` by default
 (override via `RESEND_FROM_ADDRESS`). The domain needs to be verified
 in Resend for production use; until then the no-key path is the
 honest default.
@@ -28,7 +28,7 @@ from hailscout_api.services.email_sender import deliver
 log = logging.getLogger(__name__)
 
 
-DEFAULT_FROM = "Hail GPS Alerts <alerts@notifications.hailscout.net>"
+DEFAULT_FROM = "Hail GPS Alerts <alerts@hailgps.com>"
 
 
 # Mirror the Slack module's reference scale so the two surfaces speak
@@ -67,7 +67,7 @@ def render_alert_email(
     peak_size_in: float,
     started_at: datetime,
     lsr_confirmed: bool = False,
-    app_url: str = "https://hailscout.net",
+    app_url: str = "https://hailgps.com",
 ) -> tuple[str, str, str]:
     """Return (subject, text_body, html_body).
 
@@ -179,7 +179,7 @@ async def send_alert_email(
 
 async def send_test_email(
     to_addresses: Iterable[str],
-    app_url: str = "https://hailscout.net",
+    app_url: str = "https://hailgps.com",
 ) -> bool:
     """Send a 'hello from Hail GPS' ping. Used by the Settings UI to
     verify a fresh recipient list."""

@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 
 // Fall back to the live Railway API (matches lib/env's default) rather
-// than the never-deployed api.hailscout.net subdomain.
+// than the never-deployed api.hailgps.com subdomain.
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://hail-scout-production.up.railway.app";
 
 export type MeUser = {

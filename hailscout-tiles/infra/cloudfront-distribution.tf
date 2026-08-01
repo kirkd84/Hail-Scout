@@ -1,5 +1,5 @@
 # CloudFront distribution for hailscout-tiles S3 bucket
-# Serves tiles via https://tiles.hailscout.net/{swaths,historical}/{z}/{x}/{y}.pbf
+# Serves tiles via https://tiles.hailgps.com/{swaths,historical}/{z}/{x}/{y}.pbf
 
 terraform {
   required_providers {
@@ -27,13 +27,13 @@ variable "s3_bucket_name" {
 }
 
 variable "domain_name" {
-  description = "CloudFront domain (e.g., tiles.hailscout.net)"
+  description = "CloudFront domain (e.g., tiles.hailgps.com)"
   type        = string
-  default     = "tiles.hailscout.net"
+  default     = "tiles.hailgps.com"
 }
 
 variable "acm_certificate_arn" {
-  description = "ARN of ACM certificate for *.hailscout.net"
+  description = "ARN of ACM certificate for *.hailgps.com"
   type        = string
 }
 

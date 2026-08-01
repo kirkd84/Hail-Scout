@@ -26,7 +26,7 @@ export default function RequestAccessPage() {
         </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <a
-            href="mailto:hello@hailscout.net?subject=Hail GPS%20access%20request&body=Company%3A%0AName%3A%0APhone%3A%0AWhere%20you%20work%3A"
+            href="mailto:hello@hailgps.com?subject=Hail GPS%20access%20request&body=Company%3A%0AName%3A%0APhone%3A%0AWhere%20you%20work%3A"
             className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-copper-700"
           >
             Email us to get set up <span aria-hidden>→</span>
@@ -40,8 +40,8 @@ export default function RequestAccessPage() {
         </div>
         <p className="mt-6 text-sm text-muted-foreground">
           Prefer email? Reach us directly at{" "}
-          <a className="text-copper-700 underline" href="mailto:hello@hailscout.net">
-            hello@hailscout.net
+          <a className="text-copper-700 underline" href="mailto:hello@hailgps.com">
+            hello@hailgps.com
           </a>
           .
         </p>

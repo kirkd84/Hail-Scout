@@ -1,7 +1,7 @@
 /**
  * Server-only session cookie helpers.
  *
- * All cookies are first-party on the web origin (hailscout.net), httpOnly, and
+ * All cookies are first-party on the web origin (hailgps.com), httpOnly, and
  * (in prod) Secure — so the browser's JS never touches the refresh token. The
  * short-lived access token is handed to the browser on demand via
  * /api/auth/token for Bearer calls to the API.

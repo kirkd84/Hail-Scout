@@ -418,7 +418,7 @@ async def send_team_password_reset(
     )
     await session.commit()
 
-    web_base = os.environ.get("WEB_BASE_URL", "https://hailscout.net").rstrip("/")
+    web_base = os.environ.get("WEB_BASE_URL", "https://hailgps.com").rstrip("/")
     try:
         await send_password_reset(target.email, f"{web_base}/reset-password?token={raw}")
     except Exception as exc:  # email misconfigured (e.g. RESEND_API_KEY unset)

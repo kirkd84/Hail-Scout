@@ -66,7 +66,7 @@ async def issue_and_send_set_password_invite(
         )
     )
     await session.flush()
-    web_base = os.environ.get("WEB_BASE_URL", "https://hailscout.net").rstrip("/")
+    web_base = os.environ.get("WEB_BASE_URL", "https://hailgps.com").rstrip("/")
     return await send_password_reset(
         user.email, f"{web_base}/reset-password?token={raw}"
     )

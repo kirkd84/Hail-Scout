@@ -91,11 +91,11 @@ export default function PrivacyPolicyPage() {
           We keep your data while your account is active. You can request
           permanent deletion of your account and associated data at any time at{" "}
           <a className="text-copper-700 underline" href="/account/delete">
-            hailscout.net/account/delete
+            hailgps.com/account/delete
           </a>{" "}
           or by emailing{" "}
-          <a className="text-copper-700 underline" href="mailto:privacy@hailscout.net">
-            privacy@hailscout.net
+          <a className="text-copper-700 underline" href="mailto:privacy@hailgps.com">
+            privacy@hailgps.com
           </a>
           . We complete deletions within 30 days, except records we are legally
           required to retain.
@@ -122,8 +122,8 @@ export default function PrivacyPolicyPage() {
         <p>
           We&apos;ll update this page and the &quot;last updated&quot; date when
           this policy changes. Questions? Email{" "}
-          <a className="text-copper-700 underline" href="mailto:privacy@hailscout.net">
-            privacy@hailscout.net
+          <a className="text-copper-700 underline" href="mailto:privacy@hailgps.com">
+            privacy@hailgps.com
           </a>
           .
         </p>

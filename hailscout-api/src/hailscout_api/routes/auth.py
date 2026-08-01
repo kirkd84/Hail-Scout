@@ -722,7 +722,7 @@ async def forgot_password(
             commit=False,
         )
         await session.commit()
-        web_base = os.environ.get("WEB_BASE_URL", "https://hailscout.net").rstrip("/")
+        web_base = os.environ.get("WEB_BASE_URL", "https://hailgps.com").rstrip("/")
         await send_password_reset(email, f"{web_base}/reset-password?token={raw}")
 
     return {"ok": True, "message": "If your email is registered, check your inbox."}
