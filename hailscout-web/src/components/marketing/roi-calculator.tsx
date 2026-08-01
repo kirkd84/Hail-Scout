@@ -130,7 +130,7 @@ function Slider({
       <input
         type="range" min={min} max={max} step={step} value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full accent-copper cursor-pointer"
+        className="slider-touch w-full accent-copper cursor-pointer"
       />
     </div>
   );

@@ -90,11 +90,20 @@ export function TestimonialCarousel() {
                 aria-selected={i === idx}
                 aria-label={`Testimonial ${i + 1}`}
                 onClick={() => setIdx(i)}
-                className={cn(
-                  "h-1.5 rounded-full transition-all",
-                  i === idx ? "w-8 bg-copper" : "w-1.5 bg-foreground/20 hover:bg-foreground/40",
-                )}
-              />
+                // The dot stays small; the BUTTON is 44px so it's tappable.
+                // Previously the whole control was 6px — effectively unhittable
+                // with a thumb.
+                className="group grid h-11 place-items-center px-1"
+              >
+                <span
+                  className={cn(
+                    "block h-1.5 rounded-full transition-all",
+                    i === idx
+                      ? "w-8 bg-copper"
+                      : "w-1.5 bg-foreground/20 group-hover:bg-foreground/40",
+                  )}
+                />
+              </button>
             ))}
           </div>
         </figure>
