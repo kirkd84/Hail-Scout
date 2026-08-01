@@ -144,8 +144,8 @@ export function ActivityTimeline({ days = 60, className }: Props) {
                     y={PAD_TOP}
                     width={1}
                     height={innerH}
-                    fill="#0F4C5C"
-                    opacity={0.35}
+                    fill="hsl(var(--primary))"
+                    opacity={0.45}
                   />
                   <rect
                     x={labelX}
@@ -153,8 +153,8 @@ export function ActivityTimeline({ days = 60, className }: Props) {
                     width={180}
                     height={18}
                     rx={3}
-                    fill="#FAF7F1"
-                    stroke="#E0D9CC"
+                    fill="hsl(var(--card))"
+                    stroke="hsl(var(--border))"
                     strokeWidth={0.5}
                   />
                   <text
@@ -162,7 +162,7 @@ export function ActivityTimeline({ days = 60, className }: Props) {
                     y={14}
                     fontSize={10}
                     fontFamily="JetBrains Mono, ui-monospace, monospace"
-                    fill="#2B2620"
+                    fill="hsl(var(--foreground))"
                   >
                     {date} · {v.count} cells
                     {c ? ` · peak ${v.peak.toFixed(2)}″` : ""}

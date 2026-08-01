@@ -1,112 +1,60 @@
-"use client";
+/**
+ * "What crews use it for" — honest use-case vignettes.
+ *
+ * This file previously exported TestimonialCarousel: three quotes
+ * attributed to named people at named companies ("Holloway Roofing",
+ * "Cardinal Exteriors", "Apex Roofing") that are not verifiable
+ * customers. Presenting invented endorsements as real violates the
+ * site's honesty rules, so the carousel is gone. In its place: three
+ * concrete moments where the product does the work, with no invented
+ * attribution — and no carousel, so no dots to manage.
+ *
+ * Server-component-safe (no hooks).
+ */
 
-import { useEffect, useRef, useState } from "react";
-import { cn } from "@/lib/utils";
+import { MarketingCard, SectionHeading } from "@/components/marketing/primitives";
 
-interface Quote {
-  body: string;
-  name: string;
-  role: string;
-  initials: string;
-}
-
-const QUOTES: Quote[] = [
+const USE_CASES: { tag: string; title: string; body: string }[] = [
   {
+    tag: "Storm morning",
+    title: "Be first on the block",
     body:
-      "Hail GPS is the difference between us showing up first and us showing up at all. Our team rolls before the storm passes.",
-    name: "Marcus Holloway",
-    role: "Owner — Holloway Roofing · Wichita, KS",
-    initials: "MH",
+      "The storm passed overnight. Open the map over coffee, see exactly where the swath ran and how big the hail got, and pick the streets worth working — before the first competitor truck is loaded.",
   },
   {
+    tag: "On the doors",
+    title: "Knock only roofs that were hit",
     body:
-      "We doubled our knock-rate in two months. The map + alert combo means our reps are at the right doors at the right time. Insurance adjusters started taking our reports without question.",
-    name: "Tasha Reyes",
-    role: "VP Sales — Cardinal Exteriors · DFW, TX",
-    initials: "TR",
+      "Standing on any street, tap an address and read the hail size at that exact roof. No wasted knocks outside the swath, and a straight answer when a homeowner asks \"did we even get hail?\"",
   },
   {
+    tag: "The claim",
+    title: "Give the adjuster something to check",
     body:
-      "We used to pay $4k a year for HailTrace and still chase paper. Hail GPS costs less and the PDFs go straight from the truck to the homeowner. Frankly we cancelled the other tool the day we signed up.",
-    name: "Eddie Vargas",
-    role: "Operations Manager — Apex Roofing · Denver, CO",
-    initials: "EV",
+      "Hand over a report with the storm date, hail size, and swath map for the exact address — built from the same NOAA radar data most carriers already use. Not your word against theirs.",
   },
 ];
 
-export function TestimonialCarousel() {
-  const [idx, setIdx] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    if (paused) return;
-    timerRef.current = setInterval(() => {
-      setIdx((i) => (i + 1) % QUOTES.length);
-    }, 8000);
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [paused]);
-
-  const q = QUOTES[idx];
-
+export function CrewUseCases() {
   return (
-    <section className="bg-background">
-      <div
-        className="container py-24 md:py-32"
-        onMouseEnter={() => setPaused(true)}
-        onMouseLeave={() => setPaused(false)}
-      >
-        <figure className="mx-auto max-w-3xl text-center">
-          <blockquote
-            key={idx}
-            className="font-display text-balance text-3xl font-medium leading-snug tracking-tight-display text-foreground md:text-4xl animate-in fade-in slide-in-from-bottom-2 duration-500"
-          >
-            &ldquo;{q.body}&rdquo;
-          </blockquote>
-
-          <figcaption className="mt-8 flex items-center justify-center gap-3">
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-copper/10 text-copper-700 text-sm font-medium ring-1 ring-copper/30">
-              {q.initials}
-            </span>
-            <div className="text-left text-sm">
-              <p className="font-medium text-foreground">{q.name}</p>
-              <p className="text-muted-foreground">{q.role}</p>
-            </div>
-          </figcaption>
-
-          {/* Dot navigation */}
-          <div
-            className="mt-8 flex items-center justify-center gap-2"
-            role="tablist"
-            aria-label="Choose testimonial"
-          >
-            {QUOTES.map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                role="tab"
-                aria-selected={i === idx}
-                aria-label={`Testimonial ${i + 1}`}
-                onClick={() => setIdx(i)}
-                // The dot stays small; the BUTTON is 44px so it's tappable.
-                // Previously the whole control was 6px — effectively unhittable
-                // with a thumb.
-                className="group grid h-11 place-items-center px-1"
-              >
-                <span
-                  className={cn(
-                    "block h-1.5 rounded-full transition-all",
-                    i === idx
-                      ? "w-8 bg-copper"
-                      : "w-1.5 bg-foreground/20 group-hover:bg-foreground/40",
-                  )}
-                />
-              </button>
-            ))}
-          </div>
-        </figure>
+    <section className="bg-secondary/40">
+      <div className="container max-w-6xl py-24 md:py-32">
+        <SectionHeading
+          eyebrow="In the field"
+          title="What crews use it for."
+          lede="No staged quotes here — just the three moments where the map earns its keep."
+        />
+        <div className="mt-10 grid gap-5 md:mt-12 md:grid-cols-3">
+          {USE_CASES.map((u) => (
+            <MarketingCard key={u.tag} className="p-7">
+              <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-primary">
+                {u.tag}
+              </p>
+              <h3 className="mt-3 text-xl font-semibold text-foreground">{u.title}</h3>
+              <p className="mt-2 text-base leading-[1.65] text-muted-foreground">{u.body}</p>
+            </MarketingCard>
+          ))}
+        </div>
       </div>
     </section>
   );

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 import { StatTicker } from "@/components/marketing/stat-ticker";
+import { CtaBand } from "@/components/marketing/primitives";
 import { ContourBg } from "@/components/brand/contour-bg";
 import { useStormsAtAddress } from "@/hooks/useStormsAtAddress";
 import { hailColor } from "@/lib/hail";
@@ -69,56 +70,63 @@ export default function ClaimLookupPage() {
       {/* Hero + search */}
       <section className="relative overflow-hidden bg-topo">
         <ContourBg className="opacity-90" density="sparse" />
-        <div className="container relative pb-12 pt-16 md:pb-16 md:pt-24">
+        <div className="container relative max-w-6xl pb-14 pt-16 md:pb-20 md:pt-24">
           <div className="mx-auto max-w-2xl text-center">
-            <p className="font-mono-num text-xs uppercase tracking-wide-caps text-copper">
-              Claim lookup · public
-            </p>
-            <h1 className="mt-3 font-display text-balance text-5xl font-medium leading-[1.05] tracking-tight-display text-foreground md:text-6xl">
+            <p className="eyebrow">Claim lookup · Public</p>
+            <h1 className="display-1 mt-3 text-foreground">
               Was your home hit by hail?
             </h1>
-            <p className="mt-5 text-lg text-muted-foreground">
-              Search any U.S. address. We&apos;ll tell you exactly what hail size
-              fell there — cross-checked against NOAA MRMS, NEXRAD dual-pol
-              radar, and National Weather Service ground reports.
+            <p className="mx-auto mt-5 max-w-prose text-base leading-[1.65] text-muted-foreground text-pretty">
+              Search any U.S. address and see the hail that fell there — how
+              big, when, and how confident we are. Every result is checked
+              against NOAA radar and National Weather Service ground reports.
             </p>
             {accuracy?.headline && (
               <Link
                 href="/accuracy"
-                className="mx-auto mt-4 block max-w-xl rounded-full border border-forest/30 bg-forest/5 px-4 py-2 text-sm text-forest transition-colors hover:bg-forest/10"
+                className="mx-auto mt-5 inline-flex min-h-11 max-w-xl items-center justify-center gap-1.5 rounded-md border border-border bg-card px-4 text-sm text-foreground/85 transition-colors hover:border-copper/50"
               >
-                {accuracy.headline} <span aria-hidden>→</span>
+                {accuracy.headline}{" "}
+                <span aria-hidden className="text-copper">
+                  &rarr;
+                </span>
               </Link>
             )}
           </div>
 
           <form onSubmit={handleSubmit} className="mx-auto mt-10 max-w-xl">
-            <div className="glass flex items-center gap-3 rounded-full px-5 py-3 shadow-panel">
-              <IconSearch className="h-4 w-4 text-foreground/55" />
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="2840 N Pleasant Ave, Dallas TX"
-                className="flex-1 bg-transparent text-base text-foreground placeholder:text-foreground/45 outline-none"
-                disabled={isLoading}
-              />
+            <label htmlFor="claim-address" className="sr-only">
+              Street address
+            </label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <div className="relative flex-1">
+                <IconSearch className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/55" />
+                <input
+                  id="claim-address"
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="2840 N Pleasant Ave, Dallas TX"
+                  className="min-h-11 w-full rounded-md border border-border bg-card pl-10 pr-3 text-base text-foreground shadow-panel outline-none placeholder:text-foreground/45 focus:border-copper"
+                  disabled={isLoading}
+                />
+              </div>
               <button
                 type="submit"
                 disabled={isLoading || !query.trim()}
-                className="inline-flex items-center gap-1 rounded-full bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:bg-copper-700 disabled:opacity-60"
+                className="inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-copper-700 disabled:opacity-60"
               >
                 {isLoading ? "Looking…" : "Look up"}
               </button>
             </div>
           </form>
 
-          <div className="mx-auto mt-3 flex max-w-xl justify-center">
+          <div className="mx-auto mt-2 flex max-w-xl justify-center">
             <button
               type="button"
               onClick={geo.locate}
               disabled={geo.loading || isLoading}
-              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60"
+              className="inline-flex min-h-11 items-center gap-1.5 px-3 text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60"
             >
               <LocateIcon className="h-4 w-4" />
               {geo.loading ? "Locating…" : "Use my current location"}
@@ -134,45 +142,39 @@ export default function ClaimLookupPage() {
       </section>
 
       {data && (
-        <section className="bg-card border-y border-border">
-          <div className="container py-12 md:py-16 max-w-3xl">
-            <p className="font-mono-num text-[11px] uppercase tracking-wide-caps text-copper">
-              Result
-            </p>
-            <h2 className="mt-1 font-display text-3xl font-medium tracking-tight-display text-foreground md:text-4xl">
-              {data.address}
-            </h2>
-            <p className="mt-1 text-xs font-mono-num text-foreground/55">
-              {data.lat.toFixed(4)}°N, {Math.abs(data.lng).toFixed(4)}°W
+        <section className="border-y border-border bg-secondary/40">
+          <div className="container max-w-3xl py-12 md:py-16">
+            <p className="eyebrow">Result</p>
+            <h2 className="display-2 mt-2 text-foreground">{data.address}</h2>
+            <p className="mt-2 font-mono-num text-xs text-foreground/55">
+              {data.lat.toFixed(4)}&deg;N, {Math.abs(data.lng).toFixed(4)}&deg;W
             </p>
 
             <div className="rule-atlas my-8" />
 
             {data.storms.length === 0 ? (
-              <div className="rounded-xl border border-border bg-background p-6 text-center">
-                <p className="font-display text-2xl font-medium tracking-tight-display text-foreground">
+              <div className="rounded-xl border border-border bg-card p-6 text-center">
+                <p className="text-2xl font-semibold tracking-[-0.01em] text-foreground text-balance">
                   No hail on record at this address.
                 </p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  In our indexed window, no MRMS- or NEXRAD-detected hail
-                  events touched this exact point. Try a nearby address or
-                  widen your time window.
+                <p className="mx-auto mt-2 max-w-prose text-sm text-muted-foreground">
+                  We checked our full storm record and found no hail at this
+                  exact point. Hail can be very localized — try a nearby
+                  address if you think a storm came close.
                 </p>
               </div>
             ) : (
               <>
-                <div className="rounded-xl border border-copper/40 bg-copper/5 p-5 mb-8">
-                  <p className="font-mono-num text-[11px] uppercase tracking-wide-caps text-copper-700">
-                    Summary
-                  </p>
-                  <p className="mt-2 font-display text-2xl font-medium tracking-tight-display text-foreground">
+                <div className="mb-8 rounded-xl border border-copper/40 bg-copper/5 p-6">
+                  <p className="eyebrow">Summary</p>
+                  <p className="mt-2 text-2xl font-semibold tracking-[-0.01em] text-foreground text-balance">
                     {data.storms.length} hail event
                     {data.storms.length === 1 ? "" : "s"} on record at this address.
                   </p>
                   <p className="mt-2 text-sm text-foreground/85">
-                    Peak hail size:{" "}
-                    <span className="font-medium text-copper-700">
-                      {Math.max(...data.storms.map((s) => s.max_hail_size_in)).toFixed(2)}″
+                    Biggest hail:{" "}
+                    <span className="font-mono-num font-medium text-copper-700">
+                      {Math.max(...data.storms.map((s) => s.max_hail_size_in)).toFixed(2)}&Prime;
                     </span>{" "}
                     ({hailColor(Math.max(...data.storms.map((s) => s.max_hail_size_in))).object}).
                     {Math.max(...data.storms.map((s) => s.max_hail_size_in)) >= 1.0 &&
@@ -193,12 +195,12 @@ export default function ClaimLookupPage() {
               </>
             )}
 
-            <div className="rounded-md border border-border bg-secondary/30 p-5 mt-10">
-              <p className="text-sm text-foreground/85 leading-relaxed">
+            <div className="mt-10 rounded-xl border border-border bg-card p-6">
+              <p className="text-sm leading-relaxed text-foreground/85">
                 <strong className="font-medium">Next steps:</strong> share this
                 page with your roofer or insurance adjuster — they&apos;ll know
-                exactly what to verify on-site. The storm IDs and dates are
-                citable from NOAA&apos;s MRMS / NEXRAD feeds.
+                exactly what to verify on-site. Every storm here has an ID and
+                date that trace back to NOAA&apos;s public weather records.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <button
@@ -209,15 +211,15 @@ export default function ClaimLookupPage() {
                       void navigator.clipboard?.writeText(url);
                     }
                   }}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-4 py-2 text-sm text-foreground hover:border-copper/50"
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-border px-5 text-sm font-medium text-foreground transition-colors hover:bg-secondary/60"
                 >
                   Copy verified link
                 </button>
                 <Link
                   href="/request-access"
-                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-copper-700"
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-copper-700"
                 >
-                  I&apos;m a contractor — request access <span aria-hidden>→</span>
+                  I&apos;m a contractor — request access <span aria-hidden>&rarr;</span>
                 </Link>
               </div>
             </div>
@@ -226,11 +228,9 @@ export default function ClaimLookupPage() {
       )}
 
       {!data && !isLoading && (
-        <section className="bg-card border-y border-border">
-          <div className="container py-14 max-w-3xl">
-            <p className="font-mono-num text-[11px] uppercase tracking-wide-caps text-copper text-center">
-              Try one of these
-            </p>
+        <section className="border-y border-border bg-secondary/40">
+          <div className="container max-w-3xl py-14">
+            <p className="eyebrow text-center">Try one of these</p>
             <div className="mt-6 grid gap-3 md:grid-cols-3">
               {sampleMetros.map((m) => {
                 const metro = METROS.find(
@@ -245,12 +245,12 @@ export default function ClaimLookupPage() {
                       setQuery(m);
                       setSubmitted(m);
                     }}
-                    className="rounded-lg border border-border bg-background p-4 text-left transition-colors hover:border-copper/50"
+                    className="min-h-11 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-copper/50"
                   >
                     <p className="font-medium text-foreground">{m}</p>
                     {metro && (
-                      <p className="mt-1 text-xs text-muted-foreground font-mono-num">
-                        {metro.lat.toFixed(2)}°N, {Math.abs(metro.lng).toFixed(2)}°W
+                      <p className="mt-1 font-mono-num text-xs text-muted-foreground">
+                        {metro.lat.toFixed(2)}&deg;N, {Math.abs(metro.lng).toFixed(2)}&deg;W
                       </p>
                     )}
                   </button>
@@ -261,7 +261,12 @@ export default function ClaimLookupPage() {
         </section>
       )}
 
-      <FinalCta />
+      <CtaBand
+        title="Roofing contractor? Put every storm on one map."
+        lede="Hail GPS tracks hail across the U.S., alerts your team the moment a saved address gets hit, and generates branded hail reports your customers can trust."
+        primary={{ label: "Request access", href: "/request-access" }}
+        secondary={{ label: "How Hail GPS works", href: "/" }}
+      />
       <SiteFooter />
     </main>
   );
@@ -282,10 +287,8 @@ function ExposurePanel({ lat, lng }: { lat: number; lng: number }) {
     exposure.median_home_value != null;
 
   return (
-    <div className="mb-6 rounded-xl border border-border bg-background p-5">
-      <p className="font-mono-num text-[11px] uppercase tracking-wide-caps text-copper">
-        Area exposure
-      </p>
+    <div className="mb-6 rounded-xl border border-border bg-card p-6">
+      <p className="eyebrow">Area exposure</p>
       <p className="mt-1 text-sm text-foreground/85">
         {exposure.area_name}
       </p>
@@ -308,10 +311,10 @@ function ExposurePanel({ lat, lng }: { lat: number; lng: number }) {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="font-display text-lg font-medium tracking-tight-display text-foreground">
+      <p className="font-mono-num text-lg font-medium text-foreground">
         {value}
       </p>
-      <p className="text-[10px] font-mono uppercase tracking-wide-caps text-foreground/55">
+      <p className="font-mono text-[10px] uppercase tracking-wide-caps text-foreground/55">
         {label}
       </p>
     </div>
@@ -325,21 +328,21 @@ function StormResultCard({ storm, address }: { storm: Storm; address?: string })
   const peak = storm.max_hail_size_in;
   const [showEvidence, setShowEvidence] = useState(false);
   return (
-    <li className="rounded-xl border border-border bg-background p-5 flex items-start gap-4">
+    <li className="flex items-start gap-4 rounded-xl border border-border bg-card p-5">
       <span
-        className="inline-flex h-14 w-16 shrink-0 flex-col items-center justify-center rounded-md ring-1 ring-foreground/15 shadow-sm"
+        className="inline-flex h-14 w-16 shrink-0 flex-col items-center justify-center rounded-md shadow-sm ring-1 ring-foreground/15"
         style={{ background: c.solid, color: badgeText }}
       >
         <span className="font-mono-num text-base font-medium leading-none">
-          {peak.toFixed(2)}″
+          {peak.toFixed(2)}&Prime;
         </span>
-        <span className="text-[9px] uppercase tracking-wide-caps font-mono leading-none mt-1 opacity-90">
+        <span className="mt-1 font-mono text-[9px] uppercase leading-none tracking-wide-caps opacity-90">
           {c.object}
         </span>
       </span>
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="font-display text-lg font-medium tracking-tight-display text-foreground">
+          <p className="text-lg font-semibold tracking-[-0.01em] text-foreground">
             {new Date(storm.start_time).toLocaleDateString(undefined, {
               month: "long",
               day: "numeric",
@@ -348,12 +351,12 @@ function StormResultCard({ storm, address }: { storm: Storm; address?: string })
           </p>
           <VerificationBadge verification={storm.verification} />
         </div>
-        <p className="mt-1 text-xs font-mono-num text-foreground/55">
+        <p className="mt-1 font-mono-num text-xs text-foreground/55">
           {timeAgo(storm.start_time)} · {storm.source} · id {storm.id.slice(-8)}
         </p>
         {/* Prefer the verification headline (tier-aware, honest) over the
             old size-only blurb when verification is present. */}
-        <p className="mt-2 text-sm text-foreground/85 leading-relaxed">
+        <p className="mt-2 text-sm leading-relaxed text-foreground/85">
           {storm.verification
             ? storm.verification.headline
             : peak >= 2.0
@@ -368,8 +371,8 @@ function StormResultCard({ storm, address }: { storm: Storm; address?: string })
         {typeof storm.storm_peak_size_in === "number" &&
           storm.storm_peak_size_in > peak + 0.2 && (
             <p className="mt-1 text-xs text-foreground/55">
-              This storm peaked at {storm.storm_peak_size_in.toFixed(2)}″ elsewhere
-              in its path — {peak.toFixed(2)}″ is the size at this address.
+              This storm peaked at {storm.storm_peak_size_in.toFixed(2)}&Prime; elsewhere
+              in its path — {peak.toFixed(2)}&Prime; is the size at this address.
             </p>
           )}
 
@@ -382,7 +385,7 @@ function StormResultCard({ storm, address }: { storm: Storm; address?: string })
             <button
               type="button"
               onClick={() => setShowEvidence((v) => !v)}
-              className="inline-flex items-center gap-1 text-xs font-mono uppercase tracking-wide-caps text-foreground/60 hover:text-foreground"
+              className="inline-flex min-h-11 items-center gap-1 font-mono text-xs uppercase tracking-wide-caps text-foreground/60 hover:text-foreground"
             >
               {showEvidence ? "Hide evidence" : "Why we're confident"}
               <span aria-hidden>{showEvidence ? "↑" : "↓"}</span>
@@ -391,9 +394,9 @@ function StormResultCard({ storm, address }: { storm: Storm; address?: string })
           <DownloadReportButton storm={storm} address={address} compact />
           <Link
             href={`/storm/${storm.id}`}
-            className="inline-flex items-center gap-1 text-xs font-mono uppercase tracking-wide-caps text-copper hover:text-copper-700"
+            className="inline-flex min-h-11 items-center gap-1 font-mono text-xs uppercase tracking-wide-caps text-copper hover:text-copper-700"
           >
-            Full record <span aria-hidden>→</span>
+            Full record <span aria-hidden>&rarr;</span>
           </Link>
         </div>
       </div>
@@ -407,28 +410,5 @@ function LocateIcon(p: React.SVGProps<SVGSVGElement>) {
       <circle cx="12" cy="12" r="3.2" />
       <path d="M12 2v3.2M12 18.8V22M2 12h3.2M18.8 12H22" />
     </svg>
-  );
-}
-
-function FinalCta() {
-  return (
-    <section className="border-t border-border bg-primary text-primary-foreground">
-      <div className="container py-16 text-center md:py-20">
-        <h2 className="font-display text-balance text-3xl font-medium tracking-tight-display md:text-4xl">
-          Are you a roofing contractor?
-        </h2>
-        <p className="mx-auto mt-4 max-w-xl text-primary-foreground/80">
-          Hail GPS pulls every storm in the U.S. hail belt onto one map. Save customer addresses, get alerted instantly, generate branded Hail Impact Reports.
-        </p>
-        <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-          <Link href="/request-access" className="inline-flex items-center gap-2 rounded-md bg-copper px-5 py-3 text-sm font-medium text-primary-foreground shadow-atlas-lg hover:bg-copper-700">
-            Request access <span aria-hidden>→</span>
-          </Link>
-          <Link href="/" className="inline-flex items-center gap-2 rounded-md border border-primary-foreground/20 bg-transparent px-5 py-3 text-sm font-medium text-primary-foreground hover:bg-primary-foreground/10">
-            How Hail GPS works
-          </Link>
-        </div>
-      </div>
-    </section>
   );
 }

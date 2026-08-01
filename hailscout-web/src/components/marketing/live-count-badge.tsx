@@ -2,15 +2,22 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { cn } from "@/lib/utils";
 import { useStorms } from "@/hooks/useStorms";
 
 /**
- * Small "N cells tracking right now" badge for the marketing landing.
- * Pulls the live count from /v1/storms (CONUS, last 2 hours) — same
- * 2-hour window the /live and /app/map pages use for "live".
+ * Live storm-cell count — the hero's eyebrow.
  *
- * Re-fetches every 60 seconds via SWR's dedupingInterval; revalidates
- * on focus so a returning visitor sees the latest count immediately.
+ * Pulls the real count from /v1/storms (CONUS, last 2 hours) — the same
+ * 2-hour "live" window the /live and /app/map pages use. Never invents a
+ * number: when nothing is live (or the API is unreachable) it falls back
+ * to a plain "Live storm tracker" label with no count.
+ *
+ * Styled as a mono instrument readout for the always-dark hero plate
+ * (mode-invariant cream/cyan ramps), with a 44px tap target.
+ *
+ * Re-fetches every 60 seconds; revalidates on focus so a returning
+ * visitor sees the latest count immediately.
  */
 export function LiveCountBadge({ className }: { className?: string }) {
   const [, setTick] = useState(0);
@@ -48,23 +55,27 @@ export function LiveCountBadge({ className }: { className?: string }) {
   return (
     <Link
       href="/live"
-      className={
-        "inline-flex items-center gap-2 rounded-full border border-copper/40 bg-copper/5 px-3 py-1 text-xs transition-all hover:border-copper hover:bg-copper/10 " +
-        (className ?? "")
-      }
+      className={cn(
+        "inline-flex min-h-11 items-center gap-2.5 rounded-full border border-copper-500/35 bg-copper-500/10 px-4",
+        "font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-copper-300",
+        "transition-colors hover:border-copper-500/60 hover:bg-copper-500/15",
+        className,
+      )}
     >
       <span className="relative inline-flex h-2 w-2">
-        <span className="absolute inset-0 rounded-full bg-copper" />
+        <span className="absolute inset-0 rounded-full bg-copper-500" />
         {liveCount > 0 && (
-          <span className="absolute inset-0 rounded-full bg-copper opacity-60 animate-ping" />
+          <span className="absolute inset-0 animate-ping rounded-full bg-copper-500 opacity-60" />
         )}
       </span>
-      <span className="font-mono-num font-medium uppercase tracking-wide-caps text-copper-700">
+      <span className="font-mono-num">
         {liveCount > 0
-          ? `${liveCount} cell${liveCount === 1 ? "" : "s"} tracking now`
-          : "Storm tracker · live"}
+          ? `${liveCount} storm cell${liveCount === 1 ? "" : "s"} on radar now`
+          : "Live storm tracker"}
       </span>
-      <span className="text-foreground/45" aria-hidden>→</span>
+      <span className="text-cream-50/45" aria-hidden>
+        →
+      </span>
     </Link>
   );
 }

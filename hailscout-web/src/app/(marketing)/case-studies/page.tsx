@@ -1,98 +1,141 @@
 /**
- * /case-studies — index page listing customer stories.
- * Atlas-page editorial layout, cream/teal/copper.
+ * /case-studies — "How crews run Hail GPS".
+ *
+ * Reframed from fictional customer stories to honest scenario
+ * walkthroughs. See _content.ts for the reasoning; the URL stays
+ * /case-studies so nav, footer, and sitemap links keep working.
  */
 
 import Link from "next/link";
-import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 import { type Metadata } from "next";
-import { CASE_STUDIES } from "@/lib/case-studies";
+import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
+import { CtaBand } from "@/components/marketing/primitives";
+import { ContourBg } from "@/components/brand/contour-bg";
+import { PLAYBOOKS } from "./_content";
 
 export const metadata: Metadata = {
-  title: "Customer stories",
+  title: "How crews run Hail GPS",
   description:
-    "How roofing contractors are using Hail GPS to close more jobs after the storm.",
+    "Scenario walkthroughs — the storm day and the canvassing week — showing how roofing crews use Hail GPS in the field.",
 };
 
-export default function CaseStudiesIndex() {
+export default function PlaybooksIndex() {
   return (
-    <>
+    <main className="bg-background text-foreground">
       <SiteHeader />
-      <div className="bg-cream text-foreground">
-      <div className="container max-w-5xl py-24">
-        <p className="font-mono-num text-[11px] uppercase tracking-wide-caps text-copper">
-          Customer stories
-        </p>
-        <h1 className="mt-3 font-display text-5xl md:text-6xl font-medium tracking-tight-display text-teal-900">
-          Hail GPS, in the field.
-        </h1>
-        <p className="mt-4 max-w-xl text-lg text-foreground/70">
-          What real crews built when they swapped polygon-grade hail data for
-          hardware-store guesswork.
-        </p>
 
-        <div className="mt-16 rule-atlas" />
-
-        <div className="mt-12 grid gap-10 md:grid-cols-2">
-          {CASE_STUDIES.map((cs) => (
-            <Link
-              key={cs.slug}
-              href={`/case-studies/${cs.slug}`}
-              className="group block"
-            >
-              <div className="aspect-[4/3] rounded-lg overflow-hidden border border-border bg-secondary/30 relative">
-                {/* Topographic motif card */}
-                <svg
-                  viewBox="0 0 400 300"
-                  preserveAspectRatio="none"
-                  className="w-full h-full"
-                  aria-hidden
-                >
-                  <defs>
-                    <linearGradient id={`grad-${cs.slug}`} x1="0" y1="0" x2="1" y2="1">
-                      <stop offset="0%" stopColor="hsl(var(--teal-700))" stopOpacity="0.95" />
-                      <stop offset="100%" stopColor="hsl(var(--teal-900))" stopOpacity="0.85" />
-                    </linearGradient>
-                  </defs>
-                  <rect width="400" height="300" fill={`url(#grad-${cs.slug})`} />
-                  <g fill="none" stroke="#F5F1EA" strokeWidth="0.6" opacity="0.18">
-                    {Array.from({ length: 9 }).map((_, i) => (
-                      <path
-                        key={i}
-                        d={`M-20,${30 + i * 32} Q120,${15 + i * 32} 220,${30 + i * 32} T420,${22 + i * 32}`}
-                      />
-                    ))}
-                  </g>
-                  {/* Copper paint stroke storm trail */}
-                  <path
-                    d="M40,220 Q140,160 240,180 T380,140"
-                    fill="none"
-                    stroke="#D87C4A"
-                    strokeWidth="3.5"
-                    strokeLinecap="round"
-                    opacity="0.9"
-                  />
-                </svg>
-              </div>
-              <div className="mt-5 space-y-2">
-                <p className="font-mono-num text-[10px] uppercase tracking-wide-caps text-copper">
-                  {cs.region}
-                </p>
-                <h2 className="font-display text-3xl tracking-tight-display text-teal-900 group-hover:text-copper transition-colors">
-                  {cs.headline}
-                </h2>
-                <p className="text-foreground/70">{cs.deck}</p>
-                <p className="font-mono text-[11px] uppercase tracking-wide-caps text-foreground/55 inline-flex items-center gap-2">
-                  Read the story
-                  <span className="transition-transform group-hover:translate-x-1">→</span>
-                </p>
-              </div>
-            </Link>
-          ))}
+      <section className="relative overflow-hidden border-b border-border/60">
+        <ContourBg density="sparse" className="opacity-60" />
+        <div className="container relative max-w-6xl pb-16 pt-20 md:pb-20 md:pt-28">
+          <p className="eyebrow">Playbooks</p>
+          <h1 className="display-1 mt-4 max-w-3xl text-foreground">
+            How crews run Hail GPS.
+          </h1>
+          <p className="mt-5 max-w-prose text-base leading-[1.65] text-muted-foreground">
+            Two walkthroughs — a storm day and a canvassing week — showing
+            where the product fits, hour by hour. Every capability in them is
+            shipped; the scenarios are illustrations, not customer results.
+          </p>
         </div>
-      </div>
-    </div>
+      </section>
+
+      <section className="py-24 md:py-32">
+        <div className="container max-w-6xl">
+          <div className="grid gap-8 md:grid-cols-2">
+            {PLAYBOOKS.map((pb) => (
+              <Link
+                key={pb.slug}
+                href={`/case-studies/${pb.slug}`}
+                className="group block rounded-xl border border-border bg-card transition-colors hover:border-primary/40"
+              >
+                <div className="relative aspect-[4/3] overflow-hidden rounded-t-xl border-b border-border bg-teal-900">
+                  <PlaybookPlate seed={pb.slug} />
+                  <span className="absolute left-5 top-5 font-mono text-[10px] uppercase tracking-[0.14em] text-cream-50/60">
+                    {pb.timeframe}
+                  </span>
+                </div>
+                <div className="space-y-2 p-6">
+                  <h2 className="display-2 text-foreground transition-colors group-hover:text-primary">
+                    {pb.title}
+                  </h2>
+                  <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">
+                    {pb.deck}
+                  </p>
+                  <p className="inline-flex min-h-11 items-center gap-2 font-mono text-[11px] uppercase tracking-[0.14em] text-primary">
+                    Read the walkthrough
+                    <span className="transition-transform group-hover:translate-x-1" aria-hidden>
+                      →
+                    </span>
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          <div className="mt-12 rounded-xl border border-border bg-secondary/40 p-6">
+            <p className="eyebrow">Why no customer stories yet</p>
+            <p className="mt-3 max-w-prose text-sm leading-[1.65] text-muted-foreground">
+              We won&apos;t invent a roofing company, a founder quote, or a
+              revenue number to make this page look busier. When real
+              customers give us permission to publish real results, they&apos;ll
+              live here — with numbers you can call and check. Until then,
+              these walkthroughs show exactly how the product is meant to be
+              run, and{" "}
+              <Link href="/accuracy" className="text-primary hover:text-copper-700">
+                the accuracy page
+              </Link>{" "}
+              shows how the data holds up.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <CtaBand
+        title="Run it on your own territory."
+        lede="Request access and we'll set your crew up on the live map — your storms, your streets, before you commit."
+        primary={{ label: "Request access", href: "/request-access" }}
+        secondary={{ label: "See pricing", href: "/pricing" }}
+      />
+
       <SiteFooter />
-    </>
+    </main>
+  );
+}
+
+/**
+ * Dark map-plate card art: slate ground, quiet contours, a cyan storm
+ * trail. Decorative only — no data claims, so no data colors.
+ */
+function PlaybookPlate({ seed }: { seed: string }) {
+  const flip = seed.length % 2 === 0;
+  return (
+    <svg
+      viewBox="0 0 400 300"
+      preserveAspectRatio="xMidYMid slice"
+      className="h-full w-full"
+      aria-hidden
+    >
+      <g fill="none" stroke="#F8FAFC" strokeWidth="0.6" opacity="0.14">
+        {Array.from({ length: 9 }).map((_, i) => (
+          <path
+            key={i}
+            d={`M-20,${30 + i * 32} Q120,${15 + i * 32} 220,${30 + i * 32} T420,${22 + i * 32}`}
+          />
+        ))}
+      </g>
+      <g fill="none" stroke="#F8FAFC" strokeWidth="0.5" opacity="0.08">
+        <path d="M100,-10 V310 M200,-10 V310 M300,-10 V310" />
+      </g>
+      <path
+        d={flip ? "M40,220 Q140,160 240,180 T380,140" : "M30,120 Q140,190 250,160 T390,210"}
+        fill="none"
+        stroke="#22D3EE"
+        strokeWidth="3"
+        strokeLinecap="round"
+        opacity="0.9"
+      />
+      <circle cx={flip ? 380 : 390} cy={flip ? 140 : 210} r="6" fill="none" stroke="#22D3EE" strokeWidth="1.5" opacity="0.7" />
+      <circle cx={flip ? 380 : 390} cy={flip ? 140 : 210} r="2.5" fill="#22D3EE" />
+    </svg>
   );
 }

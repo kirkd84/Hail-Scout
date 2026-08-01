@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { apiClient } from "@/lib/api";
 import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 import { ContourBg } from "@/components/brand/contour-bg";
+import { CtaBand, SectionHeading } from "@/components/marketing/primitives";
 import { hailColor } from "@/lib/hail";
 import { nearestMetro } from "@/lib/metros";
 import { useStorms } from "@/hooks/useStorms";
@@ -29,7 +30,7 @@ interface StatsResponse {
  * Public /stats — "By the numbers" page.
  *
  * Hits /v1/storms/stats for aggregate counters (whole DB), then
- * /v1/storms?limit=200&order=peak for the top-cells list. Everything
+ * /v1/storms?limit=10&order=peak for the top-cells list. Everything
  * is read-only and unauthenticated.
  *
  * Designed to grow as the backfill fills out — when the user opens
@@ -79,32 +80,34 @@ export default function StatsPage() {
       <SiteHeader />
 
       {/* Hero */}
-      <section className="relative overflow-hidden bg-topo">
-        <ContourBg className="opacity-90" density="sparse" />
-        <div className="container relative pb-10 pt-16 md:pb-12 md:pt-20">
-          <p className="font-mono-num text-xs uppercase tracking-wide-caps text-copper">
-            By the numbers · public
-          </p>
-          <h1 className="mt-2 font-display text-balance text-5xl font-medium leading-[1.05] tracking-tight-display text-foreground md:text-6xl">
+      <section className="relative overflow-hidden">
+        <ContourBg className="opacity-80" density="sparse" />
+        <div className="container relative max-w-6xl pb-10 pt-16 md:pb-12 md:pt-20">
+          <p className="eyebrow">By the numbers · public</p>
+          <h1 className="display-1 mt-3 text-foreground">
             Every hailstorm, accounted for.
           </h1>
-          <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
-            Hail GPS indexes every MRMS-detected hail cell across the
-            continental U.S., plus high-resolution NEXRAD storm-cell
-            tracking. Here&apos;s what the map looks like right now.
+          <p className="mt-4 max-w-2xl text-base leading-[1.65] text-muted-foreground text-pretty">
+            Hail GPS indexes every hail cell it detects across the continental
+            U.S., straight from NOAA radar. Here&apos;s what the map looks like
+            right now — live numbers, not marketing numbers.
           </p>
         </div>
       </section>
 
       {/* KPI grid */}
-      <section className="bg-card border-y border-border">
-        <div className="container py-12 md:py-16">
+      <section className="border-y border-border bg-secondary/40 bg-graticule">
+        <div className="container max-w-6xl py-12 md:py-16">
           {statsErr ? (
-            <p className="text-sm text-destructive">Stats temporarily unavailable.</p>
+            <p className="font-mono text-sm uppercase tracking-wide-caps text-muted-foreground">
+              Stats temporarily unavailable.
+            </p>
           ) : !stats ? (
-            <p className="text-sm text-muted-foreground">Loading totals…</p>
+            <p className="font-mono text-sm uppercase tracking-wide-caps text-muted-foreground">
+              Loading totals…
+            </p>
           ) : (
-            <div className="grid gap-5 md:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
               <Stat
                 label="Total cells indexed"
                 value={stats.total_cells.toLocaleString()}
@@ -152,7 +155,7 @@ export default function StatsPage() {
               />
               <Stat
                 label="Active pipelines"
-                value={sourceEntries.length || 0}
+                value={String(sourceEntries.length || 0)}
                 sub={sourceEntries.map(([k, v]) => `${k} ${v.toLocaleString()}`).join(" · ")}
               />
             </div>
@@ -162,115 +165,141 @@ export default function StatsPage() {
 
       {/* Year-at-a-glance activity calendar */}
       <section className="bg-background">
-        <div className="container py-12">
+        <div className="container max-w-6xl py-12 md:py-16">
           <ActivityCalendar />
         </div>
       </section>
 
       {/* Daily activity bar chart + size distribution */}
-      <section className="bg-card border-t border-border">
-        <div className="container py-12 grid gap-8 lg:grid-cols-2">
+      <section className="border-y border-border bg-secondary/40">
+        <div className="container grid max-w-6xl gap-8 py-12 md:py-16 lg:grid-cols-2">
           <ActivityTimeline days={60} />
           <SizeDistribution />
         </div>
       </section>
 
       {/* Top metros */}
-      <section className="bg-background border-t border-border">
-        <div className="container py-12">
+      <section className="bg-background">
+        <div className="container max-w-6xl py-12 md:py-16">
           <TopMetros />
         </div>
       </section>
 
       {/* Top biggest events */}
-      <section className="bg-card border-t border-border">
-        <div className="container py-12">
-          <p className="font-mono-num text-[11px] uppercase tracking-wide-caps text-copper">
-            Hall of hail
-          </p>
-          <h2 className="mt-1 font-display text-3xl font-medium tracking-tight-display text-foreground md:text-4xl">
-            Top 10 biggest cells · past year
-          </h2>
+      <section className="border-t border-border bg-secondary/40">
+        <div className="container max-w-6xl py-24 md:py-32">
+          <SectionHeading
+            eyebrow="Hall of hail"
+            title="Top 10 biggest cells · past year"
+          />
 
-          <ol className="mt-8 rounded-xl border border-border bg-card overflow-hidden divide-y divide-border/60">
+          <div className="mt-12">
             {biggest.length === 0 ? (
-              <li className="px-6 py-10 text-center text-muted-foreground text-sm">
-                Top events will appear as the backfill ingests historical
-                MRMS data.
-              </li>
+              <div className="rounded-xl border border-border bg-card p-10 text-center">
+                <p className="font-mono text-[11px] uppercase tracking-wide-caps text-foreground/45">
+                  No records yet
+                </p>
+                <p className="mt-3 text-muted-foreground">
+                  Top events will appear as historical radar data is ingested.
+                </p>
+              </div>
             ) : (
-              biggest.map((s, i) => {
-                const c = hailColor(s.max_hail_size_in);
-                const where = nearestMetro(s.centroid_lat, s.centroid_lng);
-                const heavy = s.max_hail_size_in >= 1.5;
-                return (
-                  <li key={s.id}>
-                    <Link
-                      href={`/storm/${s.id}`}
-                      className="grid grid-cols-[auto_auto_1fr_auto] items-center gap-4 px-6 py-4 transition-colors hover:bg-secondary/30"
-                    >
-                      <span className="font-mono-num text-sm font-medium text-foreground/45 w-7">
-                        {i + 1}
-                      </span>
-                      <span
-                        className="inline-flex h-14 w-16 flex-col items-center justify-center rounded-md ring-1 ring-foreground/15 shadow-sm"
-                        style={{ background: c.solid, color: heavy ? "#FAF7F1" : c.text }}
-                      >
-                        <span className="font-mono-num text-sm font-medium leading-none">
-                          {s.max_hail_size_in.toFixed(2)}″
-                        </span>
-                        <span className="text-[9px] uppercase tracking-wide-caps font-mono leading-none mt-1 opacity-90">
-                          {c.object}
-                        </span>
-                      </span>
-                      <div className="min-w-0">
-                        <p className="font-display text-lg font-medium tracking-tight-display text-foreground truncate">
-                          {where?.label ?? "United States"}
-                        </p>
-                        <p className="mt-0.5 text-xs font-mono-num text-muted-foreground">
-                          {new Date(s.start_time).toLocaleDateString(undefined, {
-                            month: "short",
-                            day: "2-digit",
-                            year: "numeric",
-                          })}{" "}
-                          · {s.source}
-                        </p>
-                      </div>
-                      <span className="font-mono-num text-[11px] uppercase tracking-wide-caps text-foreground/40">
-                        See record →
-                      </span>
-                    </Link>
-                  </li>
-                );
-              })
+              <div className="overflow-x-auto rounded-xl border border-border bg-card">
+                <table className="w-full min-w-[640px] text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left">
+                      <Th>#</Th>
+                      <Th>Size</Th>
+                      <Th>Location</Th>
+                      <Th className="text-right">Date</Th>
+                      <Th className="text-right">Source</Th>
+                      <Th className="text-right">
+                        <span className="sr-only">Record</span>
+                      </Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {biggest.map((s, i) => {
+                      const c = hailColor(s.max_hail_size_in);
+                      const where = nearestMetro(s.centroid_lat, s.centroid_lng);
+                      const heavy = s.max_hail_size_in >= 1.5;
+                      return (
+                        <tr
+                          key={s.id}
+                          className="border-b border-border/60 transition-colors last:border-0 hover:bg-secondary/40"
+                        >
+                          <td className="px-5 py-3 font-mono-num text-sm font-medium tabular-nums text-foreground/45">
+                            {String(i + 1).padStart(2, "0")}
+                          </td>
+                          <td className="px-5 py-3">
+                            <span
+                              className="inline-flex h-11 w-14 flex-col items-center justify-center rounded-md shadow-sm ring-1 ring-foreground/15"
+                              style={{ background: c.solid, color: heavy ? "#FAF7F1" : c.text }}
+                            >
+                              <span className="font-mono-num text-sm font-medium leading-none tabular-nums">
+                                {s.max_hail_size_in.toFixed(2)}″
+                              </span>
+                              <span className="mt-0.5 font-mono text-[8px] uppercase leading-none tracking-wide-caps opacity-90">
+                                {c.object}
+                              </span>
+                            </span>
+                          </td>
+                          <td className="max-w-[240px] px-5 py-3">
+                            <p className="truncate font-medium text-foreground">
+                              {where?.label ?? "United States"}
+                            </p>
+                          </td>
+                          <td className="px-5 py-3 text-right font-mono-num text-xs tabular-nums text-muted-foreground">
+                            {new Date(s.start_time).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "2-digit",
+                              year: "numeric",
+                            })}
+                          </td>
+                          <td className="px-5 py-3 text-right font-mono text-xs uppercase tracking-wide-caps text-foreground/55">
+                            {s.source}
+                          </td>
+                          <td className="px-5 py-3 text-right">
+                            <Link
+                              href={`/storm/${s.id}`}
+                              className="inline-flex min-h-11 items-center gap-1 whitespace-nowrap text-sm font-medium text-primary underline-offset-4 hover:underline"
+                            >
+                              Open <span aria-hidden>→</span>
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
-          </ol>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="border-t border-border bg-primary text-primary-foreground">
-        <div className="container py-12 text-center md:py-16">
-          <h2 className="font-display text-balance text-3xl font-medium tracking-tight-display md:text-4xl">
-            Run these numbers against your customer list.
-          </h2>
-          <p className="mx-auto mt-4 max-w-xl text-primary-foreground/80">
-            Hail GPS matches every saved address against every cell
-            automatically — no manual lookups, no missed claim windows.
-          </p>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            <Link href="/request-access" className="inline-flex items-center gap-2 rounded-md bg-copper px-5 py-3 text-sm font-medium text-primary-foreground hover:bg-copper-700">
-              Request access <span aria-hidden>→</span>
-            </Link>
-            <Link href="/storms" className="inline-flex items-center gap-2 rounded-md border border-primary-foreground/20 bg-transparent px-5 py-3 text-sm font-medium text-primary-foreground hover:bg-primary-foreground/10">
-              Browse the catalog
-            </Link>
           </div>
         </div>
       </section>
 
+      <CtaBand
+        title="Run these numbers against your customer list."
+        lede="Hail GPS matches every saved address against every cell automatically — no manual lookups, no missed claim windows."
+        primary={{ label: "Request access", href: "/request-access" }}
+        secondary={{ label: "Browse the catalog", href: "/storms" }}
+      />
+
       <SiteFooter />
     </main>
+  );
+}
+
+function Th({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <th
+      className={
+        "px-5 py-3 font-mono text-[10px] font-medium uppercase tracking-wide-caps text-foreground/55 " +
+        (className ?? "")
+      }
+    >
+      {children}
+    </th>
   );
 }
 
@@ -281,25 +310,25 @@ function Stat({
   accent,
 }: {
   label: string;
-  value: string | number;
+  value: string;
   sub?: string;
   accent?: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-background p-5">
-      <p className="font-mono-num text-[10px] uppercase tracking-wide-caps text-foreground/55">
+    <div className="rounded-xl border border-border bg-card p-5">
+      <p className="font-mono text-[10px] uppercase tracking-wide-caps text-foreground/55">
         {label}
       </p>
       <p
         className={
-          "mt-1 font-display text-3xl font-medium tracking-tight-display " +
-          (accent ? "text-copper" : "text-foreground")
+          "mt-2 font-mono-num text-2xl font-medium tabular-nums md:text-3xl " +
+          (accent ? "text-primary" : "text-foreground")
         }
       >
         {value}
       </p>
       {sub && (
-        <p className="mt-2 text-[11px] font-mono-num text-muted-foreground truncate">
+        <p className="mt-2 truncate font-mono-num text-[11px] tabular-nums text-muted-foreground">
           {sub}
         </p>
       )}

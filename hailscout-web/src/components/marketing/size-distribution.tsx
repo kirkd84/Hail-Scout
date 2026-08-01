@@ -137,16 +137,16 @@ export function SizeDistribution({ className }: { className?: string }) {
               />
             ) : null,
           )}
-          {/* Center label */}
+          {/* Center readout — mono, tabular, instrument-style */}
           <text
             x={CENTER}
-            y={CENTER - 6}
+            y={CENTER - 4}
             textAnchor="middle"
-            fontSize={26}
+            fontSize={24}
             fontWeight={500}
-            fontFamily="Fraunces, Cambria, serif"
-            fill="currentColor"
-            className="text-foreground"
+            fontFamily="JetBrains Mono, ui-monospace, monospace"
+            style={{ fontVariantNumeric: "tabular-nums" }}
+            fill="hsl(var(--foreground))"
           >
             {total.toLocaleString()}
           </text>
@@ -157,8 +157,7 @@ export function SizeDistribution({ className }: { className?: string }) {
             fontSize={9}
             letterSpacing={1.4}
             fontFamily="JetBrains Mono, ui-monospace, monospace"
-            fill="currentColor"
-            className="text-foreground/55"
+            fill="hsl(var(--foreground) / 0.55)"
           >
             CELLS
           </text>
@@ -168,18 +167,18 @@ export function SizeDistribution({ className }: { className?: string }) {
           {breakdown.map((t) => (
             <li
               key={t.label}
-              className="flex items-baseline gap-2 text-sm"
+              className="flex items-baseline gap-2 rounded-md px-1.5 py-0.5 text-sm transition-colors hover:bg-secondary/40"
             >
               <span
-                className="inline-block w-3 h-3 rounded-sm shrink-0"
+                className="inline-block h-3 w-3 shrink-0 rounded-[2px]"
                 style={{ background: t.color.solid, opacity: t.count === 0 ? 0.25 : 1 }}
                 aria-hidden
               />
-              <span className="flex-1 text-foreground/85 truncate">{t.label}</span>
-              <span className="font-mono-num text-foreground/85">
+              <span className="flex-1 truncate text-foreground/85">{t.label}</span>
+              <span className="font-mono-num tabular-nums text-foreground/85">
                 {t.count.toLocaleString()}
               </span>
-              <span className="font-mono-num text-foreground/45 w-12 text-right">
+              <span className="w-12 text-right font-mono-num tabular-nums text-foreground/45">
                 {(t.pct * 100).toFixed(1)}%
               </span>
             </li>

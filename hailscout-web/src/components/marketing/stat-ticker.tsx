@@ -13,7 +13,7 @@ interface PublicStats {
   data_fresh?: boolean;
 }
 
-/** "3m ago" style relative time for the freshness pill. */
+/** "3m ago" style relative time for the freshness readout. */
 function freshnessLabel(iso?: string | null): string | null {
   if (!iso) return null;
   const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -26,7 +26,14 @@ function freshnessLabel(iso?: string | null): string | null {
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://hail-scout-production.up.railway.app";
 
-/** Top-of-page rolling ticker. Falls back to fixture-derived counts if the API is unreachable. */
+/**
+ * Top-of-page instrument readout — real numbers from /v1/public/stats.
+ *
+ * Mono, uppercase, tabular numerals: it should read like the status bar of
+ * the product, not a marketing banner. Honest empty behavior: when the API
+ * is unreachable the ticker renders NOTHING (fixture-derived counts appear
+ * only in explicit demo builds) — it never invents public stats.
+ */
 export function StatTicker() {
   const [stats, setStats] = useState<PublicStats | null>(null);
 
@@ -75,28 +82,38 @@ export function StatTicker() {
 
   return (
     <div className="border-b border-border bg-card/80 backdrop-blur">
-      <div className="container flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-2 text-[11px] font-mono uppercase tracking-wide-caps text-foreground/65">
+      <div className="container flex flex-wrap items-center justify-between gap-x-6 gap-y-1.5 py-2 font-mono text-[11px] uppercase tracking-[0.14em]">
         {items.map((item) => (
           <span key={item.label} className="inline-flex items-center gap-2">
             {item.tone === "live" && (
               <span className="relative inline-flex h-1.5 w-1.5">
-                <span className="absolute inset-0 rounded-full bg-copper" />
+                <span className="absolute inset-0 rounded-full bg-primary" />
                 {item.value > 0 && (
-                  <span className="absolute inset-0 rounded-full bg-copper opacity-60 animate-ping" />
+                  <span className="absolute inset-0 animate-ping rounded-full bg-primary opacity-60" />
                 )}
               </span>
             )}
-            <span className={item.tone === "live" ? "text-copper" : "text-foreground/45"}>
+            <span
+              className={
+                item.tone === "live" ? "text-primary" : "text-muted-foreground/80"
+              }
+            >
               {item.label}
             </span>
-            <span className={item.tone === "live" ? "font-mono-num font-medium text-copper" : "font-mono-num font-medium text-foreground"}>
+            <span
+              className={
+                item.tone === "live"
+                  ? "font-mono-num font-medium text-primary"
+                  : "font-mono-num font-medium text-foreground"
+              }
+            >
               {item.value.toLocaleString()}
             </span>
           </span>
         ))}
         {fresh && (
           <span className="inline-flex items-center gap-2">
-            <span className={stats.data_fresh ? "text-forest" : "text-foreground/45"}>
+            <span className={stats.data_fresh ? "text-primary" : "text-muted-foreground/80"}>
               {stats.data_fresh ? "LIVE DATA" : "DATA"} · UPDATED
             </span>
             <span className="font-mono-num font-medium text-foreground">{fresh}</span>

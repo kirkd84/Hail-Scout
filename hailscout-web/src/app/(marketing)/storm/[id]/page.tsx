@@ -5,6 +5,7 @@ import { use } from "react";
 import { notFound } from "next/navigation";
 import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 import { ContourBg } from "@/components/brand/contour-bg";
+import { CtaBand } from "@/components/marketing/primitives";
 import { useStormDetail, type ApiStormDetail } from "@/hooks/useStorms";
 import { nearestMetro } from "@/lib/metros";
 import { hailColor } from "@/lib/hail";
@@ -29,9 +30,9 @@ export default function PublicStormPage({
 
   if (isLoading) {
     return (
-      <main className="bg-background text-foreground min-h-screen">
+      <main className="min-h-screen bg-background text-foreground">
         <SiteHeader />
-        <div className="container py-24 text-center text-muted-foreground">
+        <div className="container py-24 text-center font-mono text-sm uppercase tracking-wide-caps text-muted-foreground">
           Loading storm record…
         </div>
         <SiteFooter />
@@ -60,33 +61,33 @@ export default function PublicStormPage({
     <main className="bg-background text-foreground">
       <SiteHeader />
 
-      <section className="relative overflow-hidden bg-topo">
-        <ContourBg className="opacity-90" density="sparse" />
-        <div className="container relative pb-12 pt-12 md:pb-16 md:pt-16">
+      <section className="relative overflow-hidden">
+        <ContourBg className="opacity-80" density="sparse" />
+        <div className="container relative max-w-6xl pb-12 pt-12 md:pb-16 md:pt-16">
           <Link
             href="/live"
-            className="inline-flex items-center gap-1 text-xs font-mono uppercase tracking-wide-caps text-foreground/55 hover:text-copper"
+            className="inline-flex min-h-11 items-center gap-1 font-mono text-xs uppercase tracking-wide-caps text-foreground/55 transition-colors hover:text-primary"
           >
             <span aria-hidden>←</span> All live + recent storms
           </Link>
 
-          <div className="mt-6 grid gap-10 lg:grid-cols-12 lg:items-center">
+          <div className="mt-4 grid gap-10 lg:grid-cols-12 lg:items-center">
             <div className="lg:col-span-7">
-              <p className="font-mono-num text-xs uppercase tracking-wide-caps text-copper">
+              <p className="eyebrow">
                 Storm record · {detail.id.replace("storm_", "").toUpperCase()}
               </p>
-              <h1 className="mt-2 font-display text-balance text-5xl font-medium leading-[1.05] tracking-tight-display text-foreground md:text-6xl">
+              <h1 className="display-1 mt-3 text-foreground">
                 {where?.label ?? "United States"}
-                {where && where.miles >= 5 && where.miles <= 250 && (
-                  <span className="block text-lg text-muted-foreground font-mono-num font-normal mt-2">
-                    ~{where.miles}mi from {where.metro.name}
-                  </span>
-                )}
               </h1>
-              <p className="mt-4 text-lg text-muted-foreground">
+              {where && where.miles >= 5 && where.miles <= 250 && (
+                <p className="mt-2 font-mono-num text-sm tabular-nums text-muted-foreground">
+                  ~{where.miles}mi from {where.metro.name}
+                </p>
+              )}
+              <p className="mt-4 max-w-prose text-base leading-[1.65] text-muted-foreground text-pretty">
                 {makeHeadline(detail, where?.label)}
               </p>
-              <div className="mt-6 grid gap-2 grid-cols-2 sm:grid-cols-4">
+              <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <Stat label="Peak hail" value={`${peak.toFixed(2)}″`} accent />
                 <Stat label="Reference" value={c.object} />
                 <Stat label="Duration" value={`${durMin}m`} />
@@ -95,10 +96,10 @@ export default function PublicStormPage({
             </div>
 
             <div className="lg:col-span-5">
-              <div className="rounded-xl border border-border bg-card overflow-hidden shadow-atlas-lg">
+              <div className="overflow-hidden rounded-xl border border-border bg-card shadow-panel">
                 <Plate detail={detail} />
-                <div className="px-4 py-2 border-t border-border text-[11px] font-mono-num text-foreground/55 flex items-center justify-between">
-                  <span>HAILSCOUT · STORM PLATE</span>
+                <div className="flex items-center justify-between border-t border-border px-4 py-2 font-mono-num text-[11px] tabular-nums text-foreground/55">
+                  <span>HAIL GPS · STORM PLATE</span>
                   <BboxLabel detail={detail} />
                 </div>
               </div>
@@ -107,66 +108,54 @@ export default function PublicStormPage({
         </div>
       </section>
 
-      <section className="bg-card border-y border-border">
-        <div className="container py-14 max-w-3xl">
-          <div className="rounded-xl border border-copper/40 bg-copper/5 p-6">
-            <p className="font-mono-num text-[10px] uppercase tracking-wide-caps text-copper-700 flex items-center gap-2">
-              <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <section className="border-y border-border bg-secondary/40">
+        <div className="container max-w-3xl py-24 md:py-32">
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-6 md:p-7">
+            <p className="eyebrow flex items-center gap-2">
+              <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <path d="M8 2 L9.5 6.5 L14 8 L9.5 9.5 L8 14 L6.5 9.5 L2 8 L6.5 6.5 Z" />
               </svg>
               Hail GPS · Storm insight
             </p>
-            <p className="mt-3 font-display text-2xl font-medium tracking-tight-display text-foreground leading-snug">
+            <p className="mt-3 text-2xl font-semibold leading-snug tracking-tight text-foreground text-balance">
               {makeHeadline(detail, where?.label)}
             </p>
-            <p className="mt-4 text-foreground/85 leading-relaxed">
+            <p className="mt-4 max-w-prose leading-[1.65] text-foreground/85">
               {makeBody(detail, where?.label)}
             </p>
-            <p className="mt-4 font-medium text-copper-700">
+            <p className="mt-4 font-medium text-primary">
               {makeNextStep(detail)}
             </p>
           </div>
 
           <dl className="mt-10 grid grid-cols-2 gap-x-8 gap-y-5 text-sm">
-            <Row term="Start" def={fmt(detail.start_time)} />
-            <Row term="End" def={fmt(detail.end_time)} />
+            <Row term="Start" def={fmt(detail.start_time)} mono />
+            <Row term="End" def={fmt(detail.end_time)} mono />
             <Row
               term="Centroid"
               def={`${centLat.toFixed(4)}°N, ${Math.abs(centLng).toFixed(4)}°W`}
               mono
             />
             <Row term="Source" def={`NOAA ${detail.source}`} />
-            <Row term="Swath bands" def={`${detail.swaths.length} mapped`} />
+            <Row term="Swath bands" def={`${detail.swaths.length} mapped`} mono />
             <Row term="Storm ID" def={detail.id} mono />
           </dl>
         </div>
       </section>
 
-      <section className="border-t border-border bg-primary text-primary-foreground">
-        <div className="container py-16 text-center md:py-20">
-          <h2 className="font-display text-balance text-3xl font-medium tracking-tight-display md:text-4xl">
-            Was your address hit by this storm?
-          </h2>
-          <p className="mx-auto mt-4 max-w-xl text-primary-foreground/80">
-            Search any address on Hail GPS — see exactly what fell. Generate a Hail Impact Report to file your claim.
-          </p>
-          <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-            <Link href="/request-access" className="inline-flex items-center gap-2 rounded-md bg-copper px-5 py-3 text-sm font-medium text-primary-foreground shadow-atlas-lg hover:bg-copper-700">
-              Search your address <span aria-hidden>→</span>
-            </Link>
-            <Link href="/live" className="inline-flex items-center gap-2 rounded-md border border-primary-foreground/20 bg-transparent px-5 py-3 text-sm font-medium text-primary-foreground hover:bg-primary-foreground/10">
-              See all live storms
-            </Link>
-          </div>
-        </div>
-      </section>
+      <CtaBand
+        title="Was your address hit by this storm?"
+        lede="Search any address on Hail GPS — see exactly what fell, then generate a hail impact report to back the claim."
+        primary={{ label: "Look up an address", href: "/claim" }}
+        secondary={{ label: "Request access", href: "/request-access" }}
+      />
 
       <SiteFooter />
     </main>
   );
 }
 
-// ── Mini atlas plate: swath polygons projected into the bbox ──────────
+// ── Map plate: swath polygons projected into the bbox, dark ground ────
 function Plate({ detail }: { detail: ApiStormDetail }) {
   const bbox = detail.bbox?.coordinates?.[0] ?? [];
   if (bbox.length < 4) return null;
@@ -195,16 +184,20 @@ function Plate({ detail }: { detail: ApiStormDetail }) {
       viewBox="0 0 100 56"
       preserveAspectRatio="none"
       className="block w-full"
-      style={{ aspectRatio: "16 / 9", background: "hsl(var(--cream-50))" }}
+      style={{ aspectRatio: "16 / 9", background: "hsl(var(--teal-900))" }}
     >
-      <path d="M0,18 Q25,12 50,16 T100,12" fill="none" stroke="hsl(var(--teal-700))" strokeWidth="0.18" opacity="0.3" />
-      <path d="M0,32 Q25,28 50,30 T100,26" fill="none" stroke="hsl(var(--teal-700))" strokeWidth="0.18" opacity="0.22" />
-      <path d="M0,46 Q25,42 50,44 T100,40" fill="none" stroke="hsl(var(--teal-700))" strokeWidth="0.18" opacity="0.18" />
+      {/* Faint graticule — same dark ground as the product map */}
+      {[14, 28, 42].map((y) => (
+        <line key={`h${y}`} x1="0" y1={y} x2="100" y2={y} stroke="hsl(var(--cream-50))" strokeOpacity="0.07" strokeWidth="0.18" />
+      ))}
+      {[20, 40, 60, 80].map((x) => (
+        <line key={`v${x}`} x1={x} y1="0" x2={x} y2="56" stroke="hsl(var(--cream-50))" strokeOpacity="0.07" strokeWidth="0.18" />
+      ))}
       {sortedSwaths.flatMap((sw, swathIdx) => {
         if (!sw.geometry) return [];
         const min = parseFloat(sw.hail_size_category);
         const bc = hailColor(min);
-        const opacity = Math.min(0.85, 0.30 + swathIdx * 0.05);
+        const opacity = Math.min(0.85, 0.35 + swathIdx * 0.05);
         return sw.geometry.coordinates.map((polygon, pIdx) => {
           const outer = polygon[0];
           if (!outer || outer.length < 3) return null;
@@ -224,7 +217,7 @@ function Plate({ detail }: { detail: ApiStormDetail }) {
               fillOpacity={opacity}
               stroke={bc.stroke}
               strokeWidth="0.25"
-              strokeOpacity="0.65"
+              strokeOpacity="0.7"
             />
           );
         });
@@ -236,7 +229,7 @@ function Plate({ detail }: { detail: ApiStormDetail }) {
         const peakColor = hailColor(detail.max_hail_size_in);
         return (
           <>
-            <circle cx={px} cy={py} r="1.6" fill="none" stroke={peakColor.solid} strokeWidth="0.5" opacity="0.65" />
+            <circle cx={px} cy={py} r="1.6" fill="none" stroke={peakColor.solid} strokeWidth="0.5" opacity="0.75" />
             <circle cx={px} cy={py} r="0.8" fill={peakColor.solid} />
           </>
         );
@@ -268,9 +261,9 @@ function Stat({
   accent?: boolean;
 }) {
   return (
-    <div className="rounded-md border border-border bg-card/70 backdrop-blur p-3">
-      <p className="font-mono-num text-[10px] uppercase tracking-wide-caps text-foreground/55">{label}</p>
-      <p className={`mt-1 font-display text-2xl font-medium tracking-tight-display ${accent ? "text-copper" : "text-foreground"}`}>{value}</p>
+    <div className="rounded-xl border border-border bg-card/70 p-3 backdrop-blur">
+      <p className="font-mono text-[10px] uppercase tracking-wide-caps text-foreground/55">{label}</p>
+      <p className={`mt-1 font-mono-num text-xl font-medium tabular-nums md:text-2xl ${accent ? "text-primary" : "text-foreground"}`}>{value}</p>
     </div>
   );
 }
@@ -278,8 +271,8 @@ function Stat({
 function Row({ term, def, mono }: { term: string; def: string; mono?: boolean }) {
   return (
     <div>
-      <dt className="text-[11px] font-mono uppercase tracking-wide-caps text-foreground/55">{term}</dt>
-      <dd className={mono ? "font-mono-num text-foreground" : "text-foreground"}>{def}</dd>
+      <dt className="font-mono text-[11px] uppercase tracking-wide-caps text-foreground/55">{term}</dt>
+      <dd className={mono ? "mt-0.5 font-mono-num tabular-nums text-foreground" : "mt-0.5 text-foreground"}>{def}</dd>
     </div>
   );
 }
@@ -328,9 +321,9 @@ function makeBody(detail: ApiStormDetail, locationLabel?: string): string {
     ? `${swathCount} concentric size bands recorded across the swath — from the outer light-hail edge down to the ${peak.toFixed(2)}″ core.`
     : `One swath band mapped at this storm's peak intensity.`;
   const sourceLine = detail.source === "NEXRAD"
-    ? `Source: NEXRAD Level II radar (sub-km resolution), processed with SCIT cell tracking.`
-    : `Source: NOAA MRMS MESH (instantaneous, ~1 km grid), processed with per-cell tracking.`;
-  const tracking = dur > 1 ? `Cell tracked across ${dur} hour${dur === 1 ? "" : "s"} of consecutive radar volume scans.` : "";
+    ? `Source: NOAA NEXRAD high-resolution radar, tracked storm by storm.`
+    : `Source: NOAA MRMS radar network (about 1 km detail), tracked storm by storm.`;
+  const tracking = dur > 1 ? `Followed across ${dur} hour${dur === 1 ? "" : "s"} of back-to-back radar scans.` : "";
   return `${lead} ${swathPhrase} ${tracking} ${sourceLine}`.replace(/\s+/g, " ").trim();
 }
 

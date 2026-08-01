@@ -5,23 +5,25 @@ import { useEffect, useMemo, useState } from "react";
 import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 import { StatTicker } from "@/components/marketing/stat-ticker";
 import { ContourBg } from "@/components/brand/contour-bg";
+import { CtaBand } from "@/components/marketing/primitives";
 import { useStorms, type StormWithSwaths } from "@/hooks/useStorms";
 import { nearestMetro } from "@/lib/metros";
-import { hailColor } from "@/lib/hail";
+import { hailColor, HAIL_LEGEND } from "@/lib/hail";
 import { timeAgo } from "@/lib/time-ago";
 import { cn } from "@/lib/utils";
 
 /**
  * Public storm gallery — no auth required.
  *
- * Live MRMS-tracked cells + recent history, rendered with the same
- * nested-band SVG preview the /app/map uses internally. CTA on every
- * card sends prospects to /sign-up.
+ * Live MRMS-tracked cells + recent history, rendered as dark
+ * product-map plates (same visual language as /app/map). CTA on
+ * every card sends prospects to the storm record; page CTA is
+ * request-access.
  *
  * Phase 16.8 migration: was hardcoded fixtures, now backed by
  * /v1/storms?include=swaths. The hook's `fallbackToFixtures` keeps
- * the gallery populated if the API returns empty (dev / pre-data
- * windows).
+ * the gallery populated ONLY behind the explicit demo env flag —
+ * production shows honest empties.
  */
 export default function LiveStormsPage() {
   // Tick every 30s so "x mins ago" labels stay fresh
@@ -52,7 +54,7 @@ export default function LiveStormsPage() {
   // Live = started in the last 2 hours; recent = everything else,
   // newest first. Sort + bucket happen here (one pass) so the
   // sections render from the same source.
-  const { live, recent } = useMemo(() => {
+  const { live, recent, latestStart } = useMemo(() => {
     const liveCutoff = Date.now() - 2 * 60 * 60 * 1000;
     const sorted = [...storms].sort(
       (a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime(),
@@ -63,19 +65,41 @@ export default function LiveStormsPage() {
     const recent = sorted
       .filter((s) => new Date(s.start_time).getTime() < liveCutoff)
       .slice(0, 12);
-    return { live, recent };
+    return { live, recent, latestStart: sorted[0]?.start_time ?? null };
   }, [storms]);
 
   return (
     <main className="bg-background text-foreground">
       <SiteHeader />
       <StatTicker />
-      <Hero count={live.length} totalRecent={recent.length} fallback={usingFallback ?? false} />
+      <Hero
+        count={live.length}
+        latestStart={latestStart}
+        totalIndexed={storms.length}
+        fallback={usingFallback ?? false}
+      />
+      <LegendBar />
       {live.length > 0 && (
-        <Section title="Tracking right now" tone="copper" storms={live} live />
+        <Section
+          eyebrow="Live"
+          title="Tracking right now"
+          storms={live}
+          live
+          ground="secondary"
+        />
       )}
-      <Section title="Recent storms · past 30 days" tone="muted" storms={recent} />
-      <FinalCta />
+      <Section
+        eyebrow="Archive"
+        title="Recent storms · past 30 days"
+        storms={recent}
+        ground={live.length > 0 ? "base" : "secondary"}
+      />
+      <CtaBand
+        title="Every storm, on every address you care about."
+        lede="Save your customer list, get alerted the moment a swath crosses an address, and generate a hail impact report you can hand to an adjuster."
+        primary={{ label: "Request access", href: "/request-access" }}
+        secondary={{ label: "How Hail GPS works", href: "/" }}
+      />
       <SiteFooter />
     </main>
   );
@@ -83,48 +107,64 @@ export default function LiveStormsPage() {
 
 function Hero({
   count,
-  totalRecent,
+  latestStart,
+  totalIndexed,
   fallback,
 }: {
   count: number;
-  totalRecent: number;
+  latestStart: string | null;
+  totalIndexed: number;
   fallback: boolean;
 }) {
   return (
-    <section className="relative overflow-hidden bg-topo">
-      <ContourBg className="opacity-90" density="sparse" />
-      <div className="container relative pb-12 pt-16 md:pb-20 md:pt-24 text-center">
-        <p className="font-mono-num text-xs uppercase tracking-wide-caps text-copper">
+    <section className="relative overflow-hidden">
+      <ContourBg className="opacity-80" density="sparse" />
+      <div className="container relative max-w-6xl pb-12 pt-16 text-center md:pb-16 md:pt-24">
+        <p className="eyebrow inline-flex items-center justify-center gap-2">
           {count > 0 ? (
-            <span className="inline-flex items-center gap-2">
+            <>
               <span className="relative inline-flex h-2 w-2">
-                <span className="absolute inset-0 rounded-full bg-copper" />
-                <span className="absolute inset-0 rounded-full bg-copper opacity-60 animate-ping" />
+                <span className="absolute inset-0 rounded-full bg-primary" />
+                <span className="absolute inset-0 animate-ping rounded-full bg-primary opacity-60" />
               </span>
-              {count} cell{count === 1 ? "" : "s"} tracking right now
-            </span>
+              <span>
+                Live · {count} cell{count === 1 ? "" : "s"} tracking
+                {latestStart ? ` · latest ${timeAgo(latestStart)}` : ""}
+              </span>
+            </>
           ) : (
             "Live storm tracker"
           )}
         </p>
-        <h1 className="mx-auto mt-3 max-w-3xl font-display text-balance text-5xl font-medium leading-[1.05] tracking-tight-display text-foreground md:text-6xl">
+        <h1 className="display-1 mx-auto mt-4 max-w-3xl text-foreground">
           Every hailstorm, every day.
           <span className="block text-primary">Live from the map.</span>
         </h1>
-        <p className="mx-auto mt-5 max-w-xl text-lg text-muted-foreground">
-          See what&apos;s happening in the U.S. hail belt right now — straight from the same NOAA MRMS feed our paying contractors trust.
-          {totalRecent > 0 && ` Past 30 days: ${totalRecent} indexed cells.`}
-          {fallback && (
-            <span className="block text-[11px] text-foreground/40 mt-2 font-mono-num uppercase tracking-wide-caps">
-              demo data · live feed reconnecting
+        <p className="mx-auto mt-5 max-w-2xl text-base leading-[1.65] text-muted-foreground text-pretty">
+          What&apos;s happening in the U.S. hail belt right now — straight from
+          the same NOAA radar feed the product runs on.
+          {totalIndexed > 0 && (
+            <span className="font-mono-num tabular-nums">
+              {" "}Past 30 days: {totalIndexed} indexed cells.
             </span>
           )}
         </p>
-        <div className="mt-7 flex flex-wrap justify-center gap-3">
-          <Link href="/request-access" className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground shadow-atlas transition-colors hover:bg-copper-700">
+        {fallback && (
+          <p className="mx-auto mt-3 font-mono text-[11px] uppercase tracking-wide-caps text-foreground/40">
+            demo data · live feed reconnecting
+          </p>
+        )}
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <Link
+            href="/request-access"
+            className="inline-flex min-h-11 items-center gap-2 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-copper-700"
+          >
             Request access <span aria-hidden>→</span>
           </Link>
-          <Link href="/" className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-5 py-3 text-sm font-medium text-foreground hover:bg-muted">
+          <Link
+            href="/"
+            className="inline-flex min-h-11 items-center gap-2 rounded-md border border-border px-5 text-sm font-medium text-foreground transition-colors hover:bg-card"
+          >
             How Hail GPS works
           </Link>
         </div>
@@ -133,32 +173,82 @@ function Hero({
   );
 }
 
+/**
+ * Instrument legend — the real hail-size scale, in data color.
+ * Non-interactive chips; scrolls in its own container on small
+ * screens so the page never scrolls sideways.
+ */
+function LegendBar() {
+  return (
+    <div className="border-y border-border bg-secondary/40">
+      <div className="container flex max-w-6xl items-center gap-3 overflow-x-auto py-3">
+        <span className="shrink-0 font-mono text-[10px] uppercase tracking-wide-caps text-foreground/55">
+          Hail size scale
+        </span>
+        <div className="flex items-center gap-1.5">
+          {HAIL_LEGEND.map((b) => (
+            <span
+              key={b.short}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1"
+              title={b.label}
+            >
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={{ background: b.solid }}
+                aria-hidden
+              />
+              <span className="font-mono-num text-[10px] tabular-nums text-foreground/75">
+                {b.short}
+              </span>
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Section({
+  eyebrow,
   title,
-  tone,
   storms,
   live = false,
+  ground,
 }: {
+  eyebrow: string;
   title: string;
-  tone: "copper" | "muted";
   storms: StormWithSwaths[];
   live?: boolean;
+  ground: "base" | "secondary";
 }) {
   return (
-    <section className={cn(tone === "copper" ? "bg-card border-y border-border" : "bg-background")}>
-      <div className="container py-16">
-        <div className="flex items-baseline justify-between mb-8">
-          <h2 className="font-display text-3xl font-medium tracking-tight-display text-foreground md:text-4xl">{title}</h2>
-          <p className="font-mono-num text-xs uppercase tracking-wide-caps text-foreground/55">
+    <section
+      className={cn(
+        ground === "secondary" ? "border-b border-border bg-secondary/40" : "bg-background",
+      )}
+    >
+      <div className="container max-w-6xl py-24 md:py-32">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="eyebrow">{eyebrow}</p>
+            <h2 className="display-2 mt-3 text-foreground">{title}</h2>
+          </div>
+          <p className="font-mono-num text-[11px] uppercase tracking-wide-caps tabular-nums text-foreground/55">
             {storms.length} event{storms.length === 1 ? "" : "s"}
           </p>
         </div>
         {storms.length === 0 ? (
-          <p className="text-center text-muted-foreground py-12">
-            No storms in this window.
-          </p>
+          <div className="mt-12 rounded-xl border border-border bg-card p-10 text-center">
+            <p className="font-mono text-[11px] uppercase tracking-wide-caps text-foreground/45">
+              All quiet
+            </p>
+            <p className="mt-3 text-muted-foreground">
+              No storms in this window. When hail falls, it shows up here
+              within minutes.
+            </p>
+          </div>
         ) : (
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {storms.map((s) => (
               <StormCard key={s.id} storm={s} live={live} />
             ))}
@@ -222,23 +312,26 @@ function StormCard({ storm, live }: { storm: StormWithSwaths; live: boolean }) {
   const [cxBox, cyBox] = proj(storm.centroid_lng, storm.centroid_lat);
 
   return (
-    <article className="rounded-xl border border-border bg-card overflow-hidden shadow-atlas transition-shadow hover:shadow-atlas-lg">
-      {/* Mini atlas plate */}
+    <article className="overflow-hidden rounded-xl border border-border bg-card transition-shadow hover:shadow-panel">
+      {/* Mini map plate — dark ground like the product map, both modes */}
       <div className="relative aspect-[16/9] w-full overflow-hidden border-b border-border">
         <svg
           viewBox="0 0 100 56"
           preserveAspectRatio="none"
           className="h-full w-full"
-          style={{ background: "hsl(var(--cream-50))" }}
+          style={{ background: "hsl(var(--teal-900))" }}
         >
-          {/* Topo contour lines for atlas feel */}
-          <path d="M0,18 Q25,12 50,16 T100,12" fill="none" stroke="hsl(var(--teal-700))" strokeWidth="0.18" opacity="0.30" />
-          <path d="M0,32 Q25,28 50,30 T100,26" fill="none" stroke="hsl(var(--teal-700))" strokeWidth="0.18" opacity="0.22" />
-          <path d="M0,46 Q25,42 50,44 T100,40" fill="none" stroke="hsl(var(--teal-700))" strokeWidth="0.18" opacity="0.18" />
-          {/* Swath polygons */}
+          {/* Faint graticule — quiet lat/long grid */}
+          {[14, 28, 42].map((y) => (
+            <line key={`h${y}`} x1="0" y1={y} x2="100" y2={y} stroke="hsl(var(--cream-50))" strokeOpacity="0.07" strokeWidth="0.18" />
+          ))}
+          {[20, 40, 60, 80].map((x) => (
+            <line key={`v${x}`} x1={x} y1="0" x2={x} y2="56" stroke="hsl(var(--cream-50))" strokeOpacity="0.07" strokeWidth="0.18" />
+          ))}
+          {/* Swath polygons — real data, real ramp */}
           {bandPaths.map((p, i) => {
             const bc = hailColor(p.minSize);
-            const opacity = Math.min(0.85, 0.30 + i * 0.04);
+            const opacity = Math.min(0.85, 0.35 + i * 0.04);
             return (
               <path
                 key={i}
@@ -247,40 +340,44 @@ function StormCard({ storm, live }: { storm: StormWithSwaths; live: boolean }) {
                 fillOpacity={opacity}
                 stroke={bc.stroke}
                 strokeWidth="0.25"
-                strokeOpacity="0.65"
+                strokeOpacity="0.7"
               />
             );
           })}
-          {/* Centroid dot */}
-          <circle cx={cxBox} cy={cyBox} r="1.6" fill="none" stroke={c.solid} strokeWidth="0.5" opacity="0.65" />
+          {/* Centroid marker */}
+          <circle cx={cxBox} cy={cyBox} r="1.6" fill="none" stroke={c.solid} strokeWidth="0.5" opacity="0.75" />
           <circle cx={cxBox} cy={cyBox} r="0.8" fill={c.solid} />
         </svg>
         {live && (
-          <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-copper px-2.5 py-1 text-[10px] font-mono uppercase tracking-wide-caps text-primary-foreground">
+          <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-primary px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide-caps text-primary-foreground">
             <span className="relative inline-flex h-1.5 w-1.5">
               <span className="absolute inset-0 rounded-full bg-primary-foreground" />
-              <span className="absolute inset-0 rounded-full bg-primary-foreground opacity-60 animate-ping" />
+              <span className="absolute inset-0 animate-ping rounded-full bg-primary-foreground opacity-60" />
             </span>
             Live
           </span>
         )}
-        <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-card/85 px-2 py-1 text-[9px] font-mono uppercase tracking-wide-caps text-foreground/70 backdrop-blur">
+        <span className="absolute right-3 top-3 inline-flex items-center rounded-full bg-teal-900/75 px-2 py-1 font-mono text-[9px] uppercase tracking-wide-caps text-cream-50/75 ring-1 ring-cream-50/15 backdrop-blur">
           {storm.source}
+        </span>
+        {/* Mono coordinate readout — instrument texture */}
+        <span className="absolute bottom-2 left-3 font-mono-num text-[9px] tabular-nums text-cream-50/50">
+          {storm.centroid_lat.toFixed(2)}°N {Math.abs(storm.centroid_lng).toFixed(2)}°W
         </span>
       </div>
 
-      <div className="p-5">
-        <div className="flex items-start justify-between gap-3 mb-2">
+      <div className="p-6">
+        <div className="mb-2 flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="font-display text-xl font-medium tracking-tight-display text-foreground truncate">
+            <p className="truncate text-lg font-semibold tracking-tight text-foreground">
               {where?.label ?? "United States"}
               {where && where.miles >= 5 && where.miles <= 250 && (
-                <span className="font-mono-num text-xs font-normal text-muted-foreground/70 ml-1">
+                <span className="ml-1 font-mono-num text-xs font-normal tabular-nums text-muted-foreground/70">
                   · {where.miles}mi
                 </span>
               )}
             </p>
-            <p className="text-xs text-muted-foreground font-mono-num">
+            <p className="font-mono-num text-xs tabular-nums text-muted-foreground">
               {timeAgo(storm.start_time)} ·{" "}
               {new Date(storm.start_time).toLocaleDateString(undefined, {
                 month: "short",
@@ -290,23 +387,23 @@ function StormCard({ storm, live }: { storm: StormWithSwaths; live: boolean }) {
             </p>
           </div>
           <span
-            className="inline-flex h-12 w-14 shrink-0 flex-col items-center justify-center rounded-md ring-1 ring-foreground/15 shadow-sm"
+            className="inline-flex h-12 w-14 shrink-0 flex-col items-center justify-center rounded-md shadow-sm ring-1 ring-foreground/15"
             style={{ background: c.solid, color: badgeText }}
           >
-            <span className="font-mono-num text-sm font-medium leading-none">
+            <span className="font-mono-num text-sm font-medium leading-none tabular-nums">
               {storm.max_hail_size_in.toFixed(2)}″
             </span>
-            <span className="text-[9px] uppercase tracking-wide-caps font-mono leading-none mt-0.5 opacity-90">
+            <span className="mt-0.5 font-mono text-[9px] uppercase leading-none tracking-wide-caps opacity-90">
               {c.object}
             </span>
           </span>
         </div>
-        <p className="text-sm text-foreground/85 leading-relaxed">
+        <p className="text-sm leading-relaxed text-foreground/85">
           {describeStorm(storm, where?.label)}
         </p>
         <Link
           href={`/storm/${storm.id}`}
-          className="mt-4 inline-flex items-center gap-1 text-xs font-mono uppercase tracking-wide-caps text-copper hover:text-copper-700"
+          className="mt-3 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
         >
           See storm details <span aria-hidden>→</span>
         </Link>
@@ -338,27 +435,4 @@ function describeStorm(storm: StormWithSwaths, locationLabel?: string): string {
     return `${peak.toFixed(2)}″ ${obj}-size hail near ${where}. Surface damage probable on lighter roof materials. ${hourPhrase}${categoryPhrase}`;
   }
   return `${peak.toFixed(2)}″ hail near ${where}. ${hourPhrase || "Brief event."}${categoryPhrase}`;
-}
-
-function FinalCta() {
-  return (
-    <section className="border-t border-border bg-primary text-primary-foreground">
-      <div className="container py-16 text-center md:py-20">
-        <h2 className="font-display text-balance text-3xl font-medium tracking-tight-display md:text-4xl">
-          Want every storm on every address you care about?
-        </h2>
-        <p className="mx-auto mt-4 max-w-xl text-primary-foreground/80">
-          Save your customers, get alerted instantly, generate Hail Impact Reports for any address. $899/yr nationwide.
-        </p>
-        <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-          <Link href="/request-access" className="inline-flex items-center gap-2 rounded-md bg-copper px-5 py-3 text-sm font-medium text-primary-foreground shadow-atlas-lg hover:bg-copper-700">
-            Request access <span aria-hidden>→</span>
-          </Link>
-          <Link href="/pricing" className="inline-flex items-center gap-2 rounded-md border border-primary-foreground/20 bg-transparent px-5 py-3 text-sm font-medium text-primary-foreground hover:bg-primary-foreground/10">
-            See pricing
-          </Link>
-        </div>
-      </div>
-    </section>
-  );
 }

@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 import { ContourBg } from "@/components/brand/contour-bg";
+import { CtaBand } from "@/components/marketing/primitives";
 import { useStorms } from "@/hooks/useStorms";
 import { hailColor } from "@/lib/hail";
 import { nearestMetro } from "@/lib/metros";
@@ -12,10 +14,10 @@ import { cn } from "@/lib/utils";
 
 type WindowOpt = { id: string; label: string; days: number };
 const WINDOW_OPTS: WindowOpt[] = [
-  { id: "7d",  label: "Past 7 days",   days: 7 },
-  { id: "30d", label: "Past 30 days",  days: 30 },
-  { id: "90d", label: "Past 90 days",  days: 90 },
-  { id: "1y",  label: "Past year",     days: 365 },
+  { id: "7d",  label: "7 days",   days: 7 },
+  { id: "30d", label: "30 days",  days: 30 },
+  { id: "90d", label: "90 days",  days: 90 },
+  { id: "1y",  label: "1 year",   days: 365 },
 ];
 
 type SizeOpt = { id: string; label: string; min: number };
@@ -82,24 +84,22 @@ export default function StormCatalogPage() {
     <main className="bg-background text-foreground">
       <SiteHeader />
 
-      <section className="relative overflow-hidden bg-topo">
-        <ContourBg className="opacity-90" density="sparse" />
-        <div className="container relative pb-10 pt-16 md:pb-12 md:pt-20">
-          <p className="font-mono-num text-xs uppercase tracking-wide-caps text-copper">
-            Storm catalog · public
-          </p>
-          <h1 className="mt-2 font-display text-balance text-5xl font-medium leading-[1.05] tracking-tight-display text-foreground md:text-6xl">
+      <section className="relative overflow-hidden">
+        <ContourBg className="opacity-80" density="sparse" />
+        <div className="container relative max-w-6xl pb-10 pt-16 md:pb-12 md:pt-20">
+          <p className="eyebrow">Storm catalog · public</p>
+          <h1 className="display-1 mt-3 text-foreground">
             Every storm on the map.
           </h1>
-          <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
-            Indexed from NOAA MRMS &amp; NEXRAD. Filter by size, source, and
-            time. Click any row to see the full storm record and swath map.
+          <p className="mt-4 max-w-2xl text-base leading-[1.65] text-muted-foreground text-pretty">
+            Indexed from NOAA radar. Filter by hail size, source, and time —
+            open any row for the full storm record and swath map.
           </p>
         </div>
       </section>
 
-      <section className="border-b border-border bg-card">
-        <div className="container py-5 flex flex-wrap gap-4 items-end">
+      <section className="border-y border-border bg-secondary/40">
+        <div className="container flex max-w-6xl flex-wrap items-end gap-x-6 gap-y-4 py-5">
           <FilterGroup label="Window">
             {WINDOW_OPTS.map((o) => (
               <Chip key={o.id} active={win.id === o.id} onClick={() => setWin(o)}>
@@ -132,21 +132,24 @@ export default function StormCatalogPage() {
       </section>
 
       <section className="bg-background">
-        <div className="container py-10">
+        <div className="container max-w-6xl py-12 md:py-16">
           <div className="mb-5 flex items-baseline justify-between">
-            <p className="font-mono-num text-[11px] uppercase tracking-wide-caps text-foreground/55">
+            <p className="font-mono-num text-[11px] uppercase tracking-wide-caps tabular-nums text-foreground/55">
               Showing {storms.length} cell{storms.length === 1 ? "" : "s"}
             </p>
             {isLoading && (
-              <p className="font-mono-num text-[11px] uppercase tracking-wide-caps text-copper">
+              <p className="font-mono text-[11px] uppercase tracking-wide-caps text-primary">
                 Loading…
               </p>
             )}
           </div>
 
           {storms.length === 0 ? (
-            <div className="rounded-xl border border-border bg-card p-8 text-center">
-              <p className="font-display text-2xl text-foreground">
+            <div className="rounded-xl border border-border bg-card p-10 text-center">
+              <p className="font-mono text-[11px] uppercase tracking-wide-caps text-foreground/45">
+                No matches
+              </p>
+              <p className="mt-3 text-lg font-semibold tracking-tight text-foreground">
                 No storms match these filters.
               </p>
               <p className="mt-2 text-sm text-muted-foreground">
@@ -154,93 +157,127 @@ export default function StormCatalogPage() {
               </p>
             </div>
           ) : (
-            <ul className="rounded-xl border border-border bg-card overflow-hidden divide-y divide-border/60">
-              {storms.map((s) => {
-                const c = hailColor(s.max_hail_size_in);
-                const where = nearestMetro(s.centroid_lat, s.centroid_lng);
-                const heavy = s.max_hail_size_in >= 1.5;
-                return (
-                  <li key={s.id}>
-                    <Link
-                      href={`/storm/${s.id}`}
-                      className="grid grid-cols-[auto_1fr_auto] items-center gap-4 px-5 py-4 transition-colors hover:bg-secondary/30"
-                    >
-                      <span
-                        className="inline-flex h-12 w-14 flex-col items-center justify-center rounded-md ring-1 ring-foreground/15 shadow-sm"
-                        style={{ background: c.solid, color: heavy ? "#FAF7F1" : c.text }}
-                      >
-                        <span className="font-mono-num text-sm font-medium leading-none">
-                          {s.max_hail_size_in.toFixed(2)}″
-                        </span>
-                        <span className="text-[8px] uppercase tracking-wide-caps font-mono leading-none mt-0.5 opacity-90">
-                          {c.object}
-                        </span>
-                      </span>
-                      <div className="min-w-0">
-                        <p className="font-display text-lg font-medium tracking-tight-display text-foreground truncate">
-                          {where?.label ?? "United States"}
-                          {where && where.miles >= 5 && where.miles <= 250 && (
-                            <span className="font-mono-num text-xs font-normal text-muted-foreground/70 ml-1">
-                              · {where.miles}mi
-                            </span>
-                          )}
-                        </p>
-                        <p className="mt-0.5 text-xs font-mono-num text-muted-foreground">
-                          {new Date(s.start_time).toLocaleDateString(undefined, {
-                            month: "short",
-                            day: "2-digit",
-                            year: "numeric",
-                          })}{" "}
-                          · {timeAgo(s.start_time)} · {s.source}
-                        </p>
-                      </div>
-                      <span className="font-mono-num text-[11px] uppercase tracking-wide-caps text-foreground/40">
-                        See record →
-                      </span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+            <StormTable storms={storms} />
           )}
         </div>
       </section>
 
-      <section className="border-t border-border bg-primary text-primary-foreground">
-        <div className="container py-12 text-center md:py-16">
-          <h2 className="font-display text-balance text-3xl font-medium tracking-tight-display md:text-4xl">
-            Run this on your customer list.
-          </h2>
-          <p className="mx-auto mt-4 max-w-xl text-primary-foreground/80">
-            Hail GPS matches every saved address against every storm
-            automatically — no manual lookups, no missed claim windows.
-          </p>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            <Link
-              href="/request-access"
-              className="inline-flex items-center gap-2 rounded-md bg-copper px-5 py-3 text-sm font-medium text-primary-foreground hover:bg-copper-700"
-            >
-              Request access <span aria-hidden>→</span>
-            </Link>
-            <Link
-              href="/claim"
-              className="inline-flex items-center gap-2 rounded-md border border-primary-foreground/20 bg-transparent px-5 py-3 text-sm font-medium text-primary-foreground hover:bg-primary-foreground/10"
-            >
-              Look up an address
-            </Link>
-          </div>
-        </div>
-      </section>
+      <CtaBand
+        title="Run this on your customer list."
+        lede="Hail GPS matches every saved address against every storm automatically — no manual lookups, no missed claim windows."
+        primary={{ label: "Request access", href: "/request-access" }}
+        secondary={{ label: "Look up an address", href: "/claim" }}
+      />
 
       <SiteFooter />
     </main>
   );
 }
 
+/** Catalog table — mono numerals, hover rows, scrolls in its own container. */
+function StormTable({
+  storms,
+}: {
+  storms: ReturnType<typeof useStorms>["storms"];
+}) {
+  const router = useRouter();
+  return (
+    <div className="overflow-x-auto rounded-xl border border-border bg-card">
+      <table className="w-full min-w-[720px] text-sm">
+        <thead>
+          <tr className="border-b border-border text-left">
+            <Th>Size</Th>
+            <Th>Location</Th>
+            <Th className="text-right">Date</Th>
+            <Th className="text-right">Age</Th>
+            <Th className="text-right">Source</Th>
+            <Th className="text-right">
+              <span className="sr-only">Record</span>
+            </Th>
+          </tr>
+        </thead>
+        <tbody>
+          {storms.map((s) => {
+            const c = hailColor(s.max_hail_size_in);
+            const where = nearestMetro(s.centroid_lat, s.centroid_lng);
+            const heavy = s.max_hail_size_in >= 1.5;
+            return (
+              <tr
+                key={s.id}
+                onClick={() => router.push(`/storm/${s.id}`)}
+                className="cursor-pointer border-b border-border/60 transition-colors last:border-0 hover:bg-secondary/40"
+              >
+                <td className="px-5 py-3">
+                  <span
+                    className="inline-flex h-11 w-14 flex-col items-center justify-center rounded-md shadow-sm ring-1 ring-foreground/15"
+                    style={{ background: c.solid, color: heavy ? "#FAF7F1" : c.text }}
+                  >
+                    <span className="font-mono-num text-sm font-medium leading-none tabular-nums">
+                      {s.max_hail_size_in.toFixed(2)}″
+                    </span>
+                    <span className="mt-0.5 font-mono text-[8px] uppercase leading-none tracking-wide-caps opacity-90">
+                      {c.object}
+                    </span>
+                  </span>
+                </td>
+                <td className="max-w-[220px] px-5 py-3">
+                  <p className="truncate font-medium text-foreground">
+                    {where?.label ?? "United States"}
+                  </p>
+                  {where && where.miles >= 5 && where.miles <= 250 && (
+                    <p className="font-mono-num text-xs tabular-nums text-muted-foreground/70">
+                      {where.miles}mi from {where.metro.name}
+                    </p>
+                  )}
+                </td>
+                <td className="px-5 py-3 text-right font-mono-num text-xs tabular-nums text-muted-foreground">
+                  {new Date(s.start_time).toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "2-digit",
+                    year: "numeric",
+                  })}
+                </td>
+                <td className="px-5 py-3 text-right font-mono-num text-xs tabular-nums text-muted-foreground">
+                  {timeAgo(s.start_time)}
+                </td>
+                <td className="px-5 py-3 text-right font-mono text-xs uppercase tracking-wide-caps text-foreground/55">
+                  {s.source}
+                </td>
+                <td className="px-5 py-3 text-right">
+                  <Link
+                    href={`/storm/${s.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex min-h-11 items-center gap-1 whitespace-nowrap text-sm font-medium text-primary underline-offset-4 hover:underline"
+                  >
+                    Open <span aria-hidden>→</span>
+                  </Link>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function Th({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <th
+      className={cn(
+        "px-5 py-3 font-mono text-[10px] font-medium uppercase tracking-wide-caps text-foreground/55",
+        className,
+      )}
+    >
+      {children}
+    </th>
+  );
+}
+
 function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="mb-1.5 text-[10px] font-mono uppercase tracking-wide-caps text-foreground/55">
+      <p className="mb-1.5 font-mono text-[10px] uppercase tracking-wide-caps text-foreground/55">
         {label}
       </p>
       <div className="flex flex-wrap gap-1.5">{children}</div>
@@ -261,11 +298,12 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={cn(
-        "rounded-full px-3 py-1.5 text-xs font-medium font-mono-num transition-colors",
+        "inline-flex min-h-11 items-center rounded-md px-3.5 font-mono-num text-xs font-medium tabular-nums transition-colors",
         active
           ? "bg-primary text-primary-foreground"
-          : "bg-background text-foreground/75 border border-border hover:border-copper/50",
+          : "border border-border bg-background text-foreground/75 hover:bg-card hover:text-foreground",
       )}
     >
       {children}

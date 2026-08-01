@@ -106,22 +106,21 @@ export default function StateStormsPage({
       <section className="relative overflow-hidden bg-topo">
         <ContourBg className="opacity-90" density="sparse" />
         <div className="container relative pb-10 pt-16 md:pb-12 md:pt-20">
-          <p className="font-mono-num text-xs uppercase tracking-wide-caps text-copper">
+          <p className="eyebrow">
             <Link href="/storms" className="hover:text-copper-700">
               ← All storms
             </Link>{" "}
             · State catalog
           </p>
-          <h1 className="mt-2 font-display text-balance text-5xl font-medium leading-[1.05] tracking-tight-display text-foreground md:text-6xl">
+          <h1 className="display-1 mt-3 text-foreground">
             {stateName} hail · past year
           </h1>
-          <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
-            Every MRMS- and NEXRAD-detected hail cell whose footprint
-            sits inside {stateName} or its near border. Indexed in the
-            past 12 months.
+          <p className="mt-4 max-w-prose text-lg leading-[1.65] text-muted-foreground">
+            Every radar-detected hail cell whose footprint sits inside{" "}
+            {stateName} or its near border, from the past 12 months.
           </p>
           {filtered.length > 0 && peakColor && (
-            <div className="mt-6 inline-flex items-baseline gap-4 rounded-lg border border-border bg-card px-5 py-3">
+            <div className="mt-6 inline-flex items-baseline gap-4 rounded-xl border border-border bg-card px-5 py-3">
               <span className="font-mono-num text-[10px] uppercase tracking-wide-caps text-foreground/55">
                 {filtered.length} cells · peak
               </span>

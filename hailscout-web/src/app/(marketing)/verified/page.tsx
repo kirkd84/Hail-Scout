@@ -5,8 +5,10 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 import { ContourBg } from "@/components/brand/contour-bg";
+import { CtaBand } from "@/components/marketing/primitives";
 import { useStormsAtAddress } from "@/hooks/useStormsAtAddress";
 import { hailColor } from "@/lib/hail";
+import { cn } from "@/lib/utils";
 import { VerificationBadge } from "@/components/verification-badge";
 
 /**
@@ -21,7 +23,13 @@ export default function VerifiedPage() {
   return (
     <main className="bg-background text-foreground">
       <SiteHeader />
-      <Suspense fallback={<div className="container py-24 text-center text-muted-foreground">Loading…</div>}>
+      <Suspense
+        fallback={
+          <div className="container py-24 text-center font-mono text-sm uppercase tracking-wide-caps text-muted-foreground">
+            Loading…
+          </div>
+        }
+      >
         <VerifiedView />
       </Suspense>
       <SiteFooter />
@@ -46,15 +54,16 @@ function VerifiedView() {
 
   if (!haveCoords) {
     return (
-      <section className="container py-24 text-center max-w-xl">
-        <h1 className="font-display text-3xl font-medium tracking-tight-display text-foreground">
-          Verify a property
-        </h1>
-        <p className="mt-3 text-muted-foreground">
+      <section className="container max-w-xl py-24 text-center">
+        <h1 className="display-2 text-foreground">Verify a property</h1>
+        <p className="mt-4 max-w-prose text-muted-foreground">
           This page needs a location. Look up any address to generate a verified
           report you can share.
         </p>
-        <Link href="/claim" className="mt-6 inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground hover:bg-copper-700">
+        <Link
+          href="/claim"
+          className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-copper-700"
+        >
           Look up an address <span aria-hidden>→</span>
         </Link>
       </section>
@@ -69,41 +78,53 @@ function VerifiedView() {
 
   return (
     <>
-      <section className="relative overflow-hidden bg-topo">
-        <ContourBg className="opacity-90" density="sparse" />
-        <div className="container relative pb-10 pt-14 md:pt-20 text-center">
-          <p className="font-mono-num text-xs uppercase tracking-wide-caps text-copper">
-            {brand} · storm verification
-          </p>
-          <h1 className="mx-auto mt-3 max-w-3xl font-display text-balance text-4xl font-medium leading-[1.08] tracking-tight-display text-foreground md:text-5xl">
+      <section className="relative overflow-hidden">
+        <ContourBg className="opacity-80" density="sparse" />
+        <div className="container relative max-w-6xl pb-10 pt-14 text-center md:pt-20">
+          <p className="eyebrow">{brand} · storm verification</p>
+          {haveCoords && (
+            <p className="mt-2 font-mono-num text-[11px] tabular-nums text-foreground/45">
+              {(lat as number).toFixed(4)}°N {Math.abs(lng as number).toFixed(4)}°W
+            </p>
+          )}
+          <h1 className="display-1 mx-auto mt-3 max-w-3xl text-foreground">
             {label ?? "This property"}
           </h1>
         </div>
       </section>
 
-      <section className="bg-card border-y border-border">
-        <div className="container py-12 md:py-16 max-w-2xl">
+      <section className="border-y border-border bg-secondary/40">
+        <div className="container max-w-2xl py-12 md:py-16">
           {isLoading ? (
-            <p className="text-center text-muted-foreground">Checking NOAA &amp; NWS records…</p>
+            <p className="text-center font-mono text-sm uppercase tracking-wide-caps text-muted-foreground">
+              Checking NOAA &amp; NWS records…
+            </p>
           ) : hit ? (
             <div className="text-center">
               <div
-                className="mx-auto inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[11px] font-mono uppercase tracking-wide-caps"
-                style={{ background: confirmed ? "#2F7A4F1A" : "#0F4C5C14", color: confirmed ? "#2F7A4F" : "#0F4C5C" }}
+                className={cn(
+                  "mx-auto inline-flex items-center gap-2 rounded-full px-4 py-1.5 font-mono text-[11px] uppercase tracking-wide-caps ring-1",
+                  confirmed
+                    ? "bg-forest/10 text-forest ring-forest/30"
+                    : "bg-primary/10 text-primary ring-primary/30",
+                )}
               >
                 {confirmed ? "✓ Ground-truth confirmed" : "✓ Radar verified"}
               </div>
-              <p className="mt-6 text-sm uppercase tracking-wide-caps text-muted-foreground">
+              <p className="mt-6 font-mono text-[11px] uppercase tracking-wide-caps text-muted-foreground">
                 Largest hail on record here
               </p>
-              <p className="font-display text-7xl font-medium tracking-tight-display" style={{ color: c.solid }}>
+              <p
+                className="font-mono-num text-6xl font-medium tabular-nums md:text-7xl"
+                style={{ color: c.solid }}
+              >
                 {peak.toFixed(2)}″
               </p>
               <p className="mt-1 text-lg font-medium text-foreground">{c.object}</p>
-              <p className="mx-auto mt-4 max-w-md text-muted-foreground">
+              <p className="mx-auto mt-4 max-w-md leading-[1.65] text-muted-foreground">
                 {storms.length} hail event{storms.length === 1 ? "" : "s"} on record
-                at this location, cross-checked against NOAA MRMS, NEXRAD dual-pol
-                radar, and National Weather Service ground reports.
+                at this location, cross-checked against NOAA radar and National
+                Weather Service ground reports.
               </p>
 
               <ul className="mt-8 space-y-2 text-left">
@@ -114,9 +135,12 @@ function VerifiedView() {
                   .map((s) => {
                     const sc = hailColor(s.max_hail_size_in);
                     return (
-                      <li key={s.id} className="flex items-center gap-3 rounded-lg border border-border bg-background px-4 py-3">
+                      <li
+                        key={s.id}
+                        className="flex min-h-11 items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:bg-secondary/40"
+                      >
                         <span
-                          className="inline-flex h-10 w-12 shrink-0 items-center justify-center rounded-md font-mono-num text-xs font-medium ring-1 ring-foreground/15"
+                          className="inline-flex h-10 w-12 shrink-0 items-center justify-center rounded-md font-mono-num text-xs font-medium tabular-nums ring-1 ring-foreground/15"
                           style={{ background: sc.solid, color: s.max_hail_size_in >= 1.5 ? "#FAF7F1" : sc.text }}
                         >
                           {s.max_hail_size_in.toFixed(2)}″
@@ -137,10 +161,13 @@ function VerifiedView() {
             </div>
           ) : (
             <div className="text-center">
-              <p className="font-display text-3xl font-medium tracking-tight-display text-foreground">
+              <p className="font-mono text-[11px] uppercase tracking-wide-caps text-foreground/45">
+                All clear
+              </p>
+              <p className="display-2 mt-3 text-foreground">
                 No hail on record at this location.
               </p>
-              <p className="mt-3 text-muted-foreground">
+              <p className="mx-auto mt-3 max-w-prose text-muted-foreground">
                 In our indexed window, no verified hail events touched this exact
                 point.
               </p>
@@ -149,23 +176,15 @@ function VerifiedView() {
         </div>
       </section>
 
-      <section className="border-t border-border bg-primary text-primary-foreground">
-        <div className="container py-14 text-center md:py-16">
-          <h2 className="font-display text-balance text-2xl font-medium tracking-tight-display md:text-3xl">
-            {hit ? "Worth a free roof inspection." : "Check another address."}
-          </h2>
-          <p className="mx-auto mt-3 max-w-xl text-sm text-primary-foreground/80">
-            {hit
-              ? `Hail this size routinely damages roofing. ${brand} can document it for your insurance claim.`
-              : "Search any U.S. address to see its verified hail history."}
-          </p>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            <Link href="/claim" className="inline-flex items-center gap-2 rounded-md bg-copper px-5 py-3 text-sm font-medium text-primary-foreground shadow-atlas-lg hover:bg-copper-700">
-              Look up an address <span aria-hidden>→</span>
-            </Link>
-          </div>
-        </div>
-      </section>
+      <CtaBand
+        title={hit ? "Worth a roof inspection." : "Check another address."}
+        lede={
+          hit
+            ? `Hail this size routinely damages roofing. ${brand} can document it for your insurance claim.`
+            : "Search any U.S. address to see its verified hail history."
+        }
+        primary={{ label: "Look up an address", href: "/claim" }}
+      />
     </>
   );
 }

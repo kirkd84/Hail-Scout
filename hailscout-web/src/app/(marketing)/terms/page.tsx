@@ -13,11 +13,11 @@ export const metadata: Metadata = {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="mt-8">
-      <h2 className="font-display text-xl font-medium tracking-tight-display text-foreground">
+    <section className="mt-10">
+      <h2 className="text-xl font-semibold tracking-[-0.01em] text-foreground">
         {title}
       </h2>
-      <div className="mt-2 space-y-2 text-sm text-foreground/85 leading-relaxed">
+      <div className="mt-3 space-y-3 text-base leading-[1.65] text-foreground/85">
         {children}
       </div>
     </section>
@@ -28,19 +28,18 @@ export default function TermsOfServicePage() {
   return (
     <main className="bg-background text-foreground">
       <SiteHeader />
-      <div className="container max-w-2xl py-14">
-        <p className="font-mono-num text-[11px] uppercase tracking-wide-caps text-copper">
-          Legal
-        </p>
-        <h1 className="mt-1 font-display text-4xl font-medium tracking-tight-display text-foreground">
+      <div className="container max-w-2xl py-16 md:py-24">
+        <p className="eyebrow">Legal</p>
+        <h1 className="display-2 mt-3 text-foreground">
           Terms of Service
         </h1>
-        <p className="mt-2 font-mono-num text-xs text-muted-foreground">
+        <p className="mt-3 font-mono-num text-xs text-muted-foreground">
           Last updated: July 2026
         </p>
-        <div className="rule-atlas my-6" />
+        <div className="rule-atlas my-8" />
 
-        <p className="text-sm text-foreground/85 leading-relaxed">
+        <div className="max-w-prose">
+        <p className="text-base leading-[1.65] text-foreground/85">
           These Terms of Service (&quot;Terms&quot;) govern your access to and use of
           Hail GPS&apos;s website, web application, and mobile apps, and the storm
           intelligence, maps, alerts, and reports they provide (together, the
@@ -191,6 +190,7 @@ export default function TermsOfServicePage() {
             .
           </p>
         </Section>
+        </div>
       </div>
       <SiteFooter />
     </main>

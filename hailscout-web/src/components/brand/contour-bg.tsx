@@ -4,7 +4,13 @@
  * Decorative topographic contour background.
  *
  * Renders concentric, irregular contour rings reminiscent of a USGS
- * topographic map. Used behind hero sections and empty states.
+ * topographic map. Used behind hero sections, empty states, and the
+ * marketing CTA band.
+ *
+ * Rings draw with `currentColor` so callers can retint via a text-*
+ * class (default: text-foreground, which adapts to light/dark). Every
+ * fourth ring is an "index contour" — slightly heavier, like a real
+ * topo sheet. A single cyan storm trail crosses the field.
  *
  * The shapes are deterministic (seeded) so SSR + hydration match.
  */
@@ -32,7 +38,10 @@ export function ContourBg({ className, density = "normal", fadeBottom = true }: 
   });
 
   return (
-    <div className={cn("pointer-events-none absolute inset-0 overflow-hidden", className)} aria-hidden>
+    <div
+      className={cn("pointer-events-none absolute inset-0 overflow-hidden text-foreground", className)}
+      aria-hidden
+    >
       <svg
         className="h-full w-full"
         viewBox="0 0 100 100"
@@ -52,25 +61,25 @@ export function ContourBg({ className, density = "normal", fadeBottom = true }: 
             cx={cx}
             cy={cy}
             rx={r * 0.9}
-            ry={r * 0.6 + (wob * 0.3)}
+            ry={r * 0.6 + wob * 0.3}
             fill="none"
-            stroke="hsl(var(--teal-700))"
-            strokeWidth={i % 4 === 3 ? 0.18 : 0.1}
-            opacity={i % 4 === 3 ? 0.45 : 0.22}
+            stroke="currentColor"
+            strokeWidth={i % 4 === 3 ? 0.16 : 0.09}
+            opacity={i % 4 === 3 ? 0.3 : 0.14}
           />
         ))}
-        {/* A single copper trail — the storm path through the contours */}
+        {/* A single cyan trail — the storm path through the contours */}
         <path
           d="M5,72 Q28,55 48,62 T78,52 T98,40"
           fill="none"
           stroke="hsl(var(--copper-500))"
-          strokeWidth="0.5"
+          strokeWidth="0.4"
           strokeLinecap="round"
-          opacity="0.7"
+          opacity="0.55"
         />
-        <circle cx="48" cy="62" r="0.9" fill="hsl(var(--copper-500))" />
-        <circle cx="78" cy="52" r="0.9" fill="hsl(var(--copper-500))" />
-        <circle cx="98" cy="40" r="1.1" fill="hsl(var(--copper-500))" />
+        <circle cx="48" cy="62" r="0.7" fill="hsl(var(--copper-500))" opacity="0.8" />
+        <circle cx="78" cy="52" r="0.7" fill="hsl(var(--copper-500))" opacity="0.8" />
+        <circle cx="98" cy="40" r="0.9" fill="hsl(var(--copper-500))" opacity="0.8" />
       </svg>
     </div>
   );

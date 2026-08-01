@@ -30,19 +30,22 @@ export function Wordmark({ size = "md", pulse = false, className, href = "/" }: 
   const inner = (
     <span className={cn("inline-flex items-center gap-2.5 select-none", className)}>
       <span className="relative inline-flex" style={{ width: s.mark, height: s.mark }}>
+        {/* Two-tone radar mark: slate structure rings + cyan sweep/core.
+            Foreground-colored outer rings keep the mark legible on both
+            light and dark grounds; the cyan carries the energy. */}
         <svg
           viewBox="0 0 28 28"
           width={s.mark}
           height={s.mark}
-          className="text-primary"
+          className="text-foreground"
           fill="none"
           aria-hidden
         >
-          <circle cx="14" cy="14" r="11.5" stroke="currentColor" strokeWidth="1.1" opacity="0.9" />
-          <circle cx="14" cy="14" r="7.75"  stroke="currentColor" strokeWidth="1"   opacity="0.7" />
-          <circle cx="14" cy="14" r="4"     stroke="hsl(var(--copper-500))" strokeWidth="1.1" />
-          <path d="M5 14 Q14 7 23 14" stroke="hsl(var(--copper-500))" strokeWidth="1.2" strokeLinecap="round" />
-          <circle cx="14" cy="14" r="1.4" fill="hsl(var(--copper-500))" />
+          <circle cx="14" cy="14" r="11.5" stroke="currentColor" strokeWidth="1.2" opacity="0.8" />
+          <circle cx="14" cy="14" r="7.75"  stroke="currentColor" strokeWidth="1"   opacity="0.5" />
+          <circle cx="14" cy="14" r="4"     stroke="hsl(var(--copper-500))" strokeWidth="1.2" />
+          <path d="M5 14 Q14 7 23 14" stroke="hsl(var(--copper-500))" strokeWidth="1.3" strokeLinecap="round" />
+          <circle cx="14" cy="14" r="1.5" fill="hsl(var(--copper-500))" />
         </svg>
         {pulse && (
           <span
@@ -51,7 +54,7 @@ export function Wordmark({ size = "md", pulse = false, className, href = "/" }: 
           />
         )}
       </span>
-      <span className={cn("font-display font-medium tracking-tight-display text-foreground", s.text)}>
+      <span className={cn("font-display font-semibold tracking-tight-display text-foreground", s.text)}>
         Hail GPS
       </span>
     </span>
@@ -59,7 +62,9 @@ export function Wordmark({ size = "md", pulse = false, className, href = "/" }: 
 
   if (!href) return inner;
   return (
-    <Link href={href} className="inline-flex items-center" aria-label="Hail GPS home">
+    // min-h-11 keeps the home link at a 44px tap target without
+    // changing the mark's visual size.
+    <Link href={href} className="inline-flex min-h-11 items-center" aria-label="Hail GPS home">
       {inner}
     </Link>
   );

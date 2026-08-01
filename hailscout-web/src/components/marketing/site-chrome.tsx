@@ -1,12 +1,20 @@
 "use client";
 
 /**
- * Shared marketing header + footer.
+ * Shared marketing header + footer — "Storm Instrument" chrome.
  *
- * Mobile: the nav is a real menu rather than being hidden entirely — on a
- * phone the header previously offered only "Sign in" and "Get started", so
- * every other page was unreachable without scrolling to the footer. Tap
- * targets are held at 44px (the iOS/Android minimum) throughout.
+ * Header: wordmark + a curated inline nav (lg+) + Sign in / Request
+ * access per the button system, plus a menu button available at EVERY
+ * width. The menu panel indexes all marketing pages — previously the
+ * 11-link inline nav overflowed between md and xl, so the full index
+ * now lives in the menu and only five primary links render inline.
+ *
+ * Mobile behavior is intentionally preserved exactly: 44px tap targets
+ * throughout, the panel closes on navigation, and the page cannot
+ * scroll behind an open menu.
+ *
+ * Footer: brand line + grouped link grid with mono micro-labels and a
+ * quiet contour texture over the card ground.
  */
 
 import { useEffect, useState } from "react";
@@ -23,9 +31,18 @@ const NAV: { href: string; label: string }[] = [
   { href: "/stats", label: "By the numbers" },
   { href: "/accuracy", label: "Accuracy" },
   { href: "/claim", label: "Claim lookup" },
-  { href: "/case-studies", label: "Customers" },
+  { href: "/case-studies", label: "Playbooks" },
   { href: "/pricing", label: "Pricing" },
   { href: "/compare", label: "Compare" },
+];
+
+/** The short set that fits inline at lg+ — everything else is in the menu. */
+const PRIMARY_NAV: { href: string; label: string }[] = [
+  { href: "/#how", label: "How it works" },
+  { href: "/live", label: "Live storms" },
+  { href: "/storms", label: "Storm catalog" },
+  { href: "/accuracy", label: "Accuracy" },
+  { href: "/pricing", label: "Pricing" },
 ];
 
 export function SiteHeader() {
@@ -49,15 +66,15 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between gap-2">
+      <div className="container flex h-16 items-center justify-between gap-3">
         <Wordmark size="md" pulse />
 
-        <nav className="hidden items-center gap-6 md:flex">
-          {NAV.map((n) => (
+        <nav className="hidden items-center gap-1 lg:flex" aria-label="Primary">
+          {PRIMARY_NAV.map((n) => (
             <Link
               key={n.href}
               href={n.href}
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+              className="inline-flex min-h-11 items-center rounded-md px-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               {n.label}
             </Link>
@@ -74,17 +91,18 @@ export function SiteHeader() {
             Sign in
           </Link>
           <Link
-            href="/sign-in"
-            className="inline-flex min-h-11 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-atlas hover:bg-copper-700"
+            href="/request-access"
+            className="inline-flex min-h-11 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-copper-700 sm:px-5"
           >
-            Get started <span aria-hidden>→</span>
+            Request access
           </Link>
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
+            aria-controls="site-menu"
             aria-label={open ? "Close menu" : "Open menu"}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-md text-foreground transition-colors hover:bg-secondary md:hidden"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-md text-foreground transition-colors hover:bg-secondary"
           >
             <svg
               viewBox="0 0 24 24"
@@ -107,10 +125,11 @@ export function SiteHeader() {
 
       {open && (
         <nav
-          id="mobile-menu"
-          className="max-h-[calc(100vh-4rem)] overflow-y-auto border-t border-border bg-background md:hidden"
+          id="site-menu"
+          aria-label="All pages"
+          className="max-h-[calc(100vh-4rem)] overflow-y-auto border-t border-border bg-background"
         >
-          <div className="container flex flex-col py-2">
+          <div className="container grid grid-cols-1 py-2 pb-4 sm:grid-cols-2 sm:gap-x-8 lg:grid-cols-3">
             {NAV.map((n) => (
               <Link
                 key={n.href}
@@ -135,40 +154,83 @@ export function SiteHeader() {
   );
 }
 
-const FOOTER_LINKS: { href: string; label: string }[] = [
-  { href: "/live", label: "Live storms" },
-  { href: "/alerts", label: "Alerts" },
-  { href: "/storms", label: "Storm catalog" },
-  { href: "/stats", label: "By the numbers" },
-  { href: "/accuracy", label: "Accuracy" },
-  { href: "/pricing", label: "Pricing" },
-  { href: "/case-studies", label: "Customers" },
-  { href: "/claim", label: "Claim lookup" },
-  { href: "/api", label: "API" },
-  { href: "/sign-in", label: "Sign in" },
-  { href: "/privacy", label: "Privacy" },
-  { href: "/terms", label: "Terms" },
+const FOOTER_GROUPS: { label: string; links: { href: string; label: string }[] }[] = [
+  {
+    label: "Product",
+    links: [
+      { href: "/live", label: "Live storms" },
+      { href: "/alerts", label: "Alerts" },
+      { href: "/storms", label: "Storm catalog" },
+      { href: "/claim", label: "Claim lookup" },
+      { href: "/api", label: "API" },
+    ],
+  },
+  {
+    label: "Proof",
+    links: [
+      { href: "/accuracy", label: "Accuracy" },
+      { href: "/stats", label: "By the numbers" },
+      { href: "/case-studies", label: "Playbooks" },
+      { href: "/compare", label: "Compare" },
+    ],
+  },
+  {
+    label: "Get started",
+    links: [
+      { href: "/pricing", label: "Pricing" },
+      { href: "/request-access", label: "Request access" },
+      { href: "/sign-in", label: "Sign in" },
+    ],
+  },
+  {
+    label: "Legal",
+    links: [
+      { href: "/privacy", label: "Privacy" },
+      { href: "/terms", label: "Terms" },
+    ],
+  },
 ];
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-border bg-card">
-      <div className="container py-10 md:py-12">
-        <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center md:gap-8">
-          <Wordmark size="sm" />
-          {/* Two columns on a phone keeps the footer from becoming a very long
-              single list while still giving each link a real tap target. */}
-          <nav className="grid w-full grid-cols-2 gap-x-6 text-sm text-muted-foreground sm:w-auto sm:grid-cols-3 md:flex md:flex-wrap md:items-center md:gap-x-6">
-            {FOOTER_LINKS.map((l) => (
-              <Link
-                key={l.href + l.label}
-                href={l.href}
-                className="flex min-h-10 items-center transition-colors hover:text-foreground md:min-h-0"
-              >
-                {l.label}
-              </Link>
+    <footer className="section-contour border-t border-border bg-card">
+      <div className="container py-14 md:py-16">
+        <div className="grid gap-10 md:grid-cols-[1.2fr_2fr] lg:gap-16">
+          <div className="max-w-xs">
+            <Wordmark size="sm" />
+            <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+              Storm intelligence for roofing crews.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-4">
+            {FOOTER_GROUPS.map((g) => (
+              <nav key={g.label} aria-label={g.label}>
+                <p className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                  {g.label}
+                </p>
+                <ul className="mt-2">
+                  {g.links.map((l) => (
+                    <li key={l.href + l.label}>
+                      <Link
+                        href={l.href}
+                        className="flex min-h-11 items-center text-sm text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        {l.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
             ))}
-          </nav>
+          </div>
+        </div>
+        <div className="mt-12 flex flex-col gap-2 border-t border-border/60 pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+            © {new Date().getFullYear()} Hail GPS
+          </p>
+          <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground/70">
+            Built for the field
+          </p>
         </div>
       </div>
     </footer>

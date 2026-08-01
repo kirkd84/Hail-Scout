@@ -138,11 +138,11 @@ export function ActivityCalendar({ className }: { className?: string }) {
               x={week * (CELL + GAP)}
               y={12}
               fontSize={9}
+              letterSpacing={0.8}
               fontFamily="JetBrains Mono, ui-monospace, monospace"
-              fill="currentColor"
-              className="text-foreground/55"
+              fill="hsl(var(--foreground) / 0.55)"
             >
-              {label}
+              {label.toUpperCase()}
             </text>
           ))}
 
@@ -161,10 +161,9 @@ export function ActivityCalendar({ className }: { className?: string }) {
                   width={CELL}
                   height={CELL}
                   rx={2}
-                  fill={c?.solid ?? "currentColor"}
-                  className={c ? "" : "text-foreground/8"}
-                  opacity={c ? (hovered === cell.date ? 1 : 0.92) : 0.18}
-                  stroke={hovered === cell.date ? "#D87C4A" : "transparent"}
+                  fill={c?.solid ?? "hsl(var(--foreground))"}
+                  opacity={c ? (hovered === cell.date ? 1 : 0.92) : 0.14}
+                  stroke={hovered === cell.date ? "hsl(var(--primary))" : "transparent"}
                   strokeWidth={1.5}
                   onMouseEnter={() => setHovered(cell.date)}
                   style={{ cursor: bucket ? "pointer" : "default" }}

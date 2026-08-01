@@ -24,7 +24,7 @@ export function StormList({ storms, onStormClick }: StormListProps) {
       <div className="rounded-lg border border-border bg-card px-6 py-10 text-center">
         <p className="font-display text-lg text-foreground">No storms on record.</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          This address has no documented hail in the past 15 years.
+          This address has no documented hail on record (our archive reaches back to 2021).
         </p>
       </div>
     );

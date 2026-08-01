@@ -1,21 +1,30 @@
 import Link from "next/link";
 import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
+import { CtaBand, MarketingCard, SectionHeading } from "@/components/marketing/primitives";
 import { StatTicker } from "@/components/marketing/stat-ticker";
 import { ContourBg } from "@/components/brand/contour-bg";
 import { AtlasMapPreview } from "@/components/brand/atlas-map-preview";
 import { RoiCalculator } from "@/components/marketing/roi-calculator";
 import { HailOutlook } from "@/components/marketing/hail-outlook";
 import { LiveCountBadge } from "@/components/marketing/live-count-badge";
-import { TestimonialCarousel } from "@/components/marketing/testimonial-carousel";
+import { CrewUseCases } from "@/components/marketing/testimonial-carousel";
 import { LandingFaq } from "@/components/marketing/landing-faq";
 
 /**
- * Hail GPS marketing landing.
+ * Hail GPS marketing landing — "Storm Instrument".
  *
- * Direction: Topographic (cream + deep teal + copper).
- * Tone: editorial / field guide / cartographer authority.
- * Hierarchy borrowed from Apple product pages — generous whitespace,
- * one idea per fold, type as the hero, motion only where it earns it.
+ * The site reads like the product: a precision instrument for reading
+ * storms. Always-dark hero plate (the product map is dark in both
+ * themes), mono readouts for anything numeric, one cyan accent, and the
+ * warm hail ramp appearing only as data.
+ *
+ * Section grounds alternate bg → secondary/40 → bg:
+ *   Hero (always-dark) → How it works (bg) → Live outlook (secondary)
+ *   → ROI (bg) → Use cases (secondary) → FAQ (bg) → CtaBand.
+ *
+ * Honesty: every number on this page is either live from the public API
+ * (stat ticker, live cell count, SPC outlook) or a product capability —
+ * no invented customer stats, no fake timestamps, no fabricated quotes.
  */
 export default function HomePage() {
   return (
@@ -23,242 +32,142 @@ export default function HomePage() {
       <SiteHeader />
       <StatTicker />
       <Hero />
-      <Numbers />
       <HowItWorks />
-      <ProductSections />
-      <RoiCalculator />
       <HailOutlook />
-      <TestimonialCarousel />
+      <RoiCalculator />
+      <CrewUseCases />
       <LandingFaq />
-      <FinalCta />
+      <CtaBand
+        title="The next storm won't wait."
+        lede="Request access and your crew is on the map — we onboard your team directly, set up in a day."
+        primary={{ label: "Request access", href: "/request-access" }}
+        secondary={{ label: "See the live map", href: "/live" }}
+      />
       <SiteFooter />
     </main>
   );
 }
 
 /* ──────────────────────────────────────────────────────────
-   Header
-   ────────────────────────────────────────────────────────── */
-/* ──────────────────────────────────────────────────────────
-   Hero
+   Hero — always-dark instrument plate.
+   Mode-invariant inks (cream/teal/copper ramps) so it reads
+   like the product map in light mode too.
    ────────────────────────────────────────────────────────── */
 function Hero() {
   return (
-    <section className="relative overflow-hidden bg-topo">
-      <ContourBg className="opacity-90" density="normal" />
-      <div className="container relative grid gap-12 pb-24 pt-16 md:gap-16 md:pb-32 md:pt-24 lg:grid-cols-12 lg:items-center">
-        <div className="lg:col-span-6 animate-fade-up">
-          <LiveCountBadge className="mb-5" />
-          <h1 className="font-display text-balance text-5xl font-medium leading-[1.02] tracking-tight-display text-foreground md:text-6xl lg:text-7xl">
-            Every hailstorm,
-            <span className="block text-primary">on one map.</span>
-          </h1>
-          <p className="mt-6 max-w-xl text-pretty text-lg leading-relaxed text-muted-foreground md:text-xl">
-            Hail GPS is the field guide your crew opens every morning. Track
-            real-time hail swaths, fifteen years of history, and every address
-            worth a knock — before your competition does.
-          </p>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Link
-              href="/request-access"
-              className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground shadow-atlas transition-all hover:bg-copper-700"
-            >
-              Request access <span aria-hidden>→</span>
-            </Link>
-            <Link
-              href="#how"
-              className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-5 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-            >
-              See how it works
-            </Link>
+    <section className="relative overflow-hidden bg-teal-900">
+      <ContourBg className="text-cream-50 opacity-50" density="normal" />
+      <div className="container relative max-w-6xl">
+        <div className="grid gap-12 pb-16 pt-16 md:pt-24 lg:grid-cols-12 lg:items-center lg:gap-16">
+          <div className="animate-fade-up lg:col-span-6">
+            <LiveCountBadge className="mb-6" />
+            <h1 className="display-1 text-cream-50">
+              Every hailstorm,
+              <span className="block text-copper-300">on one map.</span>
+            </h1>
+            <p className="mt-6 max-w-xl text-pretty text-lg leading-[1.65] text-teal-200/90">
+              Hail GPS shows your crew where it hailed, how big it got, and
+              which roofs to knock — minutes after the storm, at any address.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <Link
+                href="/request-access"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-copper-700"
+              >
+                Request access <span aria-hidden>→</span>
+              </Link>
+              <Link
+                href="/live"
+                className="inline-flex min-h-11 items-center justify-center rounded-md border border-cream-50/25 px-5 text-sm font-medium text-cream-50 transition-colors hover:bg-cream-50/10"
+              >
+                See the live map
+              </Link>
+            </div>
+            <p className="mt-6 font-mono text-[11px] uppercase tracking-[0.14em] text-cream-50/40">
+              NOAA weather radar · address-level · no meteorology degree required
+            </p>
           </div>
-          <p className="mt-5 text-sm text-muted-foreground">
-            We onboard your crew directly — set up in a day.
-          </p>
+
+          <div className="animate-fade-up lg:col-span-6" style={{ animationDelay: "120ms" }}>
+            <AtlasMapPreview />
+            <div className="mt-3 flex items-center justify-between gap-4 font-mono text-[10px] uppercase tracking-[0.14em] text-cream-50/40">
+              <span className="font-mono-num">35.47°N 97.52°W · OKC metro</span>
+              <span>Sample plate · real size ramp</span>
+            </div>
+          </div>
         </div>
 
-        <div className="relative lg:col-span-6 animate-fade-up" style={{ animationDelay: "120ms" }}>
-          <AtlasMapPreview />
-          <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-            <span className="font-mono-num">PLATE 03 · DFW–OKC–ICT corridor</span>
-            <span className="font-mono-num">UPDATED 04/26 · 19:42 UTC</span>
-          </div>
-        </div>
+        <SpecStrip />
       </div>
     </section>
   );
 }
 
-/* ──────────────────────────────────────────────────────────
-   Trust numbers — small "stat" row in atlas style
-   ────────────────────────────────────────────────────────── */
-function Numbers() {
-  const stats = [
-    { v: "15 yrs", k: "of hail history, every address" },
-    { v: "2 min",  k: "from impact to your map" },
-    { v: "1 mi²", k: "swath resolution, NOAA MRMS" },
-    { v: "48 st",  k: "continental coverage" },
+/* Instrument spec strip — product capabilities, not performance claims. */
+function SpecStrip() {
+  const specs = [
+    { v: "2 min", k: "from radar to your map" },
+    { v: "1 mi²", k: "swath detail — NOAA weather radar" },
+    { v: "2021", k: "hail history back to, at any address" },
+    { v: "48", k: "states covered, coast to coast" },
   ];
   return (
-    <section className="border-y border-border bg-card">
-      <div className="container grid grid-cols-2 gap-8 py-10 md:grid-cols-4 md:py-12">
-        {stats.map((s) => (
-          <div key={s.k} className="flex flex-col gap-1">
-            <span className="font-display text-3xl font-medium tracking-tight-display text-primary md:text-4xl">{s.v}</span>
-            <span className="text-sm text-muted-foreground">{s.k}</span>
-          </div>
-        ))}
-      </div>
-    </section>
+    <div className="relative grid grid-cols-2 gap-x-6 gap-y-8 border-t border-cream-50/10 py-10 md:grid-cols-4">
+      {specs.map((s) => (
+        <div key={s.k}>
+          <p className="font-mono-num text-2xl font-medium text-cream-50 md:text-3xl">
+            {s.v}
+          </p>
+          <p className="mt-1 text-sm leading-snug text-cream-50/55">{s.k}</p>
+        </div>
+      ))}
+    </div>
   );
 }
 
 /* ──────────────────────────────────────────────────────────
-   How it works — three editorial steps
+   How it works — three genuinely sequential steps, so the
+   mono numerals mean something.
    ────────────────────────────────────────────────────────── */
 function HowItWorks() {
   const steps = [
     {
       n: "01",
-      title: "We watch the sky.",
+      title: "We watch the sky",
       body:
-        "Our pipeline ingests NOAA MRMS data every two minutes. The moment hail-bearing radar signatures cross a populated area, the swath appears on your map.",
+        "Hail GPS reads NOAA storm radar around the clock. When hail starts falling, the swath shows up on your map within minutes — while the storm is still moving.",
     },
     {
       n: "02",
-      title: "You see the opportunity.",
+      title: "You see every hit address",
       body:
-        "Open the map. Every storm, every address. Drop a pin, search a neighborhood, export a list of addresses with documented hail of any size.",
+        "Zoom into the neighborhood, tap any roof, and read the hail size at that exact address — today's storm or anything in the archive back to 2021.",
     },
     {
       n: "03",
-      title: "Your crew arrives first.",
+      title: "Your crew knocks first",
       body:
-        "Branded Hail Impact Reports generate in seconds. Your sales team rolls with proof. Insurance adjusters trust the source. You close before anyone else has parked.",
+        "Export the streets worth working and hand every homeowner a branded report with the storm date and hail size for their address.",
     },
   ];
   return (
     <section id="how" className="bg-background">
-      <div className="container py-24 md:py-32">
-        <div className="mx-auto max-w-2xl text-center">
-          <p className="font-mono-num text-xs uppercase tracking-wide-caps text-copper">How it works</p>
-          <h2 className="mt-3 font-display text-4xl font-medium tracking-tight-display text-foreground md:text-5xl">
-            From radar to roof in three steps.
-          </h2>
-        </div>
-        <div className="rule-atlas mx-auto mt-12 max-w-5xl" />
-        <div className="mt-16 grid gap-12 md:grid-cols-3">
-          {steps.map((s, i) => (
-            <article key={s.n} className="group relative animate-fade-up" style={{ animationDelay: `${i * 80}ms` }}>
-              <div className="font-mono-num text-xs text-copper">{s.n}</div>
-              <h3 className="mt-2 font-display text-2xl font-medium tracking-tight-display text-foreground">{s.title}</h3>
-              <p className="mt-3 text-pretty leading-relaxed text-muted-foreground">{s.body}</p>
-            </article>
+      <div className="container max-w-6xl py-24 md:py-32">
+        <SectionHeading
+          eyebrow="How it works"
+          title="From radar echo to knocked door."
+          lede="No radar training, no jargon. The pipeline does the meteorology; your crew gets streets and hail sizes."
+        />
+        <div className="mt-10 grid gap-5 md:mt-12 md:grid-cols-3">
+          {steps.map((s) => (
+            <MarketingCard key={s.n} className="p-7">
+              <p className="font-mono-num text-xs text-primary">{s.n}</p>
+              <h3 className="mt-3 text-xl font-semibold text-foreground">{s.title}</h3>
+              <p className="mt-2 text-base leading-[1.65] text-muted-foreground">{s.body}</p>
+            </MarketingCard>
           ))}
         </div>
       </div>
     </section>
   );
 }
-
-/* ──────────────────────────────────────────────────────────
-   Product sections — alternating image/text editorial layouts
-   ────────────────────────────────────────────────────────── */
-function ProductSections() {
-  return (
-    <section className="bg-card">
-      <div className="container space-y-24 py-24 md:space-y-32 md:py-32">
-        <ProductRow
-          flip={false}
-          eyebrow="Real-time + 15-year archive"
-          title="The whole sky, on one page."
-          body="Every storm we've ever indexed lives on the map. Filter by date, by hail size, by address. The interface gets out of the way — the map is the product."
-          stat={{ value: "1,200+", label: "storms indexed last quarter" }}
-        />
-        <ProductRow
-          flip
-          eyebrow="Reports that close deals"
-          title="Hail Impact Reports, in seconds."
-          body="A polished, branded PDF for every address. Hail size, swath polygon, dates, satellite proof links. Your customer doesn't have to take your word — the report does."
-          stat={{ value: "< 6 sec", label: "median report generation" }}
-        />
-        <ProductRow
-          flip={false}
-          eyebrow="Built for your team"
-          title="Multi-tenant by default."
-          body="One workspace per company. Crews, sales, ops — each with the right access. Add a teammate in 30 seconds. Scale across territories without re-architecting your stack."
-          stat={{ value: "Unlimited", label: "seats per workspace" }}
-        />
-      </div>
-    </section>
-  );
-}
-
-function ProductRow({
-  eyebrow,
-  title,
-  body,
-  stat,
-  flip,
-}: {
-  eyebrow: string;
-  title: string;
-  body: string;
-  stat: { value: string; label: string };
-  flip: boolean;
-}) {
-  return (
-    <div className="grid items-center gap-10 md:grid-cols-12 md:gap-16">
-      <div className={`md:col-span-6 ${flip ? "md:order-2" : ""}`}>
-        <p className="font-mono-num text-xs uppercase tracking-wide-caps text-copper">{eyebrow}</p>
-        <h3 className="mt-3 font-display text-3xl font-medium tracking-tight-display text-foreground md:text-4xl">{title}</h3>
-        <p className="mt-4 text-pretty leading-relaxed text-muted-foreground md:text-lg">{body}</p>
-        <div className="mt-8 inline-flex items-baseline gap-3 border-l-2 border-copper pl-4">
-          <span className="font-display text-3xl font-medium tracking-tight-display text-primary">{stat.value}</span>
-          <span className="text-sm text-muted-foreground">{stat.label}</span>
-        </div>
-      </div>
-      <div className={`md:col-span-6 ${flip ? "md:order-1" : ""}`}>
-        <AtlasMapPreview />
-      </div>
-    </div>
-  );
-}
-
-/* Testimonial moved to marketing/testimonial-carousel.tsx */
-
-/* ──────────────────────────────────────────────────────────
-   Final CTA — full-bleed copper accent
-   ────────────────────────────────────────────────────────── */
-function FinalCta() {
-  return (
-    <section className="relative overflow-hidden border-t border-border bg-primary text-primary-foreground">
-      <div className="container relative py-20 text-center md:py-28">
-        <h2 className="font-display text-balance text-4xl font-medium tracking-tight-display md:text-5xl">
-          The next storm is already forming.
-        </h2>
-        <p className="mx-auto mt-5 max-w-xl text-lg text-primary-foreground/80">
-          Start your trial. Be ready before it hits.
-        </p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Link
-            href="/request-access"
-            className="inline-flex items-center gap-2 rounded-md bg-copper px-6 py-3 text-sm font-medium text-primary-foreground shadow-atlas-lg transition-colors hover:bg-copper-700"
-          >
-            Request access <span aria-hidden>→</span>
-          </Link>
-          <Link
-            href="/pricing"
-            className="inline-flex items-center gap-2 rounded-md border border-primary-foreground/20 bg-transparent px-6 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-foreground/10"
-          >
-            See pricing
-          </Link>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ──────────────────────────────────────────────────────────
-   Footer
-   ────────────────────────────────────────────────────────── */

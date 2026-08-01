@@ -8,11 +8,11 @@ export const metadata: Metadata = {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="mt-8">
-      <h2 className="font-display text-xl font-medium tracking-tight-display text-foreground">
+    <section className="mt-10">
+      <h2 className="text-xl font-semibold tracking-[-0.01em] text-foreground">
         {title}
       </h2>
-      <div className="mt-2 space-y-2 text-sm text-foreground/85 leading-relaxed">
+      <div className="mt-3 space-y-3 text-base leading-[1.65] text-foreground/85">
         {children}
       </div>
     </section>
@@ -23,19 +23,18 @@ export default function PrivacyPolicyPage() {
   return (
     <main className="bg-background text-foreground">
       <SiteHeader />
-      <div className="container max-w-2xl py-14">
-      <p className="font-mono-num text-[11px] uppercase tracking-wide-caps text-copper">
-        Legal
-      </p>
-      <h1 className="mt-1 font-display text-4xl font-medium tracking-tight-display text-foreground">
+      <div className="container max-w-2xl py-16 md:py-24">
+      <p className="eyebrow">Legal</p>
+      <h1 className="display-2 mt-3 text-foreground">
         Privacy Policy
       </h1>
-      <p className="mt-2 font-mono-num text-xs text-muted-foreground">
+      <p className="mt-3 font-mono-num text-xs text-muted-foreground">
         Last updated: June 2026
       </p>
-      <div className="rule-atlas my-6" />
+      <div className="rule-atlas my-8" />
 
-      <p className="text-sm text-foreground/85 leading-relaxed">
+      <div className="max-w-prose">
+      <p className="text-base leading-[1.65] text-foreground/85">
         Hail GPS provides hail-storm intelligence for roofing and restoration
         contractors via our website, web app, and mobile apps (the
         &quot;Service&quot;). This policy explains what we collect, why, and the
@@ -128,6 +127,7 @@ export default function PrivacyPolicyPage() {
           .
         </p>
       </Section>
+      </div>
       </div>
       <SiteFooter />
     </main>

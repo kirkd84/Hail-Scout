@@ -2,44 +2,53 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { SectionHeading } from "@/components/marketing/primitives";
 
 interface QA {
   q: string;
   a: string;
 }
 
+/**
+ * Landing FAQ — honest answers, instrument styling.
+ *
+ * Content notes: the old footer link "how Ridgeline Roofing tripled their
+ * close rate" referenced an unverifiable customer and is removed, as is
+ * the "we have customers running both tools in parallel" claim (now a
+ * suggestion, not a customer anecdote). Everything else is kept.
+ */
 const FAQS: QA[] = [
   {
     q: "What does Hail GPS cost?",
-    a: "$899/year, flat. Unlimited team members, unlimited storms, nationwide coverage. No per-seat fees, no overage charges, no surprises. We charge a fraction of HailTrace ($3-8k/yr) and IHM ($1,999/yr) because the unit economics work and we'd rather earn through breadth than squeeze each customer.",
+    a: "$899/year, flat. Unlimited team members, unlimited storms, nationwide coverage. No per-seat fees, no overage charges, no surprises.",
   },
   {
     q: "Where does the hail data come from?",
-    a: "NOAA's Multi-Radar Multi-Sensor (MRMS) feed — the same source HailTrace, IHM, and most insurance carriers use. Real-time swaths refresh every 2 minutes during active storms. We run a lightweight pipeline that extracts hail polygons, indexes them by spatial bin, and surfaces matches at the address level.",
+    a: "NOAA weather radar — the same government source the big hail-mapping tools and most insurance carriers rely on. New data lands on your map about every 2 minutes during an active storm, and every storm is searchable by address afterward.",
   },
   {
     q: "How accurate is the hail-size estimate?",
-    a: "Hail detection (i.e., 'did hail fall here?') is 95%+ accurate. Individual size estimates carry ±0.25\" uncertainty — same as every other MRMS-based product on the market. For legal-grade claims, on-demand meteorologist review is available.",
+    a: "Radar hail sizes are estimates, not measurements — ours and everyone else's. Individual sizes carry roughly ±0.25\" of uncertainty, and we cross-check storms against ground reports where they exist. We publish our accuracy openly on the Accuracy page — measured against real ground truth, updated as storms are verified — instead of quoting a marketing number.",
   },
   {
     q: "Do you have a mobile app?",
-    a: "Yes. iOS + Android, native, with map and alerts. Markers and addresses sync automatically with the desktop. Available on the App Store and Google Play once we exit private beta — sign up and we'll TestFlight you the build today.",
+    a: "Yes. iOS + Android, native, with map and alerts. Markers and addresses sync automatically with the desktop. While we're in private beta we send you the TestFlight / Play build directly after onboarding.",
   },
   {
     q: "What integrations are supported?",
-    a: "Slack incoming-webhooks (out of the box). The product API is fully documented and CRM integrations (AccuLynx, JobNimbus, ServiceTitan) are on the immediate roadmap — talk to sales if you need a specific one.",
+    a: "Slack alerts out of the box, plus a documented public API you can point anything at. If you need a specific CRM connected, tell us at hello@hailgps.com and we'll talk it through.",
   },
   {
     q: "Can I switch from HailTrace or Interactive Hail Maps?",
-    a: "Yes. The switch takes about 10 minutes — paste your customer address list into the bulk-import tool, invite your team, configure Slack. Existing storms backfill automatically. We have customers running both tools in parallel for a week before cutting over; that pattern works well.",
+    a: "Yes. The switch takes about 10 minutes — paste your customer address list into the bulk-import tool, invite your team, configure Slack. Existing storms backfill automatically. Run Hail GPS alongside your current tool for a week and compare the same storms before you cut over.",
   },
   {
     q: "How do I get started?",
-    a: "Request access and we'll onboard your team directly — you'll see the same live map your customers rely on, on your own territory, before you commit.",
+    a: "Request access and we'll onboard your team directly — you'll see the same live map on your own territory before you commit.",
   },
   {
     q: "Who's behind Hail GPS?",
-    a: "A small team of weather data engineers and former roofing-software product folks. We've built this for crews who beat the storm to the door. Reach us at hello@hailgps.com — we read every email.",
+    a: "A small team building storm tools for roofing crews — part of the same family as PenSnap. Reach us at hello@hailgps.com; we read every email.",
   },
 ];
 
@@ -47,18 +56,15 @@ export function LandingFaq() {
   const [openIdx, setOpenIdx] = useState<number | null>(0);
 
   return (
-    <section className="bg-card border-y border-border" id="faq">
-      <div className="container py-24 md:py-32">
-        <div className="mx-auto max-w-2xl text-center mb-12">
-          <p className="font-mono-num text-xs uppercase tracking-wide-caps text-copper">
-            Frequently asked
-          </p>
-          <h2 className="mt-3 font-display text-4xl font-medium tracking-tight-display text-foreground md:text-5xl">
-            What people ask before signing up.
-          </h2>
-        </div>
+    <section className="bg-background" id="faq">
+      <div className="container max-w-6xl py-24 md:py-32">
+        <SectionHeading
+          align="center"
+          eyebrow="FAQ"
+          title="Straight answers."
+        />
 
-        <ul className="mx-auto max-w-3xl divide-y divide-border/60 rounded-xl border border-border bg-background overflow-hidden">
+        <ul className="mx-auto mt-10 max-w-3xl divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-card md:mt-12">
           {FAQS.map((item, i) => {
             const open = openIdx === i;
             return (
@@ -66,26 +72,30 @@ export function LandingFaq() {
                 <button
                   type="button"
                   onClick={() => setOpenIdx(open ? null : i)}
-                  className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition-colors hover:bg-secondary/30"
+                  className="flex min-h-11 w-full items-center justify-between gap-4 px-5 py-4 text-left transition-colors hover:bg-secondary/40"
                   aria-expanded={open}
                 >
-                  <span className="font-display text-lg font-medium tracking-tight-display text-foreground">
+                  <span className="text-base font-semibold text-foreground md:text-lg">
                     {item.q}
                   </span>
-                  <span
+                  <svg
+                    viewBox="0 0 16 16"
                     className={cn(
-                      "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border text-foreground/70 transition-all",
-                      open ? "rotate-45 border-copper text-copper" : "",
+                      "h-4 w-4 shrink-0 transition-transform",
+                      open ? "rotate-45 text-primary" : "text-muted-foreground",
                     )}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    aria-hidden
                   >
-                    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                      <path d="M8 3 L8 13 M3 8 L13 8" />
-                    </svg>
-                  </span>
+                    <path d="M8 3 L8 13 M3 8 L13 8" />
+                  </svg>
                 </button>
                 {open && (
-                  <div className="px-5 pb-5 -mt-1">
-                    <p className="text-pretty text-sm leading-relaxed text-muted-foreground md:text-base">
+                  <div className="-mt-1 px-5 pb-5">
+                    <p className="max-w-prose text-pretty text-sm leading-[1.65] text-muted-foreground md:text-base">
                       {item.a}
                     </p>
                   </div>
@@ -95,21 +105,18 @@ export function LandingFaq() {
           })}
         </ul>
 
-        <div className="mt-8 text-center space-y-2">
-          <p className="text-sm text-muted-foreground">
-            Still have questions?{" "}
-            <a href="mailto:hello@hailgps.com" className="text-copper hover:text-copper-700">
-              hello@hailgps.com
-            </a>
-            {" "}— we&apos;re a small team, expect a real reply.
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Or read{" "}
-            <a href="/case-studies" className="text-copper hover:text-copper-700">
-              how Ridgeline Roofing tripled their close rate →
-            </a>
-          </p>
-        </div>
+        <p className="mt-8 text-center text-sm text-muted-foreground">
+          Still have questions?{" "}
+          {/* Inline link: negative margin cancels the padding visually while
+              keeping a ≥44px tap target. */}
+          <a
+            href="mailto:hello@hailgps.com"
+            className="-my-3.5 inline-block py-3.5 text-primary hover:text-copper-700"
+          >
+            hello@hailgps.com
+          </a>{" "}
+          — we&apos;re a small team, expect a real reply.
+        </p>
       </div>
     </section>
   );

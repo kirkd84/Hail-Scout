@@ -1,11 +1,16 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { SectionHeading } from "@/components/marketing/primitives";
 
 /**
  * ROI calculator — gives prospects a concrete number to anchor on.
  * Inputs: crew size, avg ticket, close-rate lift.
  * Output: projected annual revenue lift + ROI multiple + payback time.
+ *
+ * Styled as an instrument: mono/tabular numerals for every readout,
+ * .slider-touch inputs (44px hit area), rounded-xl card, honest
+ * methodology note kept verbatim. The math is unchanged.
  */
 export function RoiCalculator() {
   const [crew, setCrew] = useState(4);
@@ -39,21 +44,18 @@ export function RoiCalculator() {
   };
 
   return (
-    <section className="bg-card border-y border-border">
-      <div className="container py-20 md:py-28">
-        <div className="mx-auto max-w-2xl text-center mb-10">
-          <p className="font-mono-num text-xs uppercase tracking-wide-caps text-copper">ROI calculator</p>
-          <h2 className="mt-3 font-display text-4xl font-medium tracking-tight-display text-foreground md:text-5xl">
-            What&apos;s Hail GPS worth to your crew?
-          </h2>
-          <p className="mt-4 text-pretty leading-relaxed text-muted-foreground">
-            Slide a few numbers around. We use conservative industry averages — you&apos;ll likely beat them.
-          </p>
-        </div>
+    <section className="bg-background">
+      <div className="container max-w-6xl py-24 md:py-32">
+        <SectionHeading
+          align="center"
+          eyebrow="ROI calculator"
+          title="What's being first worth?"
+          lede="Slide a few numbers around. We use conservative industry averages — you'll likely beat them."
+        />
 
-        <div className="mx-auto max-w-4xl rounded-xl border border-border bg-background shadow-atlas overflow-hidden">
-          <div className="grid md:grid-cols-2 gap-0">
-            <div className="p-7 md:p-8 space-y-7 border-b md:border-b-0 md:border-r border-border">
+        <div className="mx-auto mt-10 max-w-4xl overflow-hidden rounded-xl border border-border bg-card md:mt-12">
+          <div className="grid gap-0 md:grid-cols-2">
+            <div className="space-y-7 border-b border-border p-6 md:border-b-0 md:border-r md:p-7">
               <Slider
                 label="Crew size"
                 hint="Reps actively canvassing"
@@ -77,28 +79,29 @@ export function RoiCalculator() {
               />
             </div>
 
-            <div className="p-7 md:p-8 bg-secondary/30 space-y-6">
+            <div className="space-y-6 bg-secondary/40 p-6 md:p-7">
               <div>
-                <p className="font-mono-num text-[11px] uppercase tracking-wide-caps text-copper">
+                <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-primary">
                   Projected annual revenue lift
                 </p>
-                <p className="mt-2 font-display text-5xl font-medium tracking-tight-display text-primary leading-none">
+                <p className="mt-2 font-mono-num text-4xl font-semibold leading-none tracking-tight text-primary md:text-5xl">
                   {fmtMoney(calc.incrementalRevenue)}
                 </p>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  ~{Math.round(calc.incrementalDeals)} additional deals at {fmtMoney(ticket)} each
+                  ~<span className="font-mono-num">{Math.round(calc.incrementalDeals)}</span> additional
+                  deals at <span className="font-mono-num">{fmtMoney(ticket)}</span> each
                 </p>
               </div>
 
-              <div className="rule-atlas" />
+              <div className="h-px bg-border" />
 
               <div className="grid grid-cols-2 gap-4">
-                <Metric label="ROI vs. $899/yr" value={`${calc.roi.toFixed(0)}×`} tone="copper" />
+                <Metric label="ROI vs. $899/yr" value={`${calc.roi.toFixed(0)}×`} tone="primary" />
                 <Metric label="Payback time" value={fmtPayback(calc.paybackDays)} />
               </div>
 
-              <div className="rounded-md border border-copper/30 bg-copper/5 p-4">
-                <p className="text-xs leading-relaxed text-foreground/85">
+              <div className="rounded-md border border-border bg-background/60 p-4">
+                <p className="text-xs leading-relaxed text-muted-foreground">
                   Calculated against an industry-baseline close rate of 6% on cold canvassing and 25
                   additional doors-per-rep-per-month surfaced by Hail GPS. Real-world results vary by
                   territory density, sales process, and storm season.
@@ -120,27 +123,28 @@ function Slider({
 }) {
   return (
     <div>
-      <div className="flex items-baseline justify-between mb-2">
+      <div className="mb-1 flex items-baseline justify-between gap-4">
         <div>
-          <p className="font-mono-num text-[10px] uppercase tracking-wide-caps text-foreground/55">{label}</p>
-          <p className="text-xs text-muted-foreground">{hint}</p>
+          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+          <p className="text-xs text-muted-foreground/80">{hint}</p>
         </div>
-        <p className="font-display text-2xl font-medium tracking-tight-display text-foreground">{format(value)}</p>
+        <p className="font-mono-num text-xl font-medium text-foreground">{format(value)}</p>
       </div>
       <input
         type="range" min={min} max={max} step={step} value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="slider-touch w-full accent-copper cursor-pointer"
+        aria-label={label}
+        className="slider-touch w-full cursor-pointer"
       />
     </div>
   );
 }
 
-function Metric({ label, value, tone }: { label: string; value: string; tone?: "copper" }) {
+function Metric({ label, value, tone }: { label: string; value: string; tone?: "primary" }) {
   return (
     <div>
-      <p className="font-mono-num text-[10px] uppercase tracking-wide-caps text-foreground/55">{label}</p>
-      <p className={`mt-1 font-display text-3xl font-medium tracking-tight-display ${tone === "copper" ? "text-copper" : "text-foreground"}`}>
+      <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+      <p className={`mt-1 font-mono-num text-2xl font-semibold tracking-tight md:text-3xl ${tone === "primary" ? "text-primary" : "text-foreground"}`}>
         {value}
       </p>
     </div>

@@ -70,7 +70,7 @@ export default async function StormOG({
     (
       <div
         style={{
-          background: "#F5F1EA",
+          background: "#0F172A",
           width: "100%",
           height: "100%",
           display: "flex",
@@ -87,26 +87,26 @@ export default async function StormOG({
           style={{ position: "absolute", inset: 0, opacity: 0.55 }}
           xmlns="http://www.w3.org/2000/svg"
         >
-          <path d="M-50,420 Q300,360 600,400 T1250,360" fill="none" stroke="#0F4C5C" strokeWidth="2" opacity="0.18" />
-          <path d="M-50,360 Q300,300 600,340 T1250,300" fill="none" stroke="#0F4C5C" strokeWidth="2" opacity="0.14" />
-          <path d="M-50,300 Q300,240 600,280 T1250,240" fill="none" stroke="#0F4C5C" strokeWidth="2" opacity="0.10" />
-          <path d="M-50,240 Q300,180 600,220 T1250,180" fill="none" stroke="#0F4C5C" strokeWidth="2" opacity="0.07" />
-          <path d="M50,490 Q400,420 700,440 T1180,400" fill="none" stroke="#D87C4A" strokeWidth="2.6" opacity="0.55" />
+          <path d="M-50,420 Q300,360 600,400 T1250,360" fill="none" stroke="#334155" strokeWidth="2" opacity="0.18" />
+          <path d="M-50,360 Q300,300 600,340 T1250,300" fill="none" stroke="#334155" strokeWidth="2" opacity="0.14" />
+          <path d="M-50,300 Q300,240 600,280 T1250,240" fill="none" stroke="#334155" strokeWidth="2" opacity="0.10" />
+          <path d="M-50,240 Q300,180 600,220 T1250,180" fill="none" stroke="#334155" strokeWidth="2" opacity="0.07" />
+          <path d="M50,490 Q400,420 700,440 T1180,400" fill="none" stroke="#22D3EE" strokeWidth="2.6" opacity="0.55" />
         </svg>
 
         {/* Header — wordmark + record eyebrow */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <svg width="44" height="44" viewBox="0 0 28 28" fill="none">
-              <circle cx="14" cy="14" r="11" stroke="#0F4C5C" strokeWidth="1.4" />
-              <circle cx="14" cy="14" r="7" stroke="#0F4C5C" strokeWidth="1.2" />
-              <circle cx="14" cy="14" r="3.5" stroke="#D87C4A" strokeWidth="1.2" />
-              <path d="M5 14 Q14 7 23 14" stroke="#D87C4A" strokeWidth="1.2" strokeLinecap="round" />
-              <circle cx="14" cy="14" r="1.4" fill="#D87C4A" />
+              <circle cx="14" cy="14" r="11" stroke="#334155" strokeWidth="1.4" />
+              <circle cx="14" cy="14" r="7" stroke="#334155" strokeWidth="1.2" />
+              <circle cx="14" cy="14" r="3.5" stroke="#22D3EE" strokeWidth="1.2" />
+              <path d="M5 14 Q14 7 23 14" stroke="#22D3EE" strokeWidth="1.2" strokeLinecap="round" />
+              <circle cx="14" cy="14" r="1.4" fill="#22D3EE" />
             </svg>
-            <span style={{ fontSize: 30, color: "#2B2620", letterSpacing: -0.5, fontWeight: 500 }}>Hail GPS</span>
+            <span style={{ fontSize: 30, color: "#F8FAFC", letterSpacing: -0.5, fontWeight: 500 }}>Hail GPS</span>
           </div>
-          <span style={{ fontSize: 16, color: "#6B6052", letterSpacing: 2, textTransform: "uppercase" }}>
+          <span style={{ fontSize: 16, color: "#94A3B8", letterSpacing: 2, textTransform: "uppercase" }}>
             Storm record · {source}
           </span>
         </div>
@@ -130,14 +130,14 @@ export default async function StormOG({
               fontSize: 18,
               letterSpacing: 2,
               textTransform: "uppercase",
-              color: "#D87C4A",
+              color: "#22D3EE",
             }}
           >
             <span>{startDate}</span>
             {where && where.miles >= 5 && where.miles <= 250 && (
               <>
-                <span style={{ color: "#0F4C5C", opacity: 0.4 }}>·</span>
-                <span style={{ color: "#6B6052" }}>
+                <span style={{ color: "#334155", opacity: 0.4 }}>·</span>
+                <span style={{ color: "#94A3B8" }}>
                   ~{where.miles}mi from {where.metro.name}
                 </span>
               </>
@@ -146,7 +146,7 @@ export default async function StormOG({
           <div
             style={{
               fontSize: 88,
-              color: "#0F4C5C",
+              color: "#334155",
               lineHeight: 1.0,
               letterSpacing: -2,
               fontWeight: 500,
@@ -180,10 +180,10 @@ export default async function StormOG({
               </span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <span style={{ fontSize: 22, color: "#6B6052", textTransform: "uppercase", letterSpacing: 1.4 }}>
+              <span style={{ fontSize: 22, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1.4 }}>
                 Peak hail diameter
               </span>
-              <span style={{ fontSize: 26, color: "#2B2620", maxWidth: 600 }}>
+              <span style={{ fontSize: 26, color: "#F8FAFC", maxWidth: 600 }}>
                 {fallback
                   ? "Storm record not found"
                   : peak >= 2.0
@@ -203,7 +203,7 @@ export default async function StormOG({
             display: "flex",
             justifyContent: "space-between",
             alignItems: "baseline",
-            color: "#6B6052",
+            color: "#94A3B8",
             fontSize: 18,
           }}
         >

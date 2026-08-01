@@ -82,30 +82,30 @@ export function TopMetros({ className }: { className?: string }) {
               return (
                 <li key={`${row.name}-${row.state}`}>
                   <Link
-                    href={`/storms/state/${row.state}`}
-                    className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-secondary/30"
+                    href={`/storms/state/${row.state.toLowerCase()}`}
+                    className="flex min-h-11 items-center gap-3 px-5 py-3 transition-colors hover:bg-secondary/40"
                   >
-                    <span className="font-mono-num text-xs font-medium text-foreground/45 w-5">
-                      {i + 1}
+                    <span className="w-5 font-mono-num text-xs font-medium tabular-nums text-foreground/45">
+                      {String(i + 1).padStart(2, "0")}
                     </span>
                     <span
-                      className="inline-flex h-9 w-12 flex-col items-center justify-center rounded-md ring-1 ring-foreground/15 shadow-sm shrink-0"
+                      className="inline-flex h-9 w-12 shrink-0 flex-col items-center justify-center rounded-md shadow-sm ring-1 ring-foreground/15"
                       style={{ background: c.solid, color: row.peak >= 1.5 ? "#FAF7F1" : c.text }}
                     >
-                      <span className="font-mono-num text-xs font-medium leading-none">
+                      <span className="font-mono-num text-xs font-medium leading-none tabular-nums">
                         {row.peak.toFixed(2)}″
                       </span>
                     </span>
-                    <div className="flex-1 min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between">
-                        <p className="font-display text-base font-medium tracking-tight-display text-foreground truncate">
+                        <p className="truncate text-sm font-medium text-foreground">
                           {row.name}, {row.state}
                         </p>
-                        <p className="font-mono-num text-sm font-medium text-foreground shrink-0 ml-3">
+                        <p className="ml-3 shrink-0 font-mono-num text-sm font-medium tabular-nums text-foreground">
                           {row.count}
                         </p>
                       </div>
-                      <div className="h-1.5 mt-1.5 rounded-full bg-foreground/5 overflow-hidden">
+                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-foreground/5">
                         <div
                           className="h-full rounded-full transition-all"
                           style={{ width: `${pct}%`, background: c.solid, opacity: 0.85 }}
