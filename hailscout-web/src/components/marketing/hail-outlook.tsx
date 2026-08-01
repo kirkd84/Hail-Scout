@@ -52,14 +52,22 @@ export function HailOutlook() {
               What's coming next.
             </h2>
             <p className="mt-3 max-w-xl text-foreground/70 text-lg">
-              Plan the week from the map. Convective outlook, MRMS, and
-              regional risk mixed into one view your foreman can read at the
-              breakfast table.
+              Plan the week from the map. Hail risk by region, in one view your
+              foreman can read at the breakfast table — with alerts when the
+              odds climb in your territory.
+            </p>
+            <p className="mt-2 text-xs text-foreground/45">
+              Example layout — sign in for the live outlook.
             </p>
           </div>
-          <div className="hidden md:flex items-center gap-3 text-[11px] font-mono uppercase tracking-wide-caps text-foreground/55">
-            <span>Source:</span>
-            <span className="text-foreground">NWS SPC + MRMS</span>
+          {/* This grid is an ILLUSTRATION of the feature, not a live forecast —
+              the values are generated, not fetched. It used to be captioned
+              "Source: NWS SPC + MRMS", which claimed an NWS forecast we never
+              queried. Now that /v1/outlook/hail serves the real SPC day-1..3
+              hail probabilities, this should be rewired to that endpoint and
+              the label dropped. Until then it must not imply it is live. */}
+          <div className="hidden md:flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-[11px] font-mono uppercase tracking-wide-caps text-foreground/55">
+            <span>Example view</span>
           </div>
         </div>
 

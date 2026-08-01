@@ -6,6 +6,8 @@ Subcommands:
     once      - Ingest a specific GRIB2 file (debugging)
     loop      - Run `live` on an interval (for Railway worker mode)
     lsr       - Pull SPC daily hail Local Storm Reports (Phase 21)
+    radar     - Render the newest live MRMS radar frames (storm / hail
+                likely / hail size) as map-ready PNGs
 
 Usage:
     python -m hailscout_pipeline live
@@ -13,6 +15,7 @@ Usage:
     python -m hailscout_pipeline once /path/to/file.grib2
     python -m hailscout_pipeline loop --interval-seconds 300
     python -m hailscout_pipeline lsr --since 2026-05-17 --until 2026-05-18
+    python -m hailscout_pipeline radar --products mesh posh
 """
 from __future__ import annotations
 import argparse
@@ -40,6 +43,10 @@ from hailscout_pipeline.ingestion.mrms_client import (
     MRMSClient,
 )
 from hailscout_pipeline.ingestion.mping_client import MpingClient
+from hailscout_pipeline.ingestion.radar_frames import (
+    DEFAULT_PRODUCTS,
+    ingest_radar_frames,
+)
 from hailscout_pipeline.ingestion.spc_lsr_client import SpcLsrClient
 
 
@@ -227,6 +234,26 @@ def cmd_backfill(args: argparse.Namespace) -> int:
     return 0
 
 
+def _interval_env(name: str, default: int) -> int:
+    """Read a cadence from the environment without ever raising.
+
+    A bare int() here is a foot-gun: clearing a Railway variable's VALUE
+    (rather than deleting the variable) leaves an empty string, and "2m" is
+    an easy thing to type. Either would raise before the loop starts, so the
+    worker would crash-loop and take MESH ingestion down with it — not just
+    the job whose interval was mistyped. Negative means "disabled", same as 0.
+    """
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        log.warning("loop_bad_interval", var=name, value=raw, using=default)
+        return default
+    return max(0, value)
+
+
 def cmd_loop(args: argparse.Namespace) -> int:
     """Run `live` forever on an interval (Railway worker mode).
 
@@ -260,22 +287,33 @@ def cmd_loop(args: argparse.Namespace) -> int:
     # lets a ground report (e.g. a 1.5" Arvada LSR) reach the product within
     # minutes — previously LSRs were only ingested by a manual CLI run or the
     # one-time boot backfill, so live storms had zero ground truth. 0 disables.
-    lsr_interval = int(os.environ.get("LSR_LIVE_INTERVAL_S", "1200"))  # 20 min
-    last_lsr = 0.0
-    log.info("loop_start", interval_seconds=interval,
-             lsr_interval_seconds=lsr_interval)
-    while True:
-        try:
-            cmd_live(args)
-        except Exception as e:
-            log.exception("loop_iteration_failed", error=str(e))
+    lsr_interval = _interval_env("LSR_LIVE_INTERVAL_S", 1200)  # 20 min
+    # Live radar frames (storm / hail-likely / hail-size PNGs for the map).
+    # MRMS publishes every ~2 min and the frames are what make the map look
+    # ALIVE, so they get their own faster timer instead of riding the 5-min
+    # MESH cadence. 0 disables.
+    radar_interval = _interval_env("RADAR_INTERVAL_S", 120)
 
-        # Periodic ground-truth (SPC LSR) pull. First iteration runs it
-        # immediately so a freshly-(re)deployed worker seeds today's reports.
-        due = lsr_interval > 0 and (
-            last_lsr == 0.0 or (time.monotonic() - last_lsr) >= lsr_interval
-        )
-        if due:
+    # Each job carries its own next-due monotonic deadline, re-armed AFTER
+    # the job finishes (so a slow pull spaces itself out rather than
+    # stacking up). Jobs run immediately on the first pass so a freshly
+    # (re)deployed worker seeds everything without waiting an interval.
+    now = time.monotonic()
+    next_live = now
+    next_lsr = now if lsr_interval > 0 else None
+    next_radar = now if radar_interval > 0 else None
+    log.info("loop_start", interval_seconds=interval,
+             lsr_interval_seconds=lsr_interval,
+             radar_interval_seconds=radar_interval)
+    while True:
+        if time.monotonic() >= next_live:
+            try:
+                cmd_live(args)
+            except Exception as e:
+                log.exception("loop_iteration_failed", error=str(e))
+            next_live = time.monotonic() + interval
+
+        if next_lsr is not None and time.monotonic() >= next_lsr:
             today = datetime.now(timezone.utc)
             yday = today - timedelta(days=1)
             span = argparse.Namespace(
@@ -291,10 +329,21 @@ def cmd_loop(args: argparse.Namespace) -> int:
                 cmd_mping(span)
             except Exception:
                 log.exception("loop_mping_pull_failed")
-            last_lsr = time.monotonic()
+            next_lsr = time.monotonic() + lsr_interval
 
-        log.info("loop_sleep", seconds=interval)
-        time.sleep(interval)
+        if next_radar is not None and time.monotonic() >= next_radar:
+            try:
+                cmd_radar(argparse.Namespace(products=None))
+            except Exception:
+                log.exception("loop_radar_pull_failed")
+            next_radar = time.monotonic() + radar_interval
+
+        # Sleep only until the next job is due — a flat sleep(interval)
+        # would hold the 2-min radar cadence hostage to the 5-min MESH one.
+        due_at = [t for t in (next_live, next_lsr, next_radar) if t is not None]
+        sleep_for = max(1.0, min(due_at) - time.monotonic())
+        log.info("loop_sleep", seconds=round(sleep_for, 1))
+        time.sleep(sleep_for)
 
 
 def cmd_lsr(args: argparse.Namespace) -> int:
@@ -404,6 +453,21 @@ def cmd_mping(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_radar(args: argparse.Namespace) -> int:
+    """Render the newest live radar frame for each product + prune old ones.
+
+    Cheap and self-limiting: one S3 listing and at most one download per
+    product per run, and it no-ops when MRMS hasn't published a new
+    timestamp yet. Every failure inside is caught and logged, so this
+    returns 0 even when NOAA is down — the map just keeps showing the
+    last good frames until they age out of the retention window.
+    """
+    products = getattr(args, "products", None) or None
+    summary = ingest_radar_frames(products=products)
+    log.info("radar_done", **summary)
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(prog="hailscout-pipeline")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -449,6 +513,14 @@ def main() -> int:
     sp_mping.add_argument("--until",
                           help="ISO date (UTC), default = --since")
     sp_mping.set_defaults(func=cmd_mping)
+
+    sp_radar = sub.add_parser(
+        "radar",
+        help="Render the newest live MRMS radar frames as map-ready PNGs",
+    )
+    sp_radar.add_argument("--products", nargs="+", choices=DEFAULT_PRODUCTS,
+                          help=f"Default: {' '.join(DEFAULT_PRODUCTS)}")
+    sp_radar.set_defaults(func=cmd_radar)
 
     args = ap.parse_args()
     return int(args.func(args))

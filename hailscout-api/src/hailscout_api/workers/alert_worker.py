@@ -15,6 +15,8 @@ Tunables (env):
     ALERT_WORKER_INTERVAL_S   — sleep between passes (default 120)
     ALERT_WORKER_RUN_ONCE     — "1" to run a single pass and exit
                                 (useful for cron-style invocations)
+    HAIL_OUTLOOK_INTERVAL_S   — SPC hail-outlook ingest + notify cadence
+                                (default 3600; 0 disables)
 """
 
 from __future__ import annotations
@@ -29,7 +31,9 @@ from datetime import datetime, timezone
 from hailscout_api.config import get_settings
 from hailscout_api.db import session as db_session
 from hailscout_api.services.alert_generator import generate_alerts_for_all_orgs
+from hailscout_api.services.hail_outlook_alerts import notify_hail_outlooks
 from hailscout_api.services.lsr_linker import link_recent_lsrs
+from hailscout_api.services.spc_outlook import ingest_spc_outlooks
 from hailscout_api.services.storm_screener import screen_recent_storms
 
 log = logging.getLogger(__name__)
@@ -80,6 +84,20 @@ def _full_sweep_days() -> int:
         return 2200
 
 
+# SPC hail-outlook state. The outlook is a forecast that SPC re-issues a few
+# times a day, so it rides the same worker on a much slower cadence than the
+# 2-minute radar world — hourly catches every issuance with room to spare.
+_last_outlook_at: float = 0.0
+
+
+def _outlook_interval_s() -> int:
+    raw = os.environ.get("HAIL_OUTLOOK_INTERVAL_S", "3600")
+    try:
+        return max(0, int(raw))  # 0 = feature off
+    except ValueError:
+        return 3600
+
+
 async def _one_pass() -> dict:
     """One worker tick. Runs against fresh sessions:
 
@@ -92,11 +110,15 @@ async def _one_pass() -> dict:
          ground-truth-confirmed — this is what lights up verification
          tiers + the accuracy calibration across all 5 years.
       4. Generate + fan out alerts for every org.
+      5. On a slow cadence, refresh the SPC hail outlooks and notify any
+         alarm zone sitting under one ("45% chance of hail today").
 
     Order matters: link before screen/alerts so a freshly-confirmed cell
-    screens correctly and shows confirmed in any email that fires.
+    screens correctly and shows confirmed in any email that fires. The
+    outlook runs LAST and inside its own try/except — an SPC outage must
+    never delay or break storm alerting.
     """
-    global _last_full_sweep_at
+    global _last_full_sweep_at, _last_outlook_at
 
     factory = db_session._async_session_factory  # noqa: SLF001
     if factory is None:
@@ -152,11 +174,30 @@ async def _one_pass() -> dict:
     async with factory() as session:
         alert_summary = await generate_alerts_for_all_orgs(session)
 
+    # ── SPC hail outlooks (slow cadence, first tick immediate) ──
+    outlook_summary: dict = {}
+    o_interval = _outlook_interval_s()
+    if o_interval > 0 and (
+        _last_outlook_at == 0.0 or (now - _last_outlook_at) >= o_interval
+    ):
+        try:
+            async with factory() as session:
+                ingested = await ingest_spc_outlooks(session)
+            async with factory() as session:
+                notified = await notify_hail_outlooks(session)
+            outlook_summary = {"ingest": ingested, "notify": notified}
+            _last_outlook_at = now
+        except Exception:
+            log.exception("alert_worker.hail_outlook_failed")
+            # Retry in ~10 min rather than waiting out the whole hour.
+            _last_outlook_at = now - max(0.0, float(o_interval) - 600.0)
+
     return {
         "full_sweep": full_sweep_summary,
         "screen": screen_summary,
         "lsr_link": link_summary,
         "alerts_per_org": alert_summary,
+        "hail_outlook": outlook_summary,
     }
 
 
@@ -166,6 +207,7 @@ def _flat_counts(result: dict) -> dict:
     per_org = result.get("alerts_per_org", {}) or {}
     screen = result.get("screen", {}) or {}
     link = result.get("lsr_link", {}) or {}
+    outlook = result.get("hail_outlook", {}) or {}
 
     total = {
         "orgs": len(per_org),
@@ -177,6 +219,8 @@ def _flat_counts(result: dict) -> dict:
         "screened": screen.get("scanned", 0),
         "newly_suspect": screen.get("flagged_suspect", 0),
         "lsr_confirmed_cells": link.get("cells_confirmed", 0),
+        "outlooks_upserted": (outlook.get("ingest") or {}).get("upserted", 0),
+        "outlook_zones_notified": (outlook.get("notify") or {}).get("notified", 0),
     }
     for _org_id, s in per_org.items():
         if "error" in s:

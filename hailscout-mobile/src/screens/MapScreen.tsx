@@ -14,6 +14,7 @@ import * as MapLibreGL from "@maplibre/maplibre-react-native";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { useStorms } from "@/hooks/useStorms";
 import { useMarkers } from "@/hooks/useMarkers";
+import { useRadarFrames } from "@/hooks/useRadarFrames";
 import {
   MARKER_STATUSES,
   STATUS_COLOR_PAIRS,
@@ -25,6 +26,7 @@ import { theme, SPACING, RADIUS } from "@/lib/tokens";
 import { AppHeader } from "@/components/AppHeader";
 import { LocationButton } from "@/components/LocationButton";
 import { ColorLegend } from "@/components/ColorLegend";
+import { RadarControl, RadarLayers } from "@/components/LiveRadar";
 import type { MobileStorm } from "@/lib/storm-fixtures";
 import { apiRequest } from "@/lib/api";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
@@ -128,6 +130,17 @@ export function MapScreen() {
   // 30 days CONUS — same window the home screen uses. includeSwaths pulls
   // the band polygons so we render real filled swaths, not just centroids.
   const { storms, swaths } = useStorms({ daysBack: 30, includeSwaths: true });
+
+  // ── Live radar ───────────────────────────────────────────────────────
+  // Off by default: it's a today-only view and it costs data, so the rep
+  // opts in. The hook doesn't fetch at all while it's off.
+  const [radarOn, setRadarOn] = useState(false);
+  const {
+    latest: radarFrames,
+    newestValidTime: radarValidTime,
+    isLoading: radarLoading,
+    error: radarError,
+  } = useRadarFrames({ enabled: radarOn });
 
   // ── Storm-date filter ────────────────────────────────────────────────
   // null = every day in the window (the long-standing default). Pick a day
@@ -369,6 +382,15 @@ export function MapScreen() {
             <MapLibreGL.UserLocation animated />
           )}
 
+          {/* Live radar — declared first, and pinned below the swath fill,
+              so today's scan sits under the storm history and the cells
+              stay tappable. */}
+          <RadarLayers
+            frames={radarFrames}
+            visible={radarOn}
+            beforeId="hs-swaths-fill"
+          />
+
           {/* Hail SWATH bands — filled polygons, smallest-first stacking,
               colored by band size. Declared before centroids so the dots
               draw on top. Suspect (unverified) cells render dimmed. */}
@@ -485,6 +507,17 @@ export function MapScreen() {
           </Text>
           <Text style={[styles.datePillChevron, { color: t.fgMuted }]}>▾</Text>
         </TouchableOpacity>
+
+        {/* Live-radar toggle — sits under the date pill, left column. */}
+        <RadarControl
+          on={radarOn}
+          onToggle={() => setRadarOn((v) => !v)}
+          frames={radarFrames}
+          newestValidTime={radarValidTime}
+          isLoading={radarLoading}
+          error={radarError}
+          style={styles.radarWrap}
+        />
 
         {/* Day picker */}
         <Modal
@@ -886,6 +919,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 8,
+  },
+  // Directly under the date pill (16 top + ~34 pill + 8 gap), clear of the
+  // location FAB on the right and the legend at the bottom.
+  radarWrap: {
+    position: "absolute",
+    left: SPACING.lg,
+    top: SPACING.lg + 42,
+    maxWidth: "62%",
   },
   datePillIcon: { fontSize: 12 },
   datePillTxt: { fontSize: 12, fontWeight: "600", flexShrink: 1 },

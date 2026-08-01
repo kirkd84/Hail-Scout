@@ -10,8 +10,11 @@ import { StormsLayer } from "@/components/map/storms-layer";
 import { StormsHeatmapLayer } from "@/components/map/storms-heatmap-layer";
 import { StormsRasterLayer } from "@/components/map/storms-raster-layer";
 import { NexradStationsLayer } from "@/components/map/nexrad-stations-layer";
+import { LiveRadarLayer } from "@/components/map/live-radar-layer";
+import { LiveRadarControl } from "@/components/map/live-radar-control";
 import { TimeScrubber } from "@/components/map/time-scrubber";
 import { useStorms } from "@/hooks/useStorms";
+import { useLiveRadar } from "@/hooks/useRadarFrames";
 import { useViewportRaster } from "@/hooks/useViewportRaster";
 import { useStormRaster } from "@/hooks/useStormRaster";
 import { StormDatePicker } from "@/components/map/storm-date-picker";
@@ -268,6 +271,9 @@ export default function MapPage() {
     return d.toISOString();
   }, [singleDay, toDate]);
 
+  // Live radar overlay (opt-in — nothing is fetched until it's switched on).
+  const liveRadar = useLiveRadar();
+
   // Canvassing markers
   const { markers, add, update, remove } = useMarkers();
   const [dropMode, setDropMode] = useState(false);
@@ -405,6 +411,12 @@ export default function MapPage() {
         visible={viewMode === "heatmap"}
       />
       <NexradStationsLayer map={map} visible={showNexradStations} />
+      <LiveRadarLayer
+        map={map}
+        step={liveRadar.current}
+        steps={liveRadar.steps}
+        visible={liveRadar.enabled}
+      />
       <MarkersLayer
         map={map}
         markers={markers}
@@ -412,6 +424,10 @@ export default function MapPage() {
       />
 
       <AddressSearch onResultsChange={handleAddressSearch} />
+
+      {/* Live radar switch + legend. Rendered before the sweep panel so
+          that panel wins the top-right corner while it's open. */}
+      <LiveRadarControl radar={liveRadar} isMobile={isMobile} />
 
       {/* ── Desktop control surface ─────────────────────────────────────
           The storm-date picker is the primary panel (left); size/source/

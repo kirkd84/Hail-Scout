@@ -8,6 +8,11 @@ from hailscout_api.db.models.mfa import MfaSmsChallenge, TrustedDevice, UserMfaS
 from hailscout_api.db.models.ops import Alert, ContactExport, ImpactReport
 from hailscout_api.db.models.org import Organization, Seat, User
 from hailscout_api.db.models.parcel import Contact, Parcel
+from hailscout_api.db.models.radar import (
+    HailOutlook,
+    HailOutlookAlert,
+    RadarFrame,
+)
 from hailscout_api.db.models.storm import HailSwath, NexradFrame, Storm
 
 __all__ = [
@@ -18,6 +23,9 @@ __all__ = [
     "Storm",
     "HailSwath",
     "NexradFrame",
+    "RadarFrame",
+    "HailOutlook",
+    "HailOutlookAlert",
     "Parcel",
     "Contact",
     "MonitoredAddress",
