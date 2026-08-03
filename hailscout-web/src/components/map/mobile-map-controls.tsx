@@ -46,6 +46,8 @@ interface Props {
   selectedDates: string[];
   isRecentMode: boolean;
   onToggleDate: (day: string) => void;
+  /** Jump straight to any calendar date (the day list only shows fetched days). */
+  onJumpDate?: (day: string) => void;
   onMostRecent: () => void;
   onClear: () => void;
   showUnverified: boolean;
@@ -297,6 +299,34 @@ export function MobileMapControls(props: Props) {
           </SheetHeader>
 
           <div className="px-5 pb-8 pt-2">
+            {props.onJumpDate && (
+              <div className="mb-3 flex items-center gap-2">
+                <label
+                  htmlFor="mobile-date-jump"
+                  className="shrink-0 font-mono text-[10px] uppercase tracking-wide-caps text-foreground/55"
+                >
+                  Jump to date
+                </label>
+                <input
+                  id="mobile-date-jump"
+                  type="date"
+                  min="2021-01-01"
+                  max={new Date().toISOString().slice(0, 10)}
+                  value={
+                    props.selectedDates.length === 1 && !props.isRecentMode
+                      ? props.selectedDates[0]
+                      : ""
+                  }
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      props.onJumpDate!(e.target.value);
+                      setDateOpen(false);
+                    }
+                  }}
+                  className="min-h-11 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground focus:border-copper focus:outline-none [color-scheme:inherit]"
+                />
+              </div>
+            )}
             <div className="mb-2 flex items-center justify-between gap-3">
               <p className="text-[11px] text-muted-foreground">
                 Tap a day for one storm — or several to see repeat hits.

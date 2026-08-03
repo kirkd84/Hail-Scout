@@ -29,7 +29,11 @@ export function MapToolsMenu({
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="pointer-events-auto absolute bottom-6 left-4 z-20 flex flex-col items-start gap-2">
+    // Bottom-RIGHT: the storm-date picker owns the left rail (left-4 top-24,
+    // growing downward), so anchoring Tools at bottom-left overlapped it on
+    // shorter windows. The right corner is free on desktop (radar control
+    // sits top-right; the dock is bottom-center).
+    <div className="pointer-events-auto absolute bottom-6 right-4 z-20 flex flex-col items-end gap-2">
       {open && (
         <div className="w-48 overflow-hidden rounded-lg border border-border bg-card/95 shadow-panel backdrop-blur supports-[backdrop-filter]:bg-card/85">
           <button

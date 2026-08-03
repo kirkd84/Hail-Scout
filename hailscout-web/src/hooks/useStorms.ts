@@ -183,6 +183,10 @@ export interface UseStormsArgs {
    *  to return every storm in the from/to window (e.g. to build the date
    *  list itself). */
   dates?: string[] | null;
+  /** When false, don't fetch at all (and return an empty list). Lets a page
+   *  mount a second, conditionally-active storms query — hooks can't be
+   *  called conditionally, but their fetch can be. */
+  enabled?: boolean;
 }
 
 /** Storm with optional swath payload (when fetched with includeSwaths). */
@@ -208,6 +212,7 @@ export function useStorms(args: UseStormsArgs) {
     order,
     includeUnconfirmed = false,
     dates = null,
+    enabled = true,
   } = args;
   const fixtureMode = isFixtureMode();
 
@@ -227,7 +232,7 @@ export function useStorms(args: UseStormsArgs) {
   if (includeUnconfirmed) qsParams.include_unconfirmed = "true";
   if (dates && dates.length) qsParams.dates = dates.join(",");
   const qs = new URLSearchParams(qsParams);
-  const swrKey = fixtureMode ? null : `/v1/storms?${qs}`;
+  const swrKey = fixtureMode || !enabled ? null : `/v1/storms?${qs}`;
   const { data, error, isLoading, mutate } = useSWR<ApiStormsListResponse>(
     swrKey,
     (url: string) => apiClient.get<ApiStormsListResponse>(url),

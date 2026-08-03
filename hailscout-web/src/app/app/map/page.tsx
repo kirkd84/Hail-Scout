@@ -176,19 +176,61 @@ export default function MapPage() {
     setDateMode("custom");
   };
 
+  // ── Targeted fetch for hand-picked days ──────────────────────────
+  // The broad fetch above is zoom-windowed AND capped at the 200 most-recent
+  // cells, so in an active month older days (e.g. June, viewed in August)
+  // simply never arrive — the picker couldn't scroll past ~30 days back.
+  // When the rep explicitly picks days, fetch THOSE days server-side via the
+  // `dates` param, with a from/to window that actually covers them. The
+  // broad fetch stays as-is to feed the browse list.
+  const customActive = dateMode === "custom" && customDates.length > 0;
+  const customRange = useMemo(() => {
+    if (!customDates.length) return { from: fromDate, to: toDate };
+    const sorted = [...customDates].sort();
+    const pad = (iso: string, days: number) => {
+      const d = new Date(iso + "T00:00:00Z");
+      d.setUTCDate(d.getUTCDate() + days);
+      return d.toISOString().slice(0, 10);
+    };
+    return { from: pad(sorted[0], -1), to: pad(sorted[sorted.length - 1], 2) };
+  }, [customDates, fromDate, toDate]);
+  const { storms: targetedStorms } = useStorms({
+    bbox: viewportBbox,
+    from: customRange.from,
+    to: customRange.to,
+    limit: 200,
+    includeSwaths: true,
+    swathSimplify: 0.02,
+    source: source === "all" ? null : source,
+    includeUnconfirmed: showUnverified,
+    dates: customDates,
+    enabled: customActive,
+  });
+
+  /** Jump straight to any date (the picker's list only shows fetched days). */
+  const jumpToDate = (day: string) => {
+    setDateMode("custom");
+    setCustomDates([day]);
+  };
+
+  // In custom mode the targeted (server-side day-filtered) list is the source
+  // of truth; otherwise the broad fetch is.
+  const stormsForDays = customActive ? targetedStorms : storms;
+
   // Only the storms on the selected day(s) render on the map.
   const visibleStorms = useMemo(() => {
     if (!selectedDates.length) return [];
     const set = new Set(selectedDates);
-    return storms.filter((s) => set.has(utcDay(s.start_time)));
-  }, [storms, selectedDates]);
+    return stormsForDays.filter((s) => set.has(utcDay(s.start_time)));
+  }, [stormsForDays, selectedDates]);
 
   // Smooth raster surface (Phase 25) — one colorized image, scoped to the
   // selected day(s) via the `dates` param so only those storms burn in.
   const { raster: viewportRaster } = useViewportRaster({
     bbox: viewportBbox,
-    from: fromDate,
-    to: toDate,
+    // Cover hand-picked days even when they're outside the zoom window.
+    from: customActive ? customRange.from : fromDate,
+    to: customActive ? customRange.to : toDate,
     source: source === "all" ? null : source,
     minSize: size === "any" ? null : parseFloat(size),
     enabled: viewMode === "smooth" && selectedDates.length > 0,
@@ -235,7 +277,7 @@ export default function MapPage() {
     }
     const day = selectedDates[0];
     if (lastFitDayRef.current === day) return;
-    const dayStorms = storms.filter((s) => utcDay(s.start_time) === day);
+    const dayStorms = stormsForDays.filter((s) => utcDay(s.start_time) === day);
     if (!dayStorms.length) return;
     lastFitDayRef.current = day;
     let minLng = 180, minLat = 90, maxLng = -180, maxLat = -90;
@@ -258,7 +300,7 @@ export default function MapPage() {
     } catch {
       /* ignore */
     }
-  }, [map, dateMode, selectedDates, storms]);
+  }, [map, dateMode, selectedDates, stormsForDays]);
 
   // Time scrubber only makes sense inside a single day (replay of one storm);
   // hide it otherwise so it's not always-on clutter.
@@ -440,6 +482,7 @@ export default function MapPage() {
             selectedDates={selectedDates}
             isRecentMode={dateMode === "recent"}
             onToggleDate={toggleDate}
+            onJumpDate={jumpToDate}
             onMostRecent={() => setDateMode("recent")}
             onClear={() => {
               setDateMode("custom");
@@ -496,6 +539,7 @@ export default function MapPage() {
           selectedDates={selectedDates}
           isRecentMode={dateMode === "recent"}
           onToggleDate={toggleDate}
+          onJumpDate={jumpToDate}
           onMostRecent={() => setDateMode("recent")}
           onClear={() => {
             setDateMode("custom");

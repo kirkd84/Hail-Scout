@@ -53,6 +53,11 @@ interface Props {
   /** True when selection is auto-following "most recent" (vs hand-picked). */
   isRecentMode: boolean;
   onToggleDate: (date: string) => void;
+  /** Jump straight to ANY date — the list above only shows days present in
+   *  the current (zoom-windowed, capped) fetch, so older storms are
+   *  unreachable from it. This is the escape hatch: pick a calendar date and
+   *  the map fetches that day server-side. */
+  onJumpDate?: (date: string) => void;
   /** Snap back to "just the most recent storm". */
   onMostRecent: () => void;
   /** Clear the surface (show nothing until a day is picked). */
@@ -74,6 +79,7 @@ export function StormDatePicker({
   selectedDates,
   isRecentMode,
   onToggleDate,
+  onJumpDate,
   onMostRecent,
   onClear,
   scopeLabel,
@@ -170,11 +176,35 @@ export function StormDatePicker({
         </span>
       </button>
 
+      {/* Jump to any date — always visible when open, because the day list
+          below only covers what the current fetch returned. */}
+      {open && onJumpDate && (
+        <div className="flex items-center gap-2 border-b border-border/60 px-4 py-2.5">
+          <label
+            htmlFor="storm-date-jump"
+            className="shrink-0 font-mono-num text-[10px] uppercase tracking-wide-caps text-foreground/55"
+          >
+            Jump to date
+          </label>
+          <input
+            id="storm-date-jump"
+            type="date"
+            min="2021-01-01"
+            max={new Date().toISOString().slice(0, 10)}
+            value={selectedDates.length === 1 && !isRecentMode ? selectedDates[0] : ""}
+            onChange={(e) => {
+              if (e.target.value) onJumpDate(e.target.value);
+            }}
+            className="min-h-9 w-full rounded-md border border-border bg-background px-2 text-xs text-foreground focus:border-copper focus:outline-none [color-scheme:inherit]"
+          />
+        </div>
+      )}
+
       {open && days.length === 0 && (
         <p className="px-4 py-4 text-[12px] leading-snug text-muted-foreground">
           {isLoading
             ? "Loading storms…"
-            : "No storms found in this view. Pan or zoom out — or loosen the filters below."}
+            : "No storms found in this view. Pan or zoom out — pick any date above, or loosen the filters below."}
         </p>
       )}
 
