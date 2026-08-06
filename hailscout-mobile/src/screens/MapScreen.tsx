@@ -26,6 +26,7 @@ import { theme, SPACING, RADIUS } from "@/lib/tokens";
 import { AppHeader } from "@/components/AppHeader";
 import { LocationButton } from "@/components/LocationButton";
 import { ColorLegend } from "@/components/ColorLegend";
+import { MonthCalendar } from "@/components/MonthCalendar";
 import { RadarControl, RadarLayers } from "@/components/LiveRadar";
 import type { MobileStorm } from "@/lib/storm-fixtures";
 import { apiRequest } from "@/lib/api";
@@ -150,6 +151,7 @@ export function MapScreen() {
   const route = useRoute<RouteProp<MainTabsParamList, "Atlas">>();
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [dateOpen, setDateOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   // "See this day on the map" from elsewhere in the app (e.g. the Home
   // storm record) arrives as a route param.
@@ -177,23 +179,43 @@ export function MapScreen() {
       .sort((a, b) => (a.date < b.date ? 1 : -1));
   }, [storms]);
 
+  // A day picked from the calendar may be OLDER than the 30-day window, so it
+  // gets its own server-side fetch (the API filters by day, so the row cap
+  // can't crowd it out). Only active when the picked day isn't already among
+  // the days the rolling window returned.
+  const jumpDay =
+    selectedDay && !days.some((d) => d.date === selectedDay) ? selectedDay : null;
+  const { storms: jumpStorms, swaths: jumpSwaths, isLoading: jumpLoading } = useStorms({
+    daysBack: 30,
+    includeSwaths: true,
+    dates: jumpDay ? [jumpDay] : null,
+    enabled: !!jumpDay,
+  });
+
+  // When a jumped-to day is active its targeted result is the source of truth.
+  const sourceStorms = jumpDay ? jumpStorms : storms;
+  const sourceSwaths = jumpDay ? jumpSwaths : swaths;
+
   const visibleStorms = useMemo(
-    () => (selectedDay ? storms.filter((s) => utcDay(s.start_time) === selectedDay) : storms),
-    [storms, selectedDay],
+    () =>
+      selectedDay
+        ? sourceStorms.filter((s) => utcDay(s.start_time) === selectedDay)
+        : sourceStorms,
+    [sourceStorms, selectedDay],
   );
 
   // Keep the swath bands in step with the day filter (features carry the
   // storm_id they came from).
   const visibleSwaths = useMemo(() => {
-    if (!selectedDay) return swaths;
+    if (!selectedDay) return sourceSwaths;
     const ids = new Set(visibleStorms.map((s) => s.id));
     return {
       type: "FeatureCollection" as const,
-      features: swaths.features.filter((f) =>
+      features: sourceSwaths.features.filter((f) =>
         ids.has(String(f.properties?.storm_id ?? "")),
       ),
     };
-  }, [swaths, visibleStorms, selectedDay]);
+  }, [sourceSwaths, visibleStorms, selectedDay]);
 
   const fc = useMemo(() => buildFeatureCollection(visibleStorms), [visibleStorms]);
 
@@ -361,7 +383,9 @@ export function MapScreen() {
         title="Hail map"
         subtitle={
           selectedDay
-            ? `${visibleStorms.length} cells · ${dayLabel(selectedDay)}`
+            ? jumpLoading
+              ? `Loading ${dayLabel(selectedDay)}…`
+              : `${visibleStorms.length} cells · ${dayLabel(selectedDay)}`
             : `${storms.length} cells · past 30 days`
         }
       />
@@ -537,6 +561,32 @@ export function MapScreen() {
                 Pick a day to see just that storm, or show everything from the
                 past 30 days.
               </Text>
+
+              {/* Jump to any date — the list below only covers the last 30
+                  days, so older storms need the calendar. */}
+              <TouchableOpacity
+                onPress={() => setCalendarOpen((v) => !v)}
+                style={[styles.jumpBtn, { borderColor: calendarOpen ? t.primary : t.border }]}
+              >
+                <Text style={styles.jumpIcon}>🗓</Text>
+                <Text style={[styles.jumpTxt, { color: t.fg }]}>
+                  {calendarOpen ? "Hide calendar" : "Jump to any date…"}
+                </Text>
+              </TouchableOpacity>
+
+              {calendarOpen && (
+                <View style={[styles.calWrap, { borderColor: t.border }]}>
+                  <MonthCalendar
+                    value={selectedDay}
+                    onPick={(day) => {
+                      setSelectedDay(day);
+                      setCalendarOpen(false);
+                      setDateOpen(false);
+                      setSelected(null);
+                    }}
+                  />
+                </View>
+              )}
 
               <ScrollView style={styles.dateList}>
                 <TouchableOpacity
@@ -942,6 +992,24 @@ const styles = StyleSheet.create({
   dateEyebrow: { fontSize: 10, fontFamily: "Courier", letterSpacing: 1.4 },
   dateTitle: { fontSize: 22, fontWeight: "500", marginTop: 2 },
   dateHint: { fontSize: 12, lineHeight: 17, marginTop: 4 },
+  jumpBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    minHeight: 44,
+    borderWidth: 1,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.sm,
+    marginTop: SPACING.md,
+  },
+  jumpIcon: { fontSize: 14 },
+  jumpTxt: { fontSize: 14, fontWeight: "500" },
+  calWrap: {
+    borderWidth: 1,
+    borderRadius: RADIUS.md,
+    padding: SPACING.sm,
+    marginTop: SPACING.sm,
+  },
   dateList: { marginTop: SPACING.md },
   dayRow: {
     flexDirection: "row",

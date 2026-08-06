@@ -31,7 +31,8 @@
         "ITSAppUsesNonExemptEncryption": false
       },
       "entitlements": {
-        "com.apple.developer.usernotifications.time-sensitive": true
+        "com.apple.developer.usernotifications.time-sensitive": true,
+        "com.apple.developer.applesignin": ["Default"]
       },
       "buildNumber": "2"
     },

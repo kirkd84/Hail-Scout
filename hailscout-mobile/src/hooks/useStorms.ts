@@ -159,11 +159,22 @@ export function useStorms(opts?: {
   daysBack?: number;
   limit?: number;
   includeSwaths?: boolean;
+  /** Fetch specific UTC days (YYYY-MM-DD) server-side instead of the rolling
+   *  `daysBack` window. This is how "jump to any date" reaches storms older
+   *  than the window — the API filters by day, so the row cap can't crowd
+   *  them out. */
+  dates?: string[] | null;
+  /** When false the hook doesn't fetch at all (hooks can't be conditional,
+   *  but their network call can). */
+  enabled?: boolean;
 }): UseStormsState & { refresh: () => Promise<void> } {
   const bbox = opts?.bbox ?? ([-125, 24, -66, 50] as [number, number, number, number]);
   const daysBack = opts?.daysBack ?? 30;
   const limit = opts?.limit ?? 50;
   const includeSwaths = opts?.includeSwaths ?? false;
+  const dates = opts?.dates ?? null;
+  const enabled = opts?.enabled ?? true;
+  const datesKey = dates?.join(",") ?? "";
 
   const [state, setState] = useState<UseStormsState>({
     storms: [],
@@ -173,17 +184,40 @@ export function useStorms(opts?: {
   });
 
   const fetchStorms = async () => {
+    if (!enabled) {
+      setState({ storms: [], swaths: EMPTY_FC, isLoading: false, error: null });
+      return;
+    }
     setState((s) => ({ ...s, isLoading: true, error: null }));
     try {
-      const to = new Date();
-      const from = new Date(to.getTime() - daysBack * 86_400_000);
+      // Targeted day fetch: window the request around the picked day(s) so a
+      // date months back is actually reachable. Otherwise the usual rolling
+      // window.
+      let fromStr: string;
+      let toStr: string;
+      if (dates && dates.length) {
+        const sorted = [...dates].sort();
+        const shift = (iso: string, days: number) => {
+          const d = new Date(iso + "T00:00:00Z");
+          d.setUTCDate(d.getUTCDate() + days);
+          return d.toISOString().slice(0, 10);
+        };
+        fromStr = shift(sorted[0], -1);
+        toStr = shift(sorted[sorted.length - 1], 2);
+      } else {
+        const to = new Date();
+        const from = new Date(to.getTime() - daysBack * 86_400_000);
+        fromStr = from.toISOString().slice(0, 10);
+        toStr = to.toISOString().slice(0, 10);
+      }
       const qs = new URLSearchParams({
         bbox: bbox.join(","),
-        from: from.toISOString().slice(0, 10),
-        to: to.toISOString().slice(0, 10),
+        from: fromStr,
+        to: toStr,
         limit: String(limit),
         include_unconfirmed: "true",
       });
+      if (dates && dates.length) qs.set("dates", dates.join(","));
       if (includeSwaths) {
         qs.set("include", "swaths");
         qs.set("simplify", "0.01");
@@ -210,7 +244,7 @@ export function useStorms(opts?: {
   useEffect(() => {
     void fetchStorms();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bbox.join(","), daysBack, limit, includeSwaths]);
+  }, [bbox.join(","), daysBack, limit, includeSwaths, datesKey, enabled]);
 
   return { ...state, refresh: fetchStorms };
 }
