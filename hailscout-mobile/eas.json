@@ -55,6 +55,11 @@
     "production": {
       "android": {
         "track": "production"
+      },
+      "ios": {
+        "ascApiKeyPath": "C:/Claude Working Folder/Hail-Scout/AuthKey_X94NV7VG65.p8",
+        "ascApiKeyId": "X94NV7VG65",
+        "ascApiKeyIssuerId": "4e5fbdfe-698b-4f0b-876b-3e023d0755ab"
       }
     },
     "preview": {
