@@ -143,3 +143,7 @@ logs/
 
 # Local swath-render tuning harness (venv + scratch PNGs)
 _swath_tuning/
+
+# Apple signing keys — private credentials, never commit
+*.p8
+AuthKey_*.p8
