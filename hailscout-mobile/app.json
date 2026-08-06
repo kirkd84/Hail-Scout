@@ -34,11 +34,11 @@
         "com.apple.developer.usernotifications.time-sensitive": true,
         "com.apple.developer.applesignin": ["Default"]
       },
-      "buildNumber": "3"
+      "buildNumber": "4"
     },
     "android": {
       "package": "com.hailscout.app",
-      "versionCode": 5,
+      "versionCode": 6,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0F172A"

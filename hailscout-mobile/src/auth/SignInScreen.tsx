@@ -86,8 +86,15 @@ export function SignInScreen() {
       .catch(() => setAppleAvailable(false));
   }, []);
 
-  const googleConfigured = !!(env.GOOGLE_ANDROID_CLIENT_ID || env.GOOGLE_IOS_CLIENT_ID);
+  // Per-platform: Google needs the client id for the platform it's RUNNING on.
+  // An `||` across both would light the button up on iOS whenever the Android id
+  // exists, and the request would then go out with the placeholder id and fail.
+  const googleConfigured =
+    Platform.OS === "ios" ? !!env.GOOGLE_IOS_CLIENT_ID : !!env.GOOGLE_ANDROID_CLIENT_ID;
   const microsoftConfigured = !!env.MICROSOFT_CLIENT_ID;
+  // Unconfigured providers are hidden outright rather than shown disabled — a
+  // dead button reads as a broken app to a store reviewer.
+  const anySocial = googleConfigured || microsoftConfigured || appleAvailable;
 
   const onApplePress = async () => {
     setError(null);
@@ -274,34 +281,40 @@ export function SignInScreen() {
             <Text style={[styles.link, { color: t.fgMuted }]}>Forgot password?</Text>
           </Pressable>
 
-          <View style={styles.dividerRow}>
-            <View style={[styles.divider, { backgroundColor: t.border }]} />
-            <Text style={[styles.dividerText, { color: t.fgMuted }]}>or</Text>
-            <View style={[styles.divider, { backgroundColor: t.border }]} />
-          </View>
+          {anySocial && (
+            <View style={styles.dividerRow}>
+              <View style={[styles.divider, { backgroundColor: t.border }]} />
+              <Text style={[styles.dividerText, { color: t.fgMuted }]}>or</Text>
+              <View style={[styles.divider, { backgroundColor: t.border }]} />
+            </View>
+          )}
 
-          <ProviderButton
-            label="Continue with Google"
-            loading={busy === "google"}
-            disabled={busy !== null || !googleConfigured}
-            onPress={() => {
-              setError(null);
-              setBusy("google");
-              void gPrompt();
-            }}
-            t={t}
-          />
-          <ProviderButton
-            label="Continue with Microsoft"
-            loading={busy === "microsoft"}
-            disabled={busy !== null || !mReq || !microsoftConfigured}
-            onPress={() => {
-              setError(null);
-              setBusy("microsoft");
-              void mPrompt();
-            }}
-            t={t}
-          />
+          {googleConfigured && (
+            <ProviderButton
+              label="Continue with Google"
+              loading={busy === "google"}
+              disabled={busy !== null}
+              onPress={() => {
+                setError(null);
+                setBusy("google");
+                void gPrompt();
+              }}
+              t={t}
+            />
+          )}
+          {microsoftConfigured && (
+            <ProviderButton
+              label="Continue with Microsoft"
+              loading={busy === "microsoft"}
+              disabled={busy !== null || !mReq}
+              onPress={() => {
+                setError(null);
+                setBusy("microsoft");
+                void mPrompt();
+              }}
+              t={t}
+            />
+          )}
           {appleAvailable && (
             <AppleAuthentication.AppleAuthenticationButton
               buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
