@@ -46,7 +46,9 @@ WHAT YOU CAN DO
 BUILT FOR THE FIELD
 Whether you're a roofer, a restoration pro, or running a storm crew, Hail GPS is made to be used from the truck and the doorstep — fast, clear, and honest about what's real.
 
-Sign in with Apple, Google, or Microsoft to get started.
+Sign in with your email and password, or with Apple or Microsoft.
+
+Hail GPS is a tool for working crews. Accounts are set up by your company administrator rather than by signing up in the app.
 ```
 
 **What's New** (v1.0.0 release notes)
