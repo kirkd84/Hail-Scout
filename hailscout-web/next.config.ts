@@ -22,6 +22,26 @@ const config: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  // The pre-rebrand domain still resolves to this same app, which quietly broke
+  // social sign-in: the OAuth state cookie is written on the host the user
+  // started from (www.hailgps.com), Google is still registered to return to
+  // hailscout.net, and that host cannot read the cookie — so every Google /
+  // Microsoft / Apple sign-in died with `invalid_state`.
+  //
+  // Sending the old host here fixes it without touching any OAuth console:
+  // Google still returns to the registered hailscout.net callback, this
+  // redirect forwards it on to www.hailgps.com carrying `code` and `state`
+  // (Next preserves the query string), and the cookie is waiting there.
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "(www\\.)?hailscout\\.net" }],
+        destination: "https://www.hailgps.com/:path*",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default config;
