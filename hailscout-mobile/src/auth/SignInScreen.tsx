@@ -6,6 +6,10 @@ import {
   StyleSheet,
   useColorScheme,
   ActivityIndicator,
+  TextInput,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import * as AppleAuthentication from "expo-apple-authentication";
@@ -20,7 +24,10 @@ import {
 import { theme, SPACING, RADIUS } from "@/lib/tokens";
 import { Wordmark } from "@/components/Wordmark";
 import { useAuth } from "@/auth/AuthProvider";
+import { MfaRequiredError } from "@/auth/session";
 import { env } from "@/app/env";
+
+const FORGOT_PASSWORD_URL = "https://www.hailgps.com/forgot-password";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -35,9 +42,41 @@ const GOOGLE_PLACEHOLDER = "unconfigured.apps.googleusercontent.com";
 export function SignInScreen() {
   const scheme = useColorScheme();
   const t = theme(scheme);
-  const { completeSignIn } = useAuth();
-  const [busy, setBusy] = useState<null | "google" | "microsoft" | "apple">(null);
+  const { completeSignIn, signInWithPassword } = useAuth();
+  const [busy, setBusy] = useState<null | "google" | "microsoft" | "apple" | "password">(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  // Revealed only after the API says this account has SMS 2FA and has texted
+  // a code — most accounts never see it.
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaPhone, setMfaPhone] = useState<string | null>(null);
+  const [mfaNeeded, setMfaNeeded] = useState(false);
+
+  const onPasswordSubmit = async () => {
+    if (!email.trim() || !password) {
+      setError("Enter your email and password.");
+      return;
+    }
+    setError(null);
+    setBusy("password");
+    try {
+      await signInWithPassword(email, password, mfaNeeded ? mfaCode : undefined);
+    } catch (e) {
+      if (e instanceof MfaRequiredError) {
+        setMfaNeeded(true);
+        setMfaPhone(e.phone);
+        setMfaCode("");
+        setError(e.message);
+      } else {
+        setError(e instanceof Error ? e.message : "Sign-in failed.");
+      }
+    } finally {
+      setBusy(null);
+    }
+  };
   // Sign in with Apple — iOS only. Required by App Store guideline 4.8 when
   // we offer Google/Microsoft. Availability is checked at runtime.
   const [appleAvailable, setAppleAvailable] = useState(false);
@@ -151,8 +190,11 @@ export function SignInScreen() {
   }, [mRes, msDiscovery, mReq, msRedirect, completeSignIn]);
 
   return (
-    <View style={[styles.root, { backgroundColor: t.bg }]}>
-      <View style={styles.center}>
+    <KeyboardAvoidingView
+      style={[styles.root, { backgroundColor: t.bg }]}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView contentContainerStyle={styles.center} keyboardShouldPersistTaps="handled">
         <Wordmark size={28} />
         <Text style={[styles.eyebrow, { color: t.accent }]}>SIGN IN</Text>
         <Text style={[styles.title, { color: t.fg }]}>Welcome back</Text>
@@ -161,6 +203,83 @@ export function SignInScreen() {
         </Text>
 
         <View style={{ width: "100%", marginTop: SPACING.xl, gap: SPACING.md }}>
+          <TextInput
+            style={[styles.input, { backgroundColor: t.bgLift, borderColor: t.border, color: t.fg }]}
+            placeholder="Email"
+            placeholderTextColor={t.fgMuted}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            textContentType="username"
+            autoComplete="email"
+            editable={busy === null}
+            returnKeyType="next"
+          />
+          <TextInput
+            style={[styles.input, { backgroundColor: t.bgLift, borderColor: t.border, color: t.fg }]}
+            placeholder="Password"
+            placeholderTextColor={t.fgMuted}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            textContentType="password"
+            autoComplete="password"
+            editable={busy === null}
+            returnKeyType={mfaNeeded ? "next" : "go"}
+            onSubmitEditing={() => {
+              if (!mfaNeeded) void onPasswordSubmit();
+            }}
+          />
+          {mfaNeeded && (
+            <TextInput
+              style={[styles.input, { backgroundColor: t.bgLift, borderColor: t.border, color: t.fg }]}
+              placeholder={mfaPhone ? `6-digit code sent to ${mfaPhone}` : "6-digit code"}
+              placeholderTextColor={t.fgMuted}
+              value={mfaCode}
+              onChangeText={setMfaCode}
+              keyboardType="number-pad"
+              maxLength={6}
+              textContentType="oneTimeCode"
+              autoComplete="sms-otp"
+              editable={busy === null}
+              returnKeyType="go"
+              onSubmitEditing={() => void onPasswordSubmit()}
+            />
+          )}
+          <Pressable
+            disabled={busy !== null}
+            onPress={() => void onPasswordSubmit()}
+            style={({ pressed }) => [
+              styles.cta,
+              {
+                backgroundColor: t.accent,
+                opacity: busy !== null || pressed ? 0.7 : 1,
+              },
+            ]}
+          >
+            {busy === "password" ? (
+              <ActivityIndicator color={t.bg} />
+            ) : (
+              <Text style={[styles.ctaText, { color: t.bg }]}>Sign in</Text>
+            )}
+          </Pressable>
+          <Pressable
+            onPress={() => void WebBrowser.openBrowserAsync(FORGOT_PASSWORD_URL)}
+            hitSlop={8}
+          >
+            <Text style={[styles.link, { color: t.fgMuted }]}>Forgot password?</Text>
+          </Pressable>
+
+          <View style={styles.dividerRow}>
+            <View style={[styles.divider, { backgroundColor: t.border }]} />
+            <Text style={[styles.dividerText, { color: t.fgMuted }]}>or</Text>
+            <View style={[styles.divider, { backgroundColor: t.border }]} />
+          </View>
+
           <ProviderButton
             label="Continue with Google"
             loading={busy === "google"}
@@ -197,19 +316,13 @@ export function SignInScreen() {
             />
           )}
           {error && <Text style={[styles.error, { color: t.destructive }]}>{error}</Text>}
-          {!googleConfigured && !microsoftConfigured && !appleAvailable ? (
-            <Text style={[styles.fine, { color: t.accent }]}>
-              Sign-in isn’t enabled in this build yet — it’s coming in the next update.
-            </Text>
-          ) : (
-            <Text style={[styles.fine, { color: t.fgMuted }]}>
-              Use the Apple, Google, or Microsoft account tied to your work email. No
-              account? Ask your administrator to add you.
-            </Text>
-          )}
+          <Text style={[styles.fine, { color: t.fgMuted }]}>
+            Sign in with your email and password, or the work account tied to your
+            email. No account? Ask your administrator to add you.
+          </Text>
         </View>
-      </View>
-    </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -251,7 +364,21 @@ function ProviderButton({
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", padding: SPACING.xl, gap: SPACING.sm },
+  // flexGrow (not flex) — this is a ScrollView contentContainerStyle now, so the
+  // content still centres on tall screens but can scroll when the keyboard is up.
+  center: { flexGrow: 1, alignItems: "center", justifyContent: "center", padding: SPACING.xl, gap: SPACING.sm },
+  input: {
+    borderWidth: 1,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    // 50pt tall: comfortably above the 44pt minimum touch target.
+    height: 50,
+    fontSize: 15,
+  },
+  link: { fontSize: 13, textAlign: "center", textDecorationLine: "underline" },
+  dividerRow: { flexDirection: "row", alignItems: "center", gap: SPACING.sm, marginVertical: SPACING.xs },
+  divider: { flex: 1, height: 1 },
+  dividerText: { fontSize: 12 },
   eyebrow: { fontSize: 10, fontFamily: "Courier", letterSpacing: 1.4, marginTop: 24 },
   title: { fontFamily: "serif", fontSize: 32, fontWeight: "500", letterSpacing: -0.5, textAlign: "center" },
   sub: { fontSize: 14, textAlign: "center", lineHeight: 20, maxWidth: 280 },

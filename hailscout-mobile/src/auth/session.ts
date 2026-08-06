@@ -74,6 +74,71 @@ export async function exchange(provider: string, idToken: string): Promise<Excha
   return res.json() as Promise<ExchangeResult>;
 }
 
+/**
+ * Thrown when the password was correct but the account has SMS 2FA enrolled:
+ * the API has just texted a code and wants it on the next attempt. Carries the
+ * masked phone so the form can say where the code went.
+ */
+export class MfaRequiredError extends Error {
+  readonly phone: string | null;
+  constructor(detail: string, phone: string | null) {
+    super(detail);
+    this.name = "MfaRequiredError";
+    this.phone = phone;
+  }
+}
+
+/**
+ * Email + password sign-in. Mints the same session as the social `exchange`
+ * path, so everything downstream is identical.
+ *
+ * Required by both app stores: a reviewer cannot sign in through Google or
+ * Microsoft, so without this there is no way to hand them a demo account.
+ */
+export async function passwordLogin(
+  email: string,
+  password: string,
+  mfaCode?: string,
+): Promise<ExchangeResult> {
+  const res = await fetch(`${API_BASE}/v1/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: email.trim().toLowerCase(),
+      password,
+      ...(mfaCode ? { mfa_code: mfaCode } : {}),
+    }),
+  });
+  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+
+  if (
+    res.status === 401 &&
+    (body.error === "mfa_required" || body.error === "invalid_mfa_code")
+  ) {
+    throw new MfaRequiredError(
+      (body.detail as string) || "Enter the 6-digit code we texted you.",
+      (body.phone as string | null) ?? null,
+    );
+  }
+  if (!res.ok) {
+    throw new Error(
+      (body.detail as string) ||
+        (res.status === 429
+          ? "Too many sign-in attempts. Wait a few minutes and try again."
+          : "Incorrect email or password."),
+    );
+  }
+  // Privileged accounts past their 2FA grace window get an enrollment-only
+  // token with NO refresh token — signing in here would strand them, so send
+  // them to the web to enroll rather than half-authenticating.
+  if (body.mfa_enrollment_required) {
+    throw new Error(
+      "This account needs two-factor authentication set up on the website before it can sign in here.",
+    );
+  }
+  return body as unknown as ExchangeResult;
+}
+
 export interface RefreshResult {
   access_token: string;
   expires_in: number;

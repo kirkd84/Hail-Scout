@@ -24,6 +24,15 @@ interface AuthState {
     provider: "google" | "microsoft" | "apple",
     idToken: string,
   ) => Promise<void>;
+  /**
+   * Email + password sign-in. Throws `session.MfaRequiredError` when the
+   * account has SMS 2FA and a code is needed.
+   */
+  signInWithPassword: (
+    email: string,
+    password: string,
+    mfaCode?: string,
+  ) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -115,6 +124,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  // Same post-sign-in wiring as completeSignIn, just a different credential.
+  const signInWithPassword = useCallback(
+    async (email: string, password: string, mfaCode?: string) => {
+      const r = await session.passwordLogin(email, password, mfaCode);
+      await session.saveTokens(r.access_token, r.refresh_token);
+      cache.current = { token: r.access_token, exp: session.decodeExpMs(r.access_token) };
+      setUser(r.user);
+      setOrganization(r.organization);
+      setIsSignedIn(true);
+      void registerForPushNotifications(async () => r.access_token);
+    },
+    [],
+  );
+
   const signOut = useCallback(async () => {
     await unregisterPushNotifications(getToken);
     const refresh = await session.getRefresh();
@@ -128,7 +151,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <Ctx.Provider
-      value={{ isLoaded, isSignedIn, user, organization, getToken, completeSignIn, signOut }}
+      value={{
+        isLoaded,
+        isSignedIn,
+        user,
+        organization,
+        getToken,
+        completeSignIn,
+        signInWithPassword,
+        signOut,
+      }}
     >
       {children}
     </Ctx.Provider>
